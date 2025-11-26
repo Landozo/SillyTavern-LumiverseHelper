@@ -69,6 +69,16 @@ function parseWorldBook(data) {
             entry.displayName = nameMatch ? nameMatch[1].trim() : comment.replace(/~~/g, "").trim();
 
             if (type === "definition") {
+                // Image extraction logic
+                if (entry.image === undefined) {
+                    const imgMatch = entry.content.match(/\[lumia_img=(.+?)\]/);
+                    if (imgMatch) {
+                        entry.image = imgMatch[1].trim();
+                        entry.content = entry.content.replace(imgMatch[0], "").trim();
+                    } else {
+                        entry.image = null;
+                    }
+                }
                 definitions.push(entry);
             } else if (type === "behavior") {
                 behaviors.push(entry);
@@ -138,7 +148,7 @@ function renderList(containerId, items, type, currentSelection) {
         div.className = "lumia-item";
         
         const input = document.createElement("input");
-        const isMultiple = type !== "definition";
+        const isMultiple = type !== "definition"; // Should only be behavior/personality here now
         input.type = isMultiple ? "checkbox" : "radio";
         input.name = `lumia-${type}`;
         input.value = item.uid;
@@ -156,9 +166,7 @@ function renderList(containerId, items, type, currentSelection) {
         }
 
         input.addEventListener("change", () => {
-            if (type === "definition") {
-                settings.selectedDefinition = Number(item.uid);
-            } else if (type === "behavior") {
+            if (type === "behavior") {
                 if (input.checked) {
                     if (!settings.selectedBehaviors.includes(Number(item.uid))) {
                         settings.selectedBehaviors.push(Number(item.uid));
@@ -188,6 +196,62 @@ function renderList(containerId, items, type, currentSelection) {
     });
 }
 
+function showDefinitionsModal() {
+    // Ensure definitions are parsed
+    let definitions = [];
+    if (settings.worldBookData && settings.worldBookData.entries) {
+        const parsed = parseWorldBook(settings.worldBookData);
+        definitions = parsed.definitions;
+    }
+
+    $("#lumia-definitions-modal").remove();
+
+    const modalHtml = `
+        <div id="lumia-definitions-modal" class="lumia-modal">
+            <div class="lumia-modal-content">
+                <div class="lumia-modal-header">
+                    <h3>Select Definition</h3>
+                    <span class="lumia-modal-close">&times;</span>
+                </div>
+                <div class="lumia-modal-body">
+                    <div class="lumia-grid">
+                        ${definitions.length > 0 ? definitions.map(def => `
+                            <div class="lumia-grid-item ${settings.selectedDefinition === Number(def.uid) ? 'selected' : ''}" data-uid="${def.uid}">
+                                <div class="lumia-item-image">
+                                    ${def.image ? `<img src="${def.image}" alt="${def.displayName}">` : '<div class="lumia-placeholder-img">?</div>'}
+                                </div>
+                                <div class="lumia-item-name">${def.displayName || "Unknown"}</div>
+                            </div>
+                        `).join("") : '<div class="lumia-empty">No definitions found</div>'}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    $("body").append(modalHtml);
+    const $modal = $("#lumia-definitions-modal");
+
+    $modal.find(".lumia-modal-close").click(() => $modal.remove());
+    
+    // Close on clicking outside
+    $(window).on('click.lumiaModal', function(event) {
+        if (event.target == $modal[0]) {
+            $modal.remove();
+            $(window).off('click.lumiaModal');
+        }
+    });
+
+    $modal.find(".lumia-grid-item").click(function() {
+        const uid = $(this).data("uid");
+        settings.selectedDefinition = Number(uid);
+        saveSettings();
+        refreshUI();
+        $modal.remove();
+        $(window).off('click.lumiaModal');
+    });
+}
+
 function refreshUI() {
     const statusDiv = document.getElementById("lumia-book-status");
     const urlInput = document.getElementById("lumia-url-input");
@@ -200,11 +264,21 @@ function refreshUI() {
         const { definitions, behaviors, personalities } = parseWorldBook(settings.worldBookData);
         updateParsedEntries(definitions, behaviors, personalities);
         
-        renderList("lumia-list-definitions", definitions, "definition", settings.selectedDefinition);
+        // Update Definition Selector Label
+        const currentDefDiv = document.getElementById("lumia-current-definition");
+        if (currentDefDiv) {
+            const selectedDef = definitions.find(d => Number(d.uid) === settings.selectedDefinition);
+            currentDefDiv.textContent = selectedDef ? 
+                (selectedDef.displayName || "Unnamed Definition") : 
+                "No definition selected";
+        }
+        
         renderList("lumia-list-behaviors", behaviors, "behavior", settings.selectedBehaviors);
         renderList("lumia-list-personalities", personalities, "personality", settings.selectedPersonalities);
     } else {
         if (statusDiv) statusDiv.textContent = "No World Book loaded";
+        const currentDefDiv = document.getElementById("lumia-current-definition");
+        if (currentDefDiv) currentDefDiv.textContent = "No definition selected";
     }
 }
 
@@ -285,6 +359,10 @@ jQuery(async () => {
     $("#lumia-fetch-btn").click(() => {
         const url = $("#lumia-url-input").val();
         fetchWorldBook(url);
+    });
+
+    $("#lumia-open-definitions-btn").click(() => {
+        showDefinitionsModal();
     });
 
     $("#lumia-upload-btn").click(() => {
