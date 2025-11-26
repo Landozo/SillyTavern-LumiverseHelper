@@ -26,8 +26,13 @@ function saveSettings() {
     saveSettingsDebounced();
 }
 
+const get_extension_directory = () => {
+    const index_path = new URL(import.meta.url).pathname;
+    return index_path.substring(0, index_path.lastIndexOf("/"));
+};
+
 async function loadSettingsHtml() {
-    const response = await fetch(`${getContext().extensionFolderPath}/${MODULE_NAME}/settings.html`);
+    const response = await fetch(`${get_extension_directory()}/settings.html`);
     const html = await response.text();
     return html;
 }
@@ -214,12 +219,6 @@ MacrosParser.registerMacro("lumiaPersonality", () => {
 
 
 jQuery(async () => {
-    // Add Style
-    const styleLink = document.createElement("link");
-    styleLink.rel = "stylesheet";
-    styleLink.href = `${getContext().extensionFolderPath}/${MODULE_NAME}/style.css`;
-    document.head.appendChild(styleLink);
-
     // Initialize
     loadSettings();
 
