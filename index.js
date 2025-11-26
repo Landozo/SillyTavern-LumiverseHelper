@@ -234,5 +234,34 @@ jQuery(async () => {
         fetchWorldBook(url);
     });
 
+    $("#lumia-upload-btn").click(() => {
+        $("#lumia-file-input").click();
+    });
+
+    $("#lumia-file-input").change((event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (!data.entries) throw new Error("Invalid World Book format (no entries)");
+
+                settings.worldBookData = data;
+                settings.worldBookUrl = "Uploaded File: " + file.name;
+                saveSettings();
+                refreshUI();
+                toastr.success("World Book uploaded successfully!");
+            } catch (error) {
+                console.error("Lumia Injector Error:", error);
+                toastr.error("Failed to parse World Book: " + error.message);
+            }
+        };
+        reader.readAsText(file);
+        // Reset so same file can be selected again if needed
+        event.target.value = '';
+    });
+
     console.log(`${MODULE_NAME} initialized`);
 });
