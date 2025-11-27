@@ -496,6 +496,56 @@ async function fetchWorldBook(url) {
     }
 }
 
+// Lumia Randomization Logic
+let currentRandomLumia = null;
+
+function ensureRandomLumia() {
+    if (currentRandomLumia) return;
+    
+    const allItems = [];
+    if (settings.packs) {
+        Object.values(settings.packs).forEach(pack => {
+            if (pack.items && pack.items.length > 0) {
+                allItems.push(...pack.items);
+            }
+        });
+    }
+
+    if (allItems.length === 0) return;
+
+    const randomIndex = Math.floor(Math.random() * allItems.length);
+    currentRandomLumia = allItems[randomIndex];
+}
+
+eventSource.on(event_types.GENERATION_STARTED, () => {
+    currentRandomLumia = null;
+});
+
+MacrosParser.registerMacro("randomLumia", () => {
+    ensureRandomLumia();
+    return currentRandomLumia ? (currentRandomLumia.lumiaDef || "") : "";
+});
+
+MacrosParser.registerMacro("randomLumia.phys", () => {
+    ensureRandomLumia();
+    return currentRandomLumia ? (currentRandomLumia.lumiaDef || "") : "";
+});
+
+MacrosParser.registerMacro("randomLumia.pers", () => {
+    ensureRandomLumia();
+    return currentRandomLumia ? (currentRandomLumia.lumia_personality || "") : "";
+});
+
+MacrosParser.registerMacro("randomLumia.behav", () => {
+    ensureRandomLumia();
+    return currentRandomLumia ? (currentRandomLumia.lumia_behavior || "") : "";
+});
+
+MacrosParser.registerMacro("randomLumia.name", () => {
+    ensureRandomLumia();
+    return currentRandomLumia ? (currentRandomLumia.lumiaDefName || "") : "";
+});
+
 // Macro Registration
 function getLumiaContent(type, selection) {
     if (!selection) return "";
