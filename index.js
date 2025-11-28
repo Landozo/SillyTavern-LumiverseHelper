@@ -958,6 +958,66 @@ MacrosParser.registerMacro("loomRetrofits", () => {
 });
 
 // Message tracking and OOC trigger macros
+// --- OOC COMMENT INLINE DISPLAY ---
+// Regex to match <lumia_ooc><font color="#9370DB">content</font></lumia_ooc>
+const LUMIA_OOC_REGEX = /<lumia_ooc>\s*<font[^>]*>([\s\S]*?)<\/font>\s*<\/lumia_ooc>/gi;
+
+/**
+ * Process Lumia OOC comments in a message element
+ * Replaces <lumia_ooc> tags with styled comment boxes
+ * @param {HTMLElement} messageElement - The message element to process
+ */
+function processLumiaOOCComments(messageElement) {
+    if (!messageElement) return;
+
+    // Get the message HTML
+    const messageHTML = messageElement.innerHTML;
+
+    // Skip if no OOC tags found
+    if (!messageHTML.includes('<lumia_ooc>')) return;
+
+    console.log(`[${MODULE_NAME}] Processing Lumia OOC comments`);
+
+    // Get avatar image from selected definition
+    let avatarImg = null;
+    if (settings.selectedDefinition) {
+        const item = getItemFromLibrary(settings.selectedDefinition.packName, settings.selectedDefinition.itemName);
+        if (item && item.lumia_img) {
+            avatarImg = item.lumia_img;
+        }
+    }
+
+    // Replace OOC tags with styled comment boxes
+    const processedHTML = messageHTML.replace(LUMIA_OOC_REGEX, (match, content) => {
+        // Extract plain text content (strip any remaining HTML tags)
+        const textContent = content.trim();
+
+        // Create avatar HTML
+        const avatarHTML = avatarImg
+            ? `<img src="${avatarImg}" alt="Lumia Avatar" class="lumia-ooc-avatar">`
+            : `<div class="lumia-ooc-avatar lumia-ooc-avatar-placeholder">?</div>`;
+
+        // Build the styled comment box
+        return `
+            <div class="lumia-ooc-comment-box">
+                <div class="lumia-ooc-header">
+                    ${avatarHTML}
+                    <div class="lumia-ooc-title">Out-of-Context Commentary</div>
+                </div>
+                <div class="lumia-ooc-content">
+                    ${textContent}
+                </div>
+            </div>
+        `;
+    });
+
+    // Update the message element
+    if (processedHTML !== messageHTML) {
+        messageElement.innerHTML = processedHTML;
+        console.log(`[${MODULE_NAME}] Replaced Lumia OOC comments`);
+    }
+}
+
 MacrosParser.registerMacro("lumiaMessageCount", () => {
     const context = getContext();
     if (!context || !context.chat) return "0";
@@ -1050,6 +1110,15 @@ jQuery(async () => {
         reader.readAsText(file);
         // Reset so same file can be selected again if needed
         event.target.value = '';
+    });
+
+    // Hook into CHARACTER_MESSAGE_RENDERED to process OOC comments
+    eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, (messageId) => {
+        // Find the message element
+        const messageElement = document.querySelector(`#chat .mes[mesid="${messageId}"] .mes_text`);
+        if (messageElement) {
+            processLumiaOOCComments(messageElement);
+        }
     });
 
     console.log(`${MODULE_NAME} initialized`);

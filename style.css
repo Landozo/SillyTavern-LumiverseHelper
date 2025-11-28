@@ -73,7 +73,8 @@
     gap: 10px;
 }
 
-#lumia-current-definition, #lumia-current-behaviors, #lumia-current-personalities {
+#lumia-current-definition, #lumia-current-behaviors, #lumia-current-personalities,
+#loom-current-style, #loom-current-utils, #loom-current-retrofits {
     font-weight: bold;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -171,19 +172,100 @@
     padding: 5px 10px;
 }
 
+/* Lumia OOC Comment Box */
+.lumia-ooc-comment-box {
+    background: linear-gradient(135deg, rgba(147, 112, 219, 0.15) 0%, rgba(138, 43, 226, 0.1) 100%);
+    border: 2px solid rgba(147, 112, 219, 0.4);
+    border-radius: 12px;
+    padding: 16px;
+    margin: 12px 0;
+    box-shadow: 0 4px 12px rgba(147, 112, 219, 0.2);
+    transition: all 0.3s ease;
+}
+
+.lumia-ooc-comment-box:hover {
+    box-shadow: 0 6px 16px rgba(147, 112, 219, 0.3);
+    transform: translateY(-2px);
+}
+
+.lumia-ooc-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(147, 112, 219, 0.3);
+}
+
+.lumia-ooc-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(147, 112, 219, 0.6);
+    box-shadow: 0 2px 8px rgba(147, 112, 219, 0.3);
+    flex-shrink: 0;
+}
+
+.lumia-ooc-avatar-placeholder {
+    background: linear-gradient(135deg, #9370DB 0%, #8A2BE2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.lumia-ooc-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #9370DB;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    letter-spacing: 0.5px;
+}
+
+.lumia-ooc-content {
+    font-size: 1em;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.95);
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    border-left: 3px solid rgba(147, 112, 219, 0.5);
+}
+
 /* Mobile Responsiveness */
 @media (max-width: 600px) {
     .lumia-grid {
-        grid-template-columns: 1fr; 
+        grid-template-columns: 1fr;
     }
-    
+
     .lumia-definition-selector {
         flex-direction: column;
         align-items: stretch;
     }
-    #lumia-current-definition, #lumia-current-behaviors, #lumia-current-personalities {
+    #lumia-current-definition, #lumia-current-behaviors, #lumia-current-personalities,
+    #loom-current-style, #loom-current-utils, #loom-current-retrofits {
         text-align: center;
         margin-bottom: 10px;
         white-space: normal;
+    }
+
+    .lumia-ooc-comment-box {
+        padding: 12px;
+    }
+
+    .lumia-ooc-avatar {
+        width: 40px;
+        height: 40px;
+    }
+
+    .lumia-ooc-title {
+        font-size: 1em;
+    }
+
+    .lumia-ooc-content {
+        font-size: 0.95em;
     }
 }
