@@ -8,5 +8,6 @@
     "css": "style.css",
     "homePage": "https://github.com/prolix-oc/SillyTavern-LumiverseHelper.git",
     "requires": [],
-    "loading_order": 100
+    "loading_order": 100,
+    "generate_interceptor": "lumiverseHelperGenInterceptor"
 }

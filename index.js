@@ -16,6 +16,28 @@ let settings = {
     lumiaOOCInterval: null // Number of messages between OOC comments (null = disabled)
 };
 
+// Lumia Randomization State
+let currentRandomLumia = null;
+
+// --- GENERATION INTERCEPTOR ---
+// This interceptor is called before each generation (send, regenerate, swipe, continue, impersonate)
+// It ensures that randomLumia is reset on every generation, including swipes
+globalThis.lumiverseHelperGenInterceptor = async function (
+    chat,
+    contextSize,
+    abort,
+    type
+) {
+    console.log(`[${MODULE_NAME}] Generation interceptor called with type: ${type}`);
+
+    // Reset random Lumia on every generation type
+    // This ensures a new random Lumia is selected for each message, swipe, or regenerate
+    currentRandomLumia = null;
+
+    // Return unmodified context - we don't need to modify the chat array
+    return { chat, contextSize, abort };
+};
+
 function migrateSettings() {
     // Migration from v1 (flat library) to v2 (packs)
     let migrated = false;
@@ -775,8 +797,6 @@ async function fetchWorldBook(url) {
 }
 
 // Lumia Randomization Logic
-let currentRandomLumia = null;
-
 function ensureRandomLumia() {
     if (currentRandomLumia) return;
     
@@ -794,10 +814,6 @@ function ensureRandomLumia() {
     const randomIndex = Math.floor(Math.random() * allItems.length);
     currentRandomLumia = allItems[randomIndex];
 }
-
-eventSource.on(event_types.GENERATION_STARTED, () => {
-    currentRandomLumia = null;
-});
 
 MacrosParser.registerMacro("randomLumia", () => {
     ensureRandomLumia();
@@ -824,18 +840,56 @@ MacrosParser.registerMacro("randomLumia.name", () => {
     return currentRandomLumia ? (currentRandomLumia.lumiaDefName || "") : "";
 });
 
+// Helper function to process nested {{randomLumia}} macros in content
+function processNestedRandomLumiaMacros(content) {
+    if (!content || typeof content !== 'string') return content;
+
+    // Check if content contains any randomLumia macros
+    if (!content.includes('{{randomLumia')) return content;
+
+    // Ensure we have a random Lumia selected
+    ensureRandomLumia();
+
+    if (!currentRandomLumia) return content;
+
+    let processed = content;
+    let iterations = 0;
+    const maxIterations = 10; // Prevent infinite loops
+
+    // Keep processing until no more randomLumia macros are found
+    while (processed.includes('{{randomLumia') && iterations < maxIterations) {
+        let previousContent = processed;
+
+        // Order matters: replace specific variants before generic ones
+        processed = processed.replace(/\{\{randomLumia\.name\}\}/g, currentRandomLumia.lumiaDefName || "");
+        processed = processed.replace(/\{\{randomLumia\.pers\}\}/g, currentRandomLumia.lumia_personality || "");
+        processed = processed.replace(/\{\{randomLumia\.behav\}\}/g, currentRandomLumia.lumia_behavior || "");
+        processed = processed.replace(/\{\{randomLumia\.phys\}\}/g, currentRandomLumia.lumiaDef || "");
+        processed = processed.replace(/\{\{randomLumia\}\}/g, currentRandomLumia.lumiaDef || "");
+
+        // If no changes were made, break to prevent infinite loop
+        if (previousContent === processed) break;
+
+        iterations++;
+    }
+
+    return processed;
+}
+
 // Macro Registration
 function getLumiaContent(type, selection) {
     if (!selection) return "";
-    
+
     // Handle array (Multi-select)
     if (Array.isArray(selection)) {
          const contents = selection.map(sel => {
              const item = getItemFromLibrary(sel.packName, sel.itemName);
              if (!item) return "";
-             if (type === 'behavior') return item.lumia_behavior || "";
-             if (type === 'personality') return item.lumia_personality || "";
-             return "";
+             let content = "";
+             if (type === 'behavior') content = item.lumia_behavior || "";
+             if (type === 'personality') content = item.lumia_personality || "";
+             // Process nested randomLumia macros
+             return processNestedRandomLumiaMacros(content);
          }).filter(s => s).map(s => s.trim());
 
          if (type === 'behavior') {
@@ -844,16 +898,17 @@ function getLumiaContent(type, selection) {
              return contents.join("\n\n").trim();
          }
          return contents.join("\n").trim();
-    } 
-    
+    }
+
     // Single Item
     const item = getItemFromLibrary(selection.packName, selection.itemName);
     if (!item) return "";
-    
+
     let content = "";
     if (type === 'def') content = item.lumiaDef || "";
-    
-    return content.trim();
+
+    // Process nested randomLumia macros before returning
+    return processNestedRandomLumiaMacros(content).trim();
 }
 
 MacrosParser.registerMacro("lumiaDef", () => {
@@ -878,7 +933,9 @@ function getLoomContent(selection) {
 
     const contents = selections.map(sel => {
         const item = getItemFromLibrary(sel.packName, sel.itemName);
-        return item ? item.loomContent : null;
+        if (!item || !item.loomContent) return null;
+        // Process nested randomLumia macros
+        return processNestedRandomLumiaMacros(item.loomContent);
     }).filter(c => c);
 
     // Join with double newlines, but not after the last entry
