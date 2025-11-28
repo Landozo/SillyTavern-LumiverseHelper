@@ -23,8 +23,8 @@
 
             <!-- Configuration Section -->
             <div class="lumia-section">
-                <h3>Configuration</h3>
-                
+                <h3>Lumia Configuration</h3>
+
                 <h4>Definitions (Select One)</h4>
                 <div class="lumia-definition-selector">
                     <div id="lumia-current-definition">No definition selected</div>
@@ -44,6 +44,29 @@
                 </div>
             </div>
 
+            <!-- Loom Configuration Section -->
+            <div class="lumia-section">
+                <h3>Loom Configuration</h3>
+
+                <h4>Narrative Style (Select One)</h4>
+                <div class="lumia-definition-selector">
+                    <div id="loom-current-style">No style selected</div>
+                    <button id="loom-open-style-btn" class="menu_button">Select Style</button>
+                </div>
+
+                <h4>Loom Utilities (Select Multiple)</h4>
+                <div class="lumia-definition-selector">
+                    <div id="loom-current-utils">No utilities selected</div>
+                    <button id="loom-open-utils-btn" class="menu_button">Select Utilities</button>
+                </div>
+
+                <h4>Retrofits (Select Multiple)</h4>
+                <div class="lumia-definition-selector">
+                    <div id="loom-current-retrofits">No retrofits selected</div>
+                    <button id="loom-open-retrofits-btn" class="menu_button">Select Retrofits</button>
+                </div>
+            </div>
+
             <div class="lumia-section">
                 <h3>Usage</h3>
                 <p>Use the following macros in your prompts or character cards:</p>
@@ -52,6 +75,12 @@
                     <li><code>{{lumiaDef}}</code> - Inserts the selected Physical Definition.</li>
                     <li><code>{{lumiaBehavior}}</code> - Inserts the selected Behavior(s).</li>
                     <li><code>{{lumiaPersonality}}</code> - Inserts the selected Personality(s).</li>
+                </ul>
+                <h4>Loom Content Macros</h4>
+                <ul>
+                    <li><code>{{loomStyle}}</code> - Inserts the selected Narrative Style.</li>
+                    <li><code>{{loomUtils}}</code> - Inserts the selected Loom Utilities.</li>
+                    <li><code>{{loomRetrofits}}</code> - Inserts the selected Retrofits.</li>
                 </ul>
                 <h4>Random Lumia Macros</h4>
                 <ul>

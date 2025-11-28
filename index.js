@@ -10,6 +10,9 @@ let settings = {
     selectedDefinition: null, // { packName: string, itemName: string }
     selectedBehaviors: [], // Array of { packName: string, itemName: string }
     selectedPersonalities: [], // Array of { packName: string, itemName: string }
+    selectedLoomStyle: null, // { packName: string, itemName: string }
+    selectedLoomUtils: [], // Array of { packName: string, itemName: string }
+    selectedLoomRetrofits: [], // Array of { packName: string, itemName: string }
     lumiaOOCInterval: null // Number of messages between OOC comments (null = disabled)
 };
 
@@ -81,6 +84,8 @@ function migrateSettings() {
     if (!settings.packs) settings.packs = {};
     if (!settings.selectedBehaviors) settings.selectedBehaviors = [];
     if (!settings.selectedPersonalities) settings.selectedPersonalities = [];
+    if (!settings.selectedLoomUtils) settings.selectedLoomUtils = [];
+    if (!settings.selectedLoomRetrofits) settings.selectedLoomRetrofits = [];
     if (settings.lumiaOOCInterval === undefined) settings.lumiaOOCInterval = null;
 
     return migrated;
@@ -147,19 +152,38 @@ function processWorldBook(data) {
         return [];
     }
 
-    const map = new Map(); // Key: Lumia Name
+    const lumiaMap = new Map(); // Key: Lumia Name
+    const loomItems = []; // Array of Loom items (no merging needed)
 
     for (const entry of entries) {
         if (!entry.content || typeof entry.content !== 'string') continue;
 
         const comment = (entry.comment || "").trim();
-        
+
         // Extract name from parenthesis
         const nameMatch = comment.match(/\((.+?)\)/);
         if (!nameMatch) continue; // IGNORE if no parenthesis name
-        
+
         const name = nameMatch[1].trim();
-        let lumia = map.get(name);
+
+        // Check if this is a Loom entry
+        const categoryMatch = comment.match(/^(.+?)\s*\(/);
+        if (categoryMatch) {
+            const category = categoryMatch[1].trim();
+
+            // Check for Loom categories
+            if (category === "Loom Utilities" || category === "Retrofits" || category === "Narrative Style") {
+                loomItems.push({
+                    loomName: name,
+                    loomCategory: category,
+                    loomContent: entry.content.trim()
+                });
+                continue; // Skip Lumia processing
+            }
+        }
+
+        // Lumia processing (existing logic)
+        let lumia = lumiaMap.get(name);
         if (!lumia) {
             lumia = {
                 lumiaDefName: name,
@@ -169,7 +193,7 @@ function processWorldBook(data) {
                 lumiaDef: null,
                 defAuthor: null
             };
-            map.set(name, lumia);
+            lumiaMap.set(name, lumia);
         }
 
         const commentLower = comment.toLowerCase();
@@ -197,7 +221,7 @@ function processWorldBook(data) {
             if (behaviorMatch && !lumia.lumia_behavior) {
                 lumia.lumia_behavior = behaviorMatch[1].trim();
             }
-            
+
             if (personalityMatch) {
                 lumia.lumia_personality = personalityMatch[1].trim();
             } else {
@@ -207,13 +231,14 @@ function processWorldBook(data) {
         }
     }
 
-    return Array.from(map.values());
+    // Combine Lumia items and Loom items
+    return [...Array.from(lumiaMap.values()), ...loomItems];
 }
 
 function getItemFromLibrary(packName, itemName) {
     const pack = settings.packs[packName];
     if (!pack) return null;
-    return pack.items.find(i => i.lumiaDefName === itemName);
+    return pack.items.find(i => i.lumiaDefName === itemName || i.loomName === itemName);
 }
 
 function escapeHtml(text) {
@@ -462,6 +487,155 @@ function showMiscFeaturesModal() {
     $modal[0].showModal();
 }
 
+function showLoomSelectionModal(category) {
+    // category: 'Narrative Style' | 'Loom Utilities' | 'Retrofits'
+    const packs = Object.values(settings.packs);
+
+    let title = "";
+    let isMulti = false;
+    let settingsKey = null;
+
+    if (category === 'Narrative Style') {
+        title = "Select Narrative Style";
+        isMulti = false;
+        settingsKey = 'selectedLoomStyle';
+    } else if (category === 'Loom Utilities') {
+        title = "Select Loom Utilities";
+        isMulti = true;
+        settingsKey = 'selectedLoomUtils';
+    } else if (category === 'Retrofits') {
+        title = "Select Retrofits";
+        isMulti = true;
+        settingsKey = 'selectedLoomRetrofits';
+    }
+
+    $("#loom-selection-modal").remove();
+
+    // Build HTML for each pack
+    let contentHtml = "";
+
+    if (packs.length === 0) {
+        contentHtml = '<div class="lumia-empty">No Packs loaded. Add one in settings!</div>';
+    } else {
+        packs.forEach(pack => {
+            const packItems = pack.items;
+            if (!packItems || packItems.length === 0) return;
+
+            // Filter items by category
+            const categoryItems = packItems.filter(item => item.loomCategory === category);
+            if (categoryItems.length === 0) return;
+
+            // Render Items Grid (simpler for Loom - no images)
+            const itemsHtml = categoryItems.map(item => {
+                // Check selection
+                let isSelected = false;
+                const currentItemName = item.loomName;
+
+                if (isMulti) {
+                    const collection = settings[settingsKey];
+                    isSelected = collection.some(s => s.packName === pack.name && s.itemName === currentItemName);
+                } else {
+                    const sel = settings[settingsKey];
+                    isSelected = sel && sel.packName === pack.name && sel.itemName === currentItemName;
+                }
+
+                const escapedPackName = escapeHtml(pack.name);
+                const escapedItemName = escapeHtml(currentItemName);
+
+                return `
+                <div class="lumia-grid-item ${isSelected ? 'selected' : ''}"
+                     data-pack="${escapedPackName}"
+                     data-item="${escapedItemName}">
+                    <div class="lumia-item-name">${currentItemName || "Unknown"}</div>
+                </div>
+                `;
+            }).join("");
+
+            if (itemsHtml) {
+                contentHtml += `
+                <div class="lumia-pack-section">
+                    <div class="lumia-pack-header">
+                        <h4>${pack.name} - ${category} (${categoryItems.length})</h4>
+                    </div>
+                    <div class="lumia-grid">
+                        ${itemsHtml}
+                    </div>
+                </div>
+                `;
+            }
+        });
+
+        if (!contentHtml) {
+            contentHtml = `<div class="lumia-empty">No "${category}" items found in loaded packs.</div>`;
+        }
+    }
+
+    const modalHtml = `
+        <dialog id="loom-selection-modal" class="popup wide_dialogue_popup large_dialogue_popup vertical_scrolling_dialogue_popup popup--animation-fast">
+            <div class="popup-header">
+                <h3 style="margin: 0; padding: 10px 0;">${title}</h3>
+            </div>
+            <div class="popup-content" style="padding: 15px; flex: 1; display: flex; flex-direction: column;">
+                ${contentHtml}
+            </div>
+            <div class="popup-footer" style="display: flex; justify-content: center; padding: 15px; gap: 10px;">
+                ${isMulti ? '<button class="menu_button loom-modal-done">Done</button>' : '<button class="menu_button loom-modal-close-btn">Close</button>'}
+            </div>
+        </dialog>
+    `;
+
+    $("body").append(modalHtml);
+    const $modal = $("#loom-selection-modal");
+
+    const closeModal = () => {
+        $modal[0].close();
+        $modal.remove();
+        refreshUI();
+    };
+
+    $modal.find(".loom-modal-close-btn, .loom-modal-done").click(closeModal);
+
+    $modal.on("click", function (e) {
+        if (e.target === this) closeModal();
+    });
+
+    $modal.on("keydown", function (e) {
+        if (e.key === "Escape") closeModal();
+    });
+
+    // Handle Item Selection
+    $modal.find(".lumia-grid-item").click(function() {
+        const packName = $(this).data("pack");
+        const itemName = $(this).data("item");
+
+        if (!isMulti) {
+            settings[settingsKey] = { packName, itemName };
+            saveSettings();
+            closeModal();
+        } else {
+            const $this = $(this);
+            let collection = settings[settingsKey];
+
+            const existsIdx = collection.findIndex(s => s.packName === packName && s.itemName === itemName);
+
+            if (existsIdx !== -1) {
+                // Remove
+                collection.splice(existsIdx, 1);
+                $this.removeClass('selected');
+            } else {
+                // Add
+                collection.push({ packName, itemName });
+                $this.addClass('selected');
+            }
+
+            settings[settingsKey] = collection;
+            saveSettings();
+        }
+    });
+
+    $modal[0].showModal();
+}
+
 function refreshUI() {
     const statusDiv = document.getElementById("lumia-book-status");
     const packs = Object.values(settings.packs);
@@ -502,16 +676,51 @@ function refreshUI() {
                  const item = getItemFromLibrary(sel.packName, sel.itemName);
                  return item ? item.lumiaDefName : null;
             }).filter(n => n);
-            
+
             currentPersonalitiesDiv.textContent = names.length > 0 ? names.join(", ") : "No personalities selected";
         }
 
+        // Update Loom Style
+        const currentLoomStyleDiv = document.getElementById("loom-current-style");
+        if (currentLoomStyleDiv) {
+            const sel = settings.selectedLoomStyle;
+            if (sel) {
+                const item = getItemFromLibrary(sel.packName, sel.itemName);
+                currentLoomStyleDiv.textContent = item ? `${item.loomName} (${sel.packName})` : "Item not found (Maybe pack removed?)";
+            } else {
+                currentLoomStyleDiv.textContent = "No style selected";
+            }
+        }
+
+        // Update Loom Utilities List
+        const currentLoomUtilsDiv = document.getElementById("loom-current-utils");
+        if (currentLoomUtilsDiv) {
+            const names = settings.selectedLoomUtils.map(sel => {
+                const item = getItemFromLibrary(sel.packName, sel.itemName);
+                return item ? item.loomName : null;
+            }).filter(n => n);
+
+            currentLoomUtilsDiv.textContent = names.length > 0 ? names.join(", ") : "No utilities selected";
+        }
+
+        // Update Loom Retrofits List
+        const currentLoomRetrofitsDiv = document.getElementById("loom-current-retrofits");
+        if (currentLoomRetrofitsDiv) {
+            const names = settings.selectedLoomRetrofits.map(sel => {
+                const item = getItemFromLibrary(sel.packName, sel.itemName);
+                return item ? item.loomName : null;
+            }).filter(n => n);
+
+            currentLoomRetrofitsDiv.textContent = names.length > 0 ? names.join(", ") : "No retrofits selected";
+        }
+
     } else {
-        if (statusDiv) statusDiv.textContent = "No Lumia Definitions loaded";
-        
-        ["lumia-current-definition", "lumia-current-behaviors", "lumia-current-personalities"].forEach(id => {
+        if (statusDiv) statusDiv.textContent = "No Packs loaded";
+
+        ["lumia-current-definition", "lumia-current-behaviors", "lumia-current-personalities",
+         "loom-current-style", "loom-current-utils", "loom-current-retrofits"].forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.textContent = "No selection possible (Load definitions first)";
+            if (el) el.textContent = "No selection possible (Load packs first)";
         });
     }
 }
@@ -660,6 +869,37 @@ MacrosParser.registerMacro("lumiaPersonality", () => {
     return getLumiaContent('personality', settings.selectedPersonalities);
 });
 
+// Loom Content Macros
+function getLoomContent(selection) {
+    if (!selection) return "";
+
+    // Handle array (Multi-select) or single selection
+    const selections = Array.isArray(selection) ? selection : [selection];
+
+    const contents = selections.map(sel => {
+        const item = getItemFromLibrary(sel.packName, sel.itemName);
+        return item ? item.loomContent : null;
+    }).filter(c => c);
+
+    // Join with double newlines, but not after the last entry
+    return contents.join("\n\n").trim();
+}
+
+MacrosParser.registerMacro("loomStyle", () => {
+    if (!settings.selectedLoomStyle) return "";
+    return getLoomContent(settings.selectedLoomStyle);
+});
+
+MacrosParser.registerMacro("loomUtils", () => {
+    if (!settings.selectedLoomUtils || settings.selectedLoomUtils.length === 0) return "";
+    return getLoomContent(settings.selectedLoomUtils);
+});
+
+MacrosParser.registerMacro("loomRetrofits", () => {
+    if (!settings.selectedLoomRetrofits || settings.selectedLoomRetrofits.length === 0) return "";
+    return getLoomContent(settings.selectedLoomRetrofits);
+});
+
 // Message tracking and OOC trigger macros
 MacrosParser.registerMacro("lumiaMessageCount", () => {
     const context = getContext();
@@ -733,6 +973,18 @@ jQuery(async () => {
 
     $("#lumia-open-misc-btn").click(() => {
         showMiscFeaturesModal();
+    });
+
+    $("#loom-open-style-btn").click(() => {
+        showLoomSelectionModal('Narrative Style');
+    });
+
+    $("#loom-open-utils-btn").click(() => {
+        showLoomSelectionModal('Loom Utilities');
+    });
+
+    $("#loom-open-retrofits-btn").click(() => {
+        showLoomSelectionModal('Retrofits');
     });
 
     $("#lumia-upload-btn").click(() => {
