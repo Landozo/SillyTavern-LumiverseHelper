@@ -394,15 +394,16 @@
 /* ============================================
    LUMIA OOC - MARGIN NOTE STYLE
    Apple-esque minimal hanging tag design
+   Avatar flush against text box as one unified piece
    ============================================ */
 
 .lumia-ooc-margin {
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: stretch;
     gap: 0;
     padding: 0;
-    margin: 14px 4px 14px 0;
+    margin: 14px 4px;
     background: transparent;
     position: relative;
 }
@@ -410,39 +411,41 @@
 /* Alternating orientation for stacked OOCs */
 .lumia-ooc-margin.lumia-ooc-alt {
     flex-direction: row-reverse;
-    margin: 14px 0 14px 4px;
 }
 
-/* The hanging tag/badge - larger with prominent avatar */
+/* The avatar tag - flush against text box, matches its height */
 .lumia-ooc-margin .lumia-ooc-margin-tag {
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    min-height: 48px;
     background: linear-gradient(
         135deg,
         rgba(147, 112, 219, 0.95) 0%,
         rgba(123, 95, 196, 0.95) 100%
     );
-    border-radius: 10px;
-    margin-right: -1px;
+    /* Rounded on outer edge, square on inner edge flush with text box */
+    border-radius: 10px 0 0 10px;
     position: relative;
-    z-index: 2;
+    z-index: 1;
     box-shadow:
-        0 3px 12px rgba(147, 112, 219, 0.35),
-        0 1px 4px rgba(0, 0, 0, 0.25);
-    border: 2px solid rgba(186, 135, 255, 0.3);
+        -2px 0 8px rgba(147, 112, 219, 0.25),
+        0 2px 8px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
 }
 
+/* Alternating: flip the border radius */
 .lumia-ooc-margin.lumia-ooc-alt .lumia-ooc-margin-tag {
-    margin-right: 0;
-    margin-left: -1px;
+    border-radius: 0 10px 10px 0;
+    box-shadow:
+        2px 0 8px rgba(147, 112, 219, 0.25),
+        0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .lumia-ooc-margin .lumia-ooc-margin-tag-letter {
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.95);
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
@@ -452,35 +455,32 @@
 .lumia-ooc-margin .lumia-ooc-margin-tag-avatar {
     width: 100%;
     height: 100%;
-    border-radius: 8px;
     object-fit: cover;
+    /* No border radius - fills the tag completely */
 }
 
-/* The content area with left accent line */
+/* The content area - flush against avatar */
 .lumia-ooc-margin .lumia-ooc-margin-content-area {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
+    justify-content: center;
     padding: 10px 14px;
-    border-left: 2px solid rgba(147, 112, 219, 0.5);
     background: linear-gradient(
-        90deg,
-        rgba(147, 112, 219, 0.06) 0%,
-        transparent 100%
+        135deg,
+        rgba(30, 24, 42, 0.8) 0%,
+        rgba(40, 32, 55, 0.75) 100%
     );
+    border: 1px solid rgba(147, 112, 219, 0.25);
+    border-left: none;
     border-radius: 0 10px 10px 0;
 }
 
 /* Alternating: flip the content area styling */
 .lumia-ooc-margin.lumia-ooc-alt .lumia-ooc-margin-content-area {
-    border-left: none;
-    border-right: 2px solid rgba(147, 112, 219, 0.5);
-    background: linear-gradient(
-        270deg,
-        rgba(147, 112, 219, 0.06) 0%,
-        transparent 100%
-    );
+    border-left: 1px solid rgba(147, 112, 219, 0.25);
+    border-right: none;
     border-radius: 10px 0 0 10px;
     text-align: right;
 }
@@ -489,7 +489,7 @@
 .lumia-ooc-margin .lumia-ooc-margin-label {
     font-size: 11px;
     font-weight: 500;
-    color: rgba(147, 112, 219, 0.7);
+    color: rgba(186, 135, 255, 0.8);
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
     letter-spacing: 0.3px;
     text-transform: uppercase;
@@ -500,7 +500,7 @@
 .lumia-ooc-margin .lumia-ooc-margin-text {
     font-size: 14px;
     line-height: 1.5;
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(255, 255, 255, 0.88);
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
     letter-spacing: -0.1px;
     word-wrap: break-word;
@@ -716,12 +716,12 @@
 
     /* Margin Note Mobile */
     .lumia-ooc-margin .lumia-ooc-margin-tag {
-        width: 28px;
-        height: 28px;
+        width: 40px;
+        min-height: 40px;
     }
 
     .lumia-ooc-margin .lumia-ooc-margin-tag-letter {
-        font-size: 14px;
+        font-size: 18px;
     }
 
     .lumia-ooc-margin .lumia-ooc-margin-content-area {
