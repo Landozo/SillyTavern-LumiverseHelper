@@ -1348,6 +1348,9 @@ function processAllLumiaOOCComments(clearExisting = false) {
 let oocProcessingTimer = null;
 let oocRenderWaitTimer = null;
 
+// Flag to track if generation is in progress (prevents observer interference)
+let isGenerating = false;
+
 /**
  * Schedule OOC processing after chat render completes
  * Uses a multi-stage approach:
@@ -1489,6 +1492,11 @@ function setupLumiaOOCObserver() {
     const chatElement = document.getElementById("chat");
 
     const observer = new MutationObserver((mutations) => {
+        // Skip processing during active generation - let CHARACTER_MESSAGE_RENDERED handle it
+        if (isGenerating) {
+            return;
+        }
+
         mutations.forEach((mutation) => {
             // Handle added nodes
             mutation.addedNodes.forEach((node) => {
@@ -1511,20 +1519,20 @@ function setupLumiaOOCObserver() {
                 }
 
                 messageElements.forEach((messageElement) => {
-                    // Check for OOC fonts and process or hide them
+                    // Skip if this message already has OOC boxes (already processed)
+                    const existingBoxes = queryAll('[data-lumia-ooc]', messageElement);
+                    if (existingBoxes.length > 0) {
+                        return;
+                    }
+
+                    // Check for OOC fonts and process them
                     const oocFonts = queryAll('font', messageElement).filter(isLumiaOOCFont);
                     if (oocFonts.length > 0) {
-                        // Check if streaming (last message)
-                        const isLastMessage = messageElement.closest('.mes')?.classList.contains('last_mes');
-                        if (isLastMessage) {
-                            hideStreamingOOCMarkers(messageElement);
-                        } else {
-                            // Not streaming, process immediately
-                            const mesBlock = messageElement.closest('div[mesid]');
-                            if (mesBlock) {
-                                const mesId = parseInt(mesBlock.getAttribute('mesid'), 10);
-                                processLumiaOOCComments(mesId);
-                            }
+                        const mesBlock = messageElement.closest('div[mesid]');
+                        if (mesBlock) {
+                            const mesId = parseInt(mesBlock.getAttribute('mesid'), 10);
+                            console.log(`[${MODULE_NAME}] 🔮 Observer: Processing OOC in message ${mesId}`);
+                            processLumiaOOCComments(mesId);
                         }
                     }
                 });
@@ -1535,10 +1543,7 @@ function setupLumiaOOCObserver() {
     const targetElement = chatElement || document.body;
     observer.observe(targetElement, {
         childList: true,
-        subtree: true,
-        characterData: true,
-        attributes: true,
-        attributeFilter: ['color'] // Watch for color attribute changes on font elements
+        subtree: true
     });
 
     console.log(`[${MODULE_NAME}] 🔮 OOC observer started on ${chatElement ? 'chat element' : 'body (fallback)'}`);
@@ -1690,13 +1695,19 @@ jQuery(async () => {
         scheduleOOCProcessingAfterRender();
     });
 
-    // Handle generation end - unhide any hidden OOC markers
+    // Track generation start to prevent observer interference
+    eventSource.on(event_types.GENERATION_STARTED, () => {
+        console.log(`[${MODULE_NAME}] 🔮 GENERATION_STARTED - disabling OOC observer processing`);
+        isGenerating = true;
+    });
+
+    // Handle generation end - mark generation complete and unhide markers
     // The actual processing will be done by CHARACTER_MESSAGE_RENDERED
     eventSource.on(event_types.GENERATION_ENDED, () => {
-        console.log(`[${MODULE_NAME}] 🔮 GENERATION_ENDED event - unhiding OOC markers`);
+        console.log(`[${MODULE_NAME}] 🔮 GENERATION_ENDED - re-enabling OOC observer processing`);
+        isGenerating = false;
 
         // Unhide any markers that were hidden during streaming
-        // CHARACTER_MESSAGE_RENDERED will handle the actual processing
         const chatElement = document.getElementById("chat");
         if (chatElement) {
             const hiddenMarkers = queryAll('.lumia-ooc-marker-hidden', chatElement);
