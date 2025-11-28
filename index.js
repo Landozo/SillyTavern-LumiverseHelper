@@ -965,21 +965,24 @@ const LUMIA_OOC_REGEX = /<lumia_ooc>\s*<font[^>]*>([\s\S]*?)<\/font>\s*<\/lumia_
 /**
  * Process Lumia OOC comments in a message
  * Replaces <lumia_ooc> tags with styled comment boxes
- * Following SimTracker's pattern: read from chat array, not DOM
+ * Following SimTracker's inline template pattern: operate on already-rendered DOM innerHTML
  * @param {number} mesId - The message ID to process
  */
 function processLumiaOOCComments(mesId) {
     try {
-        const context = getContext();
-        const message = context.chat[mesId];
+        // Get the message element from DOM first (SimTracker pattern)
+        const messageElement = document.querySelector(`div[mesid="${mesId}"] .mes_text`);
 
-        if (!message || !message.mes) {
-            console.log(`[${MODULE_NAME}] No message found for ID ${mesId}`);
+        if (!messageElement) {
+            console.log(`[${MODULE_NAME}] Message element not found in DOM for mesId ${mesId}`);
             return;
         }
 
-        // Check if message contains OOC tags (in raw content, not DOM)
-        if (!message.mes.includes('<lumia_ooc>')) return;
+        // Check if the rendered HTML contains OOC tags
+        const messageHTML = messageElement.innerHTML;
+        if (!messageHTML.includes('<lumia_ooc>') && !messageHTML.includes('&lt;lumia_ooc&gt;')) {
+            return;
+        }
 
         console.log(`[${MODULE_NAME}] Processing Lumia OOC comments in message ${mesId}`);
 
@@ -997,49 +1000,189 @@ function processLumiaOOCComments(mesId) {
             ? `<img src="${avatarImg}" alt="Lumia Avatar" class="lumia-ooc-avatar">`
             : `<div class="lumia-ooc-avatar lumia-ooc-avatar-placeholder">?</div>`;
 
-        // Replace OOC tags in the RAW message content
-        const processedMessage = message.mes.replace(LUMIA_OOC_REGEX, (match, content) => {
-            // Extract text content (strip any remaining HTML tags within font)
+        // Track if we made changes
+        let hasChanges = false;
+
+        // Replace OOC tags in the already-rendered HTML (SimTracker pattern)
+        let processedHTML = messageHTML.replace(LUMIA_OOC_REGEX, (match, content) => {
+            hasChanges = true;
             const textContent = content.trim();
 
             // Build the styled comment box
-            return `
-                <div class="lumia-ooc-comment-box">
-                    <div class="lumia-ooc-header">
-                        ${avatarHTML}
-                        <div class="lumia-ooc-title">Out-of-Context Commentary</div>
-                    </div>
-                    <div class="lumia-ooc-content">
-                        ${textContent}
-                    </div>
+            return `<div class="lumia-ooc-comment-box">
+                <div class="lumia-ooc-header">
+                    ${avatarHTML}
+                    <div class="lumia-ooc-title">Out-of-Context Commentary</div>
                 </div>
-            `;
+                <div class="lumia-ooc-content">
+                    ${textContent}
+                </div>
+            </div>`;
         });
 
-        // Only update if changes were made
-        if (processedMessage !== message.mes) {
-            // Get the message element
-            const messageElement = document.querySelector(`div[mesid="${mesId}"] .mes_text`);
+        // Also handle HTML-escaped versions (in case SillyTavern escaped the tags)
+        const ESCAPED_OOC_REGEX = /&lt;lumia_ooc&gt;\s*&lt;font[^&]*&gt;([\s\S]*?)&lt;\/font&gt;\s*&lt;\/lumia_ooc&gt;/gi;
+        processedHTML = processedHTML.replace(ESCAPED_OOC_REGEX, (match, content) => {
+            hasChanges = true;
+            // Decode HTML entities in the content
+            const textarea = document.createElement('textarea');
+            textarea.innerHTML = content.trim();
+            const textContent = textarea.value;
 
-            if (!messageElement) {
-                console.log(`[${MODULE_NAME}] Message element not found in DOM for mesId ${mesId}`);
-                return;
-            }
+            return `<div class="lumia-ooc-comment-box">
+                <div class="lumia-ooc-header">
+                    ${avatarHTML}
+                    <div class="lumia-ooc-title">Out-of-Context Commentary</div>
+                </div>
+                <div class="lumia-ooc-content">
+                    ${textContent}
+                </div>
+            </div>`;
+        });
 
-            // Use messageFormatting to properly format and display (like SimTracker does)
-            messageElement.innerHTML = messageFormatting(
-                processedMessage,
-                message.name,
-                message.is_system,
-                message.is_user,
-                mesId
-            );
-
+        // Update the DOM directly if changes were made (SimTracker pattern)
+        if (hasChanges) {
+            messageElement.innerHTML = processedHTML;
             console.log(`[${MODULE_NAME}] Replaced Lumia OOC comments in message ${mesId}`);
         }
     } catch (error) {
         console.error(`[${MODULE_NAME}] Error processing OOC comments:`, error);
     }
+}
+
+/**
+ * Process all Lumia OOC comments in the chat (SimTracker pattern)
+ * Called on CHAT_CHANGED to ensure all messages are processed
+ */
+function processAllLumiaOOCComments() {
+    const context = getContext();
+    if (!context || !context.chat) return;
+
+    console.log(`[${MODULE_NAME}] Processing all OOC comments in chat`);
+
+    for (let i = 0; i < context.chat.length; i++) {
+        processLumiaOOCComments(i);
+    }
+}
+
+/**
+ * Hide partial OOC markers during streaming (SimTracker pattern)
+ * @param {HTMLElement} messageElement - The message element to process
+ */
+function hideStreamingOOCMarkers(messageElement) {
+    const messageText = messageElement.textContent || "";
+
+    // Check if there are partial OOC markers (opening tag without closing)
+    if (!messageText.includes('<lumia_ooc>') && !messageText.includes('&lt;lumia_ooc&gt;')) {
+        return;
+    }
+
+    // Check if we have a complete marker
+    const hasComplete = LUMIA_OOC_REGEX.test(messageElement.innerHTML);
+    LUMIA_OOC_REGEX.lastIndex = 0; // Reset regex state
+
+    if (hasComplete) {
+        // Complete marker found, process it
+        return;
+    }
+
+    // Find partial markers and hide them (TreeWalker approach from SimTracker)
+    const walker = document.createTreeWalker(
+        messageElement,
+        NodeFilter.SHOW_TEXT,
+        null
+    );
+
+    const textNodes = [];
+    let node;
+    while (node = walker.nextNode()) {
+        textNodes.push(node);
+    }
+
+    textNodes.forEach(textNode => {
+        const text = textNode.textContent;
+        if (text.includes('<lumia_ooc>') || text.includes('&lt;lumia_ooc&gt;')) {
+            // This is a partial marker - hide it
+            const span = document.createElement("span");
+            span.className = "lumia-ooc-marker-hidden";
+            span.style.display = "none";
+            span.textContent = text;
+            textNode.parentNode.replaceChild(span, textNode);
+        }
+    });
+}
+
+/**
+ * Unhide and process OOC markers after streaming completes (SimTracker pattern)
+ * @param {HTMLElement} messageElement - The message element to process
+ */
+function unhideAndProcessOOCMarkers(messageElement) {
+    const hiddenMarkers = messageElement.querySelectorAll(".lumia-ooc-marker-hidden");
+
+    if (hiddenMarkers.length === 0) return;
+
+    console.log(`[${MODULE_NAME}] Unhiding ${hiddenMarkers.length} OOC markers`);
+
+    // Unhide by replacing span with text node
+    hiddenMarkers.forEach(span => {
+        const textNode = document.createTextNode(span.textContent);
+        span.parentNode.replaceChild(textNode, span);
+    });
+
+    // Get mesId from parent element and process
+    const mesBlock = messageElement.closest('div[mesid]');
+    if (mesBlock) {
+        const mesId = parseInt(mesBlock.getAttribute('mesid'), 10);
+        processLumiaOOCComments(mesId);
+    }
+}
+
+/**
+ * Set up MutationObserver for streaming support (SimTracker pattern)
+ * Observes chat for new messages and hides partial OOC markers during streaming
+ */
+function setupLumiaOOCObserver() {
+    const chatElement = document.getElementById("chat");
+
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+                // Check if this is a message text element or contains one
+                let messageElements = [];
+                if (node.classList && node.classList.contains('mes_text')) {
+                    messageElements = [node];
+                } else if (node.querySelectorAll) {
+                    messageElements = Array.from(node.querySelectorAll('.mes_text'));
+                }
+
+                messageElements.forEach((messageElement) => {
+                    // Hide partial markers during streaming
+                    hideStreamingOOCMarkers(messageElement);
+                });
+            });
+        });
+    });
+
+    if (chatElement) {
+        observer.observe(chatElement, {
+            childList: true,
+            subtree: true,
+            characterData: true
+        });
+        console.log(`[${MODULE_NAME}] OOC observer started on chat element`);
+    } else {
+        // Fallback to body if chat element not found
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            characterData: true
+        });
+        console.log(`[${MODULE_NAME}] OOC observer started on body (fallback)`);
+    }
+
+    return observer;
 }
 
 MacrosParser.registerMacro("lumiaMessageCount", () => {
@@ -1138,9 +1281,39 @@ jQuery(async () => {
 
     // Hook into CHARACTER_MESSAGE_RENDERED to process OOC comments
     eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, (mesId) => {
-        // Process OOC comments by reading from chat array (like SimTracker)
         processLumiaOOCComments(mesId);
     });
+
+    // Handle message edits - reprocess OOC comments (SimTracker pattern)
+    eventSource.on(event_types.MESSAGE_EDITED, (mesId) => {
+        processLumiaOOCComments(mesId);
+    });
+
+    // Handle swipes - reprocess OOC comments (SimTracker pattern)
+    eventSource.on(event_types.MESSAGE_SWIPED, (mesId) => {
+        processLumiaOOCComments(mesId);
+    });
+
+    // Handle chat changes - reprocess all OOC comments (SimTracker pattern)
+    eventSource.on(event_types.CHAT_CHANGED, () => {
+        processAllLumiaOOCComments();
+    });
+
+    // Handle generation end - unhide and process any hidden OOC markers (SimTracker pattern)
+    eventSource.on(event_types.GENERATION_ENDED, () => {
+        // Find all message elements and unhide any hidden markers
+        const chatElement = document.getElementById("chat");
+        if (chatElement) {
+            const messageElements = chatElement.querySelectorAll('.mes_text');
+            messageElements.forEach(messageElement => {
+                unhideAndProcessOOCMarkers(messageElement);
+            });
+        }
+    });
+
+    // Set up MutationObserver for streaming support (SimTracker pattern)
+    // This hides partial OOC markers during generation
+    setupLumiaOOCObserver();
 
     console.log(`${MODULE_NAME} initialized`);
 });

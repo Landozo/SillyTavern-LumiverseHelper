@@ -235,6 +235,11 @@
     border-left: 3px solid rgba(147, 112, 219, 0.5);
 }
 
+/* Hidden OOC markers during streaming */
+.lumia-ooc-marker-hidden {
+    display: none !important;
+}
+
 /* Mobile Responsiveness */
 @media (max-width: 600px) {
     .lumia-grid {
