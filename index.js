@@ -1351,9 +1351,6 @@ let oocRenderWaitTimer = null;
 // Flag to track if generation is in progress (prevents observer interference)
 let isGenerating = false;
 
-// Debounce timer for post-generation OOC processing
-let postGenerationOOCTimer = null;
-
 /**
  * Schedule OOC processing after chat render completes
  * Uses a multi-stage approach:
@@ -1649,34 +1646,32 @@ jQuery(async () => {
     });
 
     // Hook into CHARACTER_MESSAGE_RENDERED to process OOC comments
-    // Note: During active generation, we skip here and let GENERATION_ENDED handle it
-    // This prevents the "flash then disappear" issue caused by ST re-rendering after this event
+    // This is the primary handler - fires after message is fully rendered to DOM
     eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, (mesId) => {
-        console.log(`[${MODULE_NAME}] 🔮 CHARACTER_MESSAGE_RENDERED event for mesId ${mesId}, isGenerating=${isGenerating}`);
+        console.log(`[${MODULE_NAME}] 🔮 CHARACTER_MESSAGE_RENDERED event for mesId ${mesId}`);
 
-        // If still generating, skip - GENERATION_ENDED will handle with proper delay
-        if (isGenerating) {
-            console.log(`[${MODULE_NAME}] 🔮 Skipping CHARACTER_MESSAGE_RENDERED during generation - GENERATION_ENDED will handle`);
-            return;
-        }
+        // Reset generation flag - successful render means generation completed
+        isGenerating = false;
 
-        // For non-generation renders (edits, swipes handled elsewhere, initial load), process with small delay
-        setTimeout(() => {
-            const messageElement = query(`div[mesid="${mesId}"] .mes_text`);
-            if (messageElement) {
-                // Unhide any markers that were hidden during streaming
-                unhideAndProcessOOCMarkers(messageElement);
+        // Use requestAnimationFrame + small delay to ensure we're after any synchronous DOM updates
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                const messageElement = query(`div[mesid="${mesId}"] .mes_text`);
+                if (messageElement) {
+                    // Unhide any markers that were hidden during streaming
+                    unhideAndProcessOOCMarkers(messageElement);
 
-                // Check for any unprocessed OOC fonts and process them
-                const fontElements = queryAll('font', messageElement);
-                const oocFonts = fontElements.filter(isLumiaOOCFont);
+                    // Check for any unprocessed OOC fonts and process them
+                    const fontElements = queryAll('font', messageElement);
+                    const oocFonts = fontElements.filter(isLumiaOOCFont);
 
-                if (oocFonts.length > 0) {
-                    console.log(`[${MODULE_NAME}] 🔮 Processing ${oocFonts.length} OOC font(s) in message ${mesId}`);
-                    processLumiaOOCComments(mesId);
+                    if (oocFonts.length > 0) {
+                        console.log(`[${MODULE_NAME}] 🔮 Processing ${oocFonts.length} OOC font(s) in message ${mesId}`);
+                        processLumiaOOCComments(mesId);
+                    }
                 }
-            }
-        }, 50);
+            }, 100);
+        });
     });
 
     // Handle message edits - reprocess OOC comments (SimTracker pattern)
@@ -1711,50 +1706,16 @@ jQuery(async () => {
         isGenerating = true;
     });
 
-    // Handle generation end - mark generation complete and schedule final OOC processing
-    // We use a delayed approach because SillyTavern may re-render message content after this event
+    // GENERATION_ENDED fires on errors - just reset state
     eventSource.on(event_types.GENERATION_ENDED, () => {
-        console.log(`[${MODULE_NAME}] 🔮 GENERATION_ENDED - scheduling final OOC processing`);
+        console.log(`[${MODULE_NAME}] 🔮 GENERATION_ENDED (error case) - resetting state`);
         isGenerating = false;
+    });
 
-        // Clear any pending timer
-        if (postGenerationOOCTimer) {
-            clearTimeout(postGenerationOOCTimer);
-        }
-
-        // Wait for SillyTavern's post-generation formatting to complete, then process
-        // This delay is crucial - ST often re-renders message content after GENERATION_ENDED
-        postGenerationOOCTimer = setTimeout(() => {
-            console.log(`[${MODULE_NAME}] 🔮 Post-generation: processing last message OOCs`);
-
-            // Unhide any markers that were hidden during streaming
-            const chatElement = document.getElementById("chat");
-            if (chatElement) {
-                const hiddenMarkers = queryAll('.lumia-ooc-marker-hidden', chatElement);
-                hiddenMarkers.forEach(marker => {
-                    marker.classList.remove('lumia-ooc-marker-hidden');
-                    marker.style.display = '';
-                });
-            }
-
-            // Process the last message (the one that just finished generating)
-            const context = getContext();
-            if (context && context.chat && context.chat.length > 0) {
-                const lastMesId = context.chat.length - 1;
-
-                // Check if this message has OOC fonts that need processing
-                const messageElement = query(`div[mesid="${lastMesId}"] .mes_text`);
-                if (messageElement) {
-                    const fontElements = queryAll('font', messageElement);
-                    const oocFonts = fontElements.filter(isLumiaOOCFont);
-
-                    if (oocFonts.length > 0) {
-                        console.log(`[${MODULE_NAME}] 🔮 Found ${oocFonts.length} unprocessed OOC font(s) in last message, processing now`);
-                        processLumiaOOCComments(lastMesId);
-                    }
-                }
-            }
-        }, 300); // 300ms delay to let ST finish its post-generation formatting
+    // GENERATION_STOPPED fires when user cancels - just reset state
+    eventSource.on(event_types.GENERATION_STOPPED, () => {
+        console.log(`[${MODULE_NAME}] 🔮 GENERATION_STOPPED (user cancel) - resetting state`);
+        isGenerating = false;
     });
 
     // Set up MutationObserver for streaming support (SimTracker pattern)
