@@ -47,11 +47,31 @@
             <div class="lumia-section">
                 <h3>Usage</h3>
                 <p>Use the following macros in your prompts or character cards:</p>
+                <h4>Lumia Content Macros</h4>
                 <ul>
                     <li><code>{{lumiaDef}}</code> - Inserts the selected Physical Definition.</li>
                     <li><code>{{lumiaBehavior}}</code> - Inserts the selected Behavior(s).</li>
                     <li><code>{{lumiaPersonality}}</code> - Inserts the selected Personality(s).</li>
                 </ul>
+                <h4>Random Lumia Macros</h4>
+                <ul>
+                    <li><code>{{randomLumia}}</code> or <code>{{randomLumia.phys}}</code> - Random Lumia definition.</li>
+                    <li><code>{{randomLumia.pers}}</code> - Random Lumia personality.</li>
+                    <li><code>{{randomLumia.behav}}</code> - Random Lumia behavior.</li>
+                    <li><code>{{randomLumia.name}}</code> - Random Lumia name.</li>
+                </ul>
+                <h4>Message Tracking & OOC Macros</h4>
+                <ul>
+                    <li><code>{{lumiaMessageCount}}</code> - Current message count in the chat.</li>
+                    <li><code>{{lumiaOOCTrigger}}</code> - Injects OOC instruction when interval is reached (configure in Misc Features).</li>
+                    <li><code>{{lumiaNextOOC}}</code> - Shows how many messages until next OOC trigger.</li>
+                </ul>
+            </div>
+
+            <div class="lumia-section">
+                <h3>Miscellaneous Features</h3>
+                <p>Additional features and tools for Lumia interaction:</p>
+                <button id="lumia-open-misc-btn" class="menu_button">Configure Miscellaneous Features</button>
             </div>
 
         </div>

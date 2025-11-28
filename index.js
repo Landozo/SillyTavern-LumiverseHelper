@@ -9,7 +9,8 @@ let settings = {
     packs: {}, // Dictionary of packs: { "PackName": { name: "PackName", items: [], url: "" } }
     selectedDefinition: null, // { packName: string, itemName: string }
     selectedBehaviors: [], // Array of { packName: string, itemName: string }
-    selectedPersonalities: [] // Array of { packName: string, itemName: string }
+    selectedPersonalities: [], // Array of { packName: string, itemName: string }
+    lumiaOOCInterval: null // Number of messages between OOC comments (null = disabled)
 };
 
 function migrateSettings() {
@@ -80,6 +81,7 @@ function migrateSettings() {
     if (!settings.packs) settings.packs = {};
     if (!settings.selectedBehaviors) settings.selectedBehaviors = [];
     if (!settings.selectedPersonalities) settings.selectedPersonalities = [];
+    if (settings.lumiaOOCInterval === undefined) settings.lumiaOOCInterval = null;
 
     return migrated;
 }
@@ -393,6 +395,73 @@ function showSelectionModal(type) {
     $modal[0].showModal();
 }
 
+function showMiscFeaturesModal() {
+    $("#lumia-misc-modal").remove();
+
+    const currentInterval = settings.lumiaOOCInterval || "";
+
+    const modalHtml = `
+        <dialog id="lumia-misc-modal" class="popup wide_dialogue_popup large_dialogue_popup popup--animation-fast">
+            <div class="popup-header">
+                <h3 style="margin: 0; padding: 10px 0;">Miscellaneous Features</h3>
+            </div>
+            <div class="popup-content" style="padding: 15px; flex: 1; display: flex; flex-direction: column; gap: 20px;">
+
+                <div class="lumia-misc-section">
+                    <h4>OOC Comment Trigger</h4>
+                    <p>Automatically inject OOC instructions when the chat reaches certain message intervals.</p>
+
+                    <div class="lumia-item" style="margin-top: 10px;">
+                        <label for="lumia-ooc-interval-input">Message Interval (leave empty to disable):</label>
+                        <input type="number"
+                               id="lumia-ooc-interval-input"
+                               class="text_pole"
+                               placeholder="e.g., 10"
+                               min="1"
+                               value="${escapeHtml(currentInterval.toString())}" />
+                        <small>When the current message count is divisible by this number, the OOC instruction will trigger.</small>
+                    </div>
+                </div>
+
+            </div>
+            <div class="popup-footer" style="display: flex; justify-content: center; padding: 15px; gap: 10px;">
+                <button class="menu_button lumia-misc-save-btn">Save</button>
+                <button class="menu_button lumia-misc-cancel-btn">Cancel</button>
+            </div>
+        </dialog>
+    `;
+
+    $("body").append(modalHtml);
+    const $modal = $("#lumia-misc-modal");
+
+    const closeModal = () => {
+        $modal[0].close();
+        $modal.remove();
+    };
+
+    $modal.find(".lumia-misc-save-btn").click(() => {
+        const intervalValue = $("#lumia-ooc-interval-input").val().trim();
+
+        settings.lumiaOOCInterval = intervalValue ? parseInt(intervalValue, 10) : null;
+
+        saveSettings();
+        toastr.success("Miscellaneous features saved!");
+        closeModal();
+    });
+
+    $modal.find(".lumia-misc-cancel-btn").click(closeModal);
+
+    $modal.on("click", function (e) {
+        if (e.target === this) closeModal();
+    });
+
+    $modal.on("keydown", function (e) {
+        if (e.key === "Escape") closeModal();
+    });
+
+    $modal[0].showModal();
+}
+
 function refreshUI() {
     const statusDiv = document.getElementById("lumia-book-status");
     const packs = Object.values(settings.packs);
@@ -591,6 +660,48 @@ MacrosParser.registerMacro("lumiaPersonality", () => {
     return getLumiaContent('personality', settings.selectedPersonalities);
 });
 
+// Message tracking and OOC trigger macros
+MacrosParser.registerMacro("lumiaMessageCount", () => {
+    const context = getContext();
+    if (!context || !context.chat) return "0";
+    return context.chat.length.toString();
+});
+
+MacrosParser.registerMacro("lumiaOOCTrigger", () => {
+    const context = getContext();
+    if (!context || !context.chat) return "";
+
+    const interval = settings.lumiaOOCInterval;
+    if (!interval || interval <= 0) return "";
+
+    const messageCount = context.chat.length;
+
+    // Check if current message count is divisible by interval
+    if (messageCount % interval === 0) {
+        return "**OOC Commentary Reminder!** The Gods' want me to speak up to the Human now in the out-of-context comments! Perfect, I've got a lot I want to say and I want them to hear my voice loud and clear!";
+    }
+
+    return "";
+});
+
+MacrosParser.registerMacro("lumiaNextOOC", () => {
+    const context = getContext();
+    if (!context || !context.chat) return "";
+
+    const interval = settings.lumiaOOCInterval;
+    if (!interval || interval <= 0) return "";
+
+    const messageCount = context.chat.length;
+    const nextTrigger = Math.ceil(messageCount / interval) * interval;
+    const messagesUntil = nextTrigger - messageCount;
+
+    if (messagesUntil === 0) {
+        return "OOC trigger active now!";
+    }
+
+    return `${messagesUntil} message${messagesUntil !== 1 ? 's' : ''} until next OOC trigger`;
+});
+
 
 jQuery(async () => {
     // Initialize
@@ -618,6 +729,10 @@ jQuery(async () => {
 
     $("#lumia-open-personalities-btn").click(() => {
         showSelectionModal('personality');
+    });
+
+    $("#lumia-open-misc-btn").click(() => {
+        showMiscFeaturesModal();
     });
 
     $("#lumia-upload-btn").click(() => {
