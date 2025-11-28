@@ -14,7 +14,8 @@ let settings = {
     selectedLoomStyle: null, // { packName: string, itemName: string }
     selectedLoomUtils: [], // Array of { packName: string, itemName: string }
     selectedLoomRetrofits: [], // Array of { packName: string, itemName: string }
-    lumiaOOCInterval: null // Number of messages between OOC comments (null = disabled)
+    lumiaOOCInterval: null, // Number of messages between OOC comments (null = disabled)
+    lumiaOOCStyle: 'social' // OOC comment display style: 'social', 'margin', 'whisper'
 };
 
 // Lumia Randomization State
@@ -110,6 +111,7 @@ function migrateSettings() {
     if (!settings.selectedLoomUtils) settings.selectedLoomUtils = [];
     if (!settings.selectedLoomRetrofits) settings.selectedLoomRetrofits = [];
     if (settings.lumiaOOCInterval === undefined) settings.lumiaOOCInterval = null;
+    if (!settings.lumiaOOCStyle) settings.lumiaOOCStyle = 'social';
 
     return migrated;
 }
@@ -447,6 +449,7 @@ function showMiscFeaturesModal() {
     $("#lumia-misc-modal").remove();
 
     const currentInterval = settings.lumiaOOCInterval || "";
+    const currentStyle = settings.lumiaOOCStyle || 'social';
 
     const modalHtml = `
         <dialog id="lumia-misc-modal" class="popup wide_dialogue_popup large_dialogue_popup popup--animation-fast">
@@ -471,6 +474,20 @@ function showMiscFeaturesModal() {
                     </div>
                 </div>
 
+                <div class="lumia-misc-section">
+                    <h4>OOC Comment Style</h4>
+                    <p>Choose how Lumia's out-of-character comments are displayed in the chat.</p>
+
+                    <div class="lumia-item" style="margin-top: 10px;">
+                        <label for="lumia-ooc-style-select">Display Style:</label>
+                        <select id="lumia-ooc-style-select" class="text_pole">
+                            <option value="social" ${currentStyle === 'social' ? 'selected' : ''}>Social Card — Full card with avatar and ethereal animations</option>
+                            <option value="margin" ${currentStyle === 'margin' ? 'selected' : ''}>Margin Note — Minimal Apple-esque hanging tag</option>
+                            <option value="whisper" ${currentStyle === 'whisper' ? 'selected' : ''}>Whisper Bubble — Soft ethereal thought bubble</option>
+                        </select>
+                    </div>
+                </div>
+
             </div>
             <div class="popup-footer" style="display: flex; justify-content: center; padding: 15px; gap: 10px;">
                 <button class="menu_button lumia-misc-save-btn">Save</button>
@@ -489,12 +506,20 @@ function showMiscFeaturesModal() {
 
     $modal.find(".lumia-misc-save-btn").click(() => {
         const intervalValue = $("#lumia-ooc-interval-input").val().trim();
+        const styleValue = $("#lumia-ooc-style-select").val();
+        const oldStyle = settings.lumiaOOCStyle;
 
         settings.lumiaOOCInterval = intervalValue ? parseInt(intervalValue, 10) : null;
+        settings.lumiaOOCStyle = styleValue;
 
         saveSettings();
         toastr.success("Miscellaneous features saved!");
         closeModal();
+
+        // If style changed, reprocess all OOC comments to apply new style
+        if (oldStyle !== styleValue) {
+            setTimeout(() => processAllLumiaOOCComments(true), 100);
+        }
     });
 
     $modal.find(".lumia-misc-cancel-btn").click(closeModal);
@@ -978,13 +1003,30 @@ function isLumiaOOCFont(fontElement) {
 
 /**
  * Create the styled OOC comment box element
- * Sleek, Apple-esque design with ethereal Loom weaving details
- * Avatar left-aligned adjacent to comment content
+ * Supports multiple styles: 'social', 'margin', 'whisper'
  * @param {string} content - The text content for the OOC box
  * @param {string|null} avatarImg - URL to avatar image, or null for placeholder
  * @returns {HTMLElement} The created OOC comment box element
  */
 function createOOCCommentBox(content, avatarImg) {
+    const style = settings.lumiaOOCStyle || 'social';
+
+    switch (style) {
+        case 'margin':
+            return createOOCMarginNote(content, avatarImg);
+        case 'whisper':
+            return createOOCWhisperBubble(content, avatarImg);
+        case 'social':
+        default:
+            return createOOCSocialCard(content, avatarImg);
+    }
+}
+
+/**
+ * Create Social Card style OOC box (original design)
+ * Full card with avatar, name, thread indicator, and ethereal animations
+ */
+function createOOCSocialCard(content, avatarImg) {
     // Create avatar container with ethereal glow ring
     const avatarElement = avatarImg
         ? createElement('img', {
@@ -1038,6 +1080,109 @@ function createOOCCommentBox(content, avatarImg) {
     });
 
     return commentBox;
+}
+
+/**
+ * Create Margin Note style OOC box
+ * Apple-esque minimal hanging tag design
+ */
+function createOOCMarginNote(content, avatarImg) {
+    // Create the hanging tag with avatar or letter
+    const tagContent = avatarImg
+        ? createElement('img', {
+            attrs: {
+                src: avatarImg,
+                alt: 'L',
+                class: 'lumia-ooc-margin-tag-avatar'
+            }
+        })
+        : createElement('span', {
+            attrs: { class: 'lumia-ooc-margin-tag-letter' },
+            text: 'L'
+        });
+
+    const tag = createElement('div', {
+        attrs: { class: 'lumia-ooc-margin-tag' },
+        children: [tagContent]
+    });
+
+    // Create the subtle label
+    const label = createElement('div', {
+        attrs: { class: 'lumia-ooc-margin-label' },
+        text: 'Lumia'
+    });
+
+    // Create the content text
+    const text = createElement('div', {
+        attrs: { class: 'lumia-ooc-margin-text' },
+        html: content
+    });
+
+    // Create the content area
+    const contentArea = createElement('div', {
+        attrs: { class: 'lumia-ooc-margin-content-area' },
+        children: [label, text]
+    });
+
+    // Create the main container
+    const container = createElement('div', {
+        attrs: { class: 'lumia-ooc-margin', 'data-lumia-ooc': 'true' },
+        children: [tag, contentArea]
+    });
+
+    return container;
+}
+
+/**
+ * Create Whisper Bubble style OOC box
+ * Soft ethereal thought bubble design
+ */
+function createOOCWhisperBubble(content, avatarImg) {
+    // Create the icon (small avatar or placeholder)
+    const icon = avatarImg
+        ? createElement('img', {
+            attrs: {
+                src: avatarImg,
+                alt: 'L',
+                class: 'lumia-ooc-whisper-icon'
+            }
+        })
+        : createElement('div', {
+            attrs: { class: 'lumia-ooc-whisper-icon-placeholder' },
+            text: 'L'
+        });
+
+    // Create the name
+    const name = createElement('span', {
+        attrs: { class: 'lumia-ooc-whisper-name' },
+        text: 'Lumia whispers...'
+    });
+
+    // Create header
+    const header = createElement('div', {
+        attrs: { class: 'lumia-ooc-whisper-header' },
+        children: [icon, name]
+    });
+
+    // Create the content text
+    const text = createElement('div', {
+        attrs: { class: 'lumia-ooc-whisper-text' },
+        html: content
+    });
+
+    // Create the bubble
+    const bubble = createElement('div', {
+        attrs: { class: 'lumia-ooc-whisper-bubble' },
+        children: [header, text]
+    });
+
+    // Create the main container
+    const container = createElement('div', {
+        attrs: { class: 'lumia-ooc-whisper', 'data-lumia-ooc': 'true' },
+        children: [bubble]
+    });
+
+    return container;
 }
 
 /**
@@ -1148,11 +1293,38 @@ function processLumiaOOCComments(mesId, force = false) {
  * Process all Lumia OOC comments in the chat
  * Called on CHAT_CHANGED and initial load to ensure all messages are processed
  */
-function processAllLumiaOOCComments() {
+function processAllLumiaOOCComments(clearExisting = false) {
     const context = getContext();
     if (!context || !context.chat) return;
 
-    console.log(`[${MODULE_NAME}] 🔮 Processing all OOC comments in chat (${context.chat.length} messages)`);
+    console.log(`[${MODULE_NAME}] 🔮 Processing all OOC comments in chat (${context.chat.length} messages)${clearExisting ? ' [clearing existing]' : ''}`);
+
+    // If clearing existing OOC boxes (e.g., style change), remove them all first
+    // We need to restore the original font elements from the stored content
+    if (clearExisting) {
+        const allOOCBoxes = queryAll('[data-lumia-ooc]');
+        allOOCBoxes.forEach(box => {
+            // Get the text content from the appropriate element based on style
+            let content = '';
+            const marginText = box.querySelector('.lumia-ooc-margin-text');
+            const whisperText = box.querySelector('.lumia-ooc-whisper-text');
+            const socialContent = box.querySelector('.lumia-ooc-content');
+
+            if (marginText) content = marginText.innerHTML;
+            else if (whisperText) content = whisperText.innerHTML;
+            else if (socialContent) content = socialContent.innerHTML;
+
+            // Recreate the original font element structure
+            const fontElement = document.createElement('font');
+            fontElement.setAttribute('color', LUMIA_OOC_COLOR);
+            fontElement.innerHTML = content;
+
+            // Replace the box with the font element
+            if (box.parentNode) {
+                box.parentNode.replaceChild(fontElement, box);
+            }
+        });
+    }
 
     // Process each message in the chat
     for (let i = 0; i < context.chat.length; i++) {
@@ -1406,10 +1578,10 @@ jQuery(async () => {
     // Need to force reprocess by clearing the existing OOC box first
     eventSource.on(event_types.MESSAGE_EDITED, (mesId) => {
         console.log(`[${MODULE_NAME}] 🔮 MESSAGE_EDITED event for mesId ${mesId}`);
-        // Remove existing OOC boxes before reprocessing
+        // Remove existing OOC boxes before reprocessing (any style)
         const messageElement = query(`div[mesid="${mesId}"] .mes_text`);
         if (messageElement) {
-            const existingBoxes = queryAll('.lumia-ooc-comment-box', messageElement);
+            const existingBoxes = queryAll('[data-lumia-ooc]', messageElement);
             existingBoxes.forEach(box => box.remove());
         }
         setTimeout(() => processLumiaOOCComments(mesId), 50);
