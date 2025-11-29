@@ -1,45 +1,79 @@
 # Lumia Injector Extension
 
-An extension for SillyTavern that allows fetching "world books" and dynamically injecting character definitions, personalities, and behaviors into prompts using macros.
+An extension for SillyTavern that dynamically injects character definitions, personalities, behaviors, and narrative styles into prompts using macros.
 
 ## Features
 
-- **World Book Fetching**: Load a World Book JSON file from a URL.
-- **Dynamic Selection**:
-  - Select one **Physical Definition** (e.g., Chillweaver).
-  - Select multiple **Behaviors** (mix and match).
-  - Select multiple **Personalities** (mix and match).
-- **Macro Injection**: Use macros in your prompts or character cards to inject the selected content.
-  - `{{lumiaDef}}`: The selected definition.
-  - `{{lumiaBehavior}}`: All selected behaviors fused together.
-  - `{{lumiaPersonality}}`: All selected personalities fused together.
-- **State Persistence**: Remembers your selections and loaded World Book across sessions.
+- **Pack Management**: Load and manage multiple content packs from URLs or local files
+- **Lumia Content**: Mix and match character definitions, behaviors, and personalities
+- **Loom Content**: Apply narrative styles, utilities, and retrofits to shape AI output
+- **Macro Injection**: Use simple macros in prompts to inject selected content
+- **Loom Summarization**: Automatic story summary capture and injection
+- **Sovereign Hand**: Co-pilot mode for guided narrative control
+- **State Persistence**: Remembers your selections across sessions
 
 ## Installation
 
-1. Navigate to your SillyTavern `public/scripts/extensions` directory.
-2. Create a folder named `lumia-injector` (or similar).
-3. Copy the files (`index.js`, `settings.html`, `style.css`) into that folder.
-4. Refresh SillyTavern.
+### Via SillyTavern UI (Recommended)
 
-## Usage
+1. Open SillyTavern in your browser
+2. Click the **Extensions** icon (3 stacked cubes) in the top bar
+3. Click **Install Extension**
+4. Paste the following URL:
+   ```
+   https://github.com/lumiainjector/LumiaInjectorExtension
+   ```
+5. Click **Save**
+6. Refresh the page
 
-1. Open the Extensions Settings panel in SillyTavern.
-2. Locate **Lumia Injector Settings**.
-3. Enter the URL of a compatible World Book JSON file (e.g., raw GitHub link) and click **Fetch**.
-4. Once loaded, you will see lists for Definitions, Behaviors, and Personalities.
-5. Select the desired options.
-6. In your Character Card or Prompt format, add the macros:
+The extension will appear in your Extensions panel, ready to use.
+
+### Manual Installation
+
+1. Navigate to your SillyTavern installation's `data/default-user/extensions/` directory
+2. Clone or download this repository into that folder
+3. Refresh SillyTavern
+
+## Quick Start
+
+1. Open the **Extensions** panel in SillyTavern
+2. Find **Lumia Injector** and expand the settings
+3. Add a pack by entering a URL and clicking **Fetch**, upload a local JSON file, or import straight from [Lucid.cards](https://lucid.cards)
+4. Select your desired content from each category
+5. Add macros to your Character Card or system prompt:
    ```
    {{lumiaDef}}
    {{lumiaPersonality}}
    {{lumiaBehavior}}
+   {{loomStyle}}
    ```
-7. The extension will automatically replace these macros with the content of your selections when generating a prompt.
 
-## Compatibility
+## Documentation
 
-This extension looks for specific keys in the World Book entries to categorize them:
-- **Definitions**: `outletName` = "Lumia_Description" (or comment contains "Definition")
-- **Behaviors**: `outletName` = "Lumia_Behavior" (or comment contains "Behavior")
-- **Personalities**: `outletName` = "Lumia_Personality" (or comment contains "Personality")
+- [Pack Naming Guide](docs/PACK_NAMING_GUIDE.md) - How to create and structure content packs
+- [Macro Reference](docs/MACRO_REFERENCE.md) - Complete list of available macros
+
+## Basic Macros
+
+| Macro | Description |
+|-------|-------------|
+| `{{lumiaDef}}` | Selected physical definition |
+| `{{lumiaBehavior}}` | All selected behaviors |
+| `{{lumiaPersonality}}` | All selected personalities |
+| `{{loomStyle}}` | Selected narrative style |
+| `{{loomUtils}}` | All selected utilities |
+| `{{loomRetrofits}}` | All selected retrofits |
+
+See the [Macro Reference](docs/MACRO_REFERENCE.md) for the complete list including `.len` counters, random Lumia macros, and Loom system macros.
+
+## Creating Packs
+
+Packs are World Book JSON files with specially formatted entries. See the [Pack Naming Guide](docs/PACK_NAMING_GUIDE.md) for details on:
+
+- Pack metadata (cover images, author names)
+- Lumia item naming (Definition, Behavior, Personality)
+- Loom item naming (Narrative Style, Loom Utilities, Retrofits)
+
+## License
+
+MIT
