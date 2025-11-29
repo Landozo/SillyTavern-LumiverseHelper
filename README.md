@@ -21,7 +21,7 @@ An extension for SillyTavern that dynamically injects character definitions, per
 3. Click **Install Extension**
 4. Paste the following URL:
    ```
-   https://github.com/lumiainjector/LumiaInjectorExtension
+   https://github.com/prolix-oc/SillyTavern-LumiverseHelper
    ```
 5. Click **Install (for me or for everyone)**
 6. Refresh the page
@@ -31,7 +31,7 @@ The extension will appear in your Extensions panel, ready to use.
 ### Manual Installation
 
 1. Navigate to your SillyTavern installation's `data/default-user/extensions/` directory
-2. Clone or download this repository into that folder
+2. Clone or download this repository into that folder (`https://github.com/prolix-oc/SillyTavern-LumiverseHelper`)
 3. Refresh SillyTavern
 
 ## Quick Start
