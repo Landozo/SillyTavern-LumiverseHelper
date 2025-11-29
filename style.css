@@ -1428,6 +1428,46 @@ details.lumia-panel[open] .lumia-panel-chevron {
     margin-left: auto;
 }
 
+/* Collapsible Panel Styles */
+.lumia-collapsible-trigger {
+    cursor: pointer;
+    user-select: none;
+}
+
+.lumia-panel-collapse-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.lumia-panel-collapse-icon svg {
+    width: 14px;
+    height: 14px;
+    stroke: rgba(255, 255, 255, 0.4);
+}
+
+.lumia-collapsible.collapsed .lumia-panel-collapse-icon {
+    transform: rotate(-90deg);
+}
+
+.lumia-collapsible-content {
+    overflow: hidden;
+    transition: max-height 0.25s ease, opacity 0.2s ease, padding 0.25s ease;
+    max-height: 1000px;
+    opacity: 1;
+}
+
+.lumia-collapsible.collapsed .lumia-collapsible-content {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
 /* Panel Content Variants */
 .lumia-modal-panel-content-cards {
     padding: 12px;
