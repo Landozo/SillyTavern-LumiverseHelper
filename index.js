@@ -237,12 +237,20 @@ function processWorldBook(data) {
 
         const commentLower = comment.toLowerCase();
         let type = null;
+
+        // Determine entry type based on outletName or comment structure
+        // Physical definitions use format "Lumia (Name)" - just "Lumia" before the parenthesis
+        // Behavior uses "Lumia Behavior (Name)" or contains "behavior"
+        // Personality uses "Lumia Personality (Name)" or contains "personality"
         if (entry.outletName === "Lumia_Description" || commentLower.includes("definition")) {
             type = "definition";
         } else if (entry.outletName === "Lumia_Behavior" || commentLower.includes("behavior")) {
             type = "behavior";
         } else if (entry.outletName === "Lumia_Personality" || commentLower.includes("personality")) {
             type = "personality";
+        } else if (categoryMatch && categoryMatch[1].trim().toLowerCase() === "lumia") {
+            // "Lumia (Name)" format - exactly "Lumia" before parenthesis means physical definition
+            type = "definition";
         }
 
         if (type === "definition") {
