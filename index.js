@@ -31,6 +31,7 @@ import {
     showMiscFeaturesModal,
     showLoomSelectionModal,
     showSummarizationModal,
+    showPromptSettingsModal,
     refreshUIDisplay,
     setRefreshUICallback,
     setProcessAllLumiaOOCCommentsRef
@@ -49,7 +50,9 @@ import {
     processLoomConditionals,
     captureLoomSummary,
     hideLoomSumBlocks,
-    registerLoomMacros
+    registerLoomMacros,
+    setLastUserMessageContent,
+    findLastUserMessage
 } from './lib/loomSystem.js';
 
 import {
@@ -75,6 +78,41 @@ globalThis.lumiverseHelperGenInterceptor = async function (
 
     // Reset random Lumia on every generation type
     resetRandomLumia();
+
+    const settings = getSettings();
+    const sovereignHandEnabled = settings.sovereignHand?.enabled || false;
+
+    // Sovereign Hand: Capture and exclude last user message
+    if (sovereignHandEnabled) {
+        // Find and capture the last user message content before any modifications
+        // Search from the end of the chat array for the last user message
+        let lastUserIndex = -1;
+        for (let i = chat.length - 1; i >= 0; i--) {
+            if (chat[i] && chat[i].is_user) {
+                lastUserIndex = i;
+                break;
+            }
+        }
+
+        if (lastUserIndex !== -1) {
+            const lastUserMsg = chat[lastUserIndex];
+            const messageContent = lastUserMsg.mes || lastUserMsg.content || "";
+
+            // Store the content for the {{loomLastUserMessage}} macro
+            setLastUserMessageContent(messageContent);
+            console.log(`[${MODULE_NAME}] Sovereign Hand: Captured last user message at index ${lastUserIndex}`);
+
+            // Remove the last user message entirely from the outgoing context
+            chat.splice(lastUserIndex, 1);
+            console.log(`[${MODULE_NAME}] Sovereign Hand: Removed last user message from context array`);
+        } else {
+            // No user message found, clear the stored content
+            setLastUserMessageContent("");
+        }
+    } else {
+        // Clear stored content when feature is disabled
+        setLastUserMessageContent("");
+    }
 
     // Process loomIf conditionals in all chat messages
     for (let i = 0; i < chat.length; i++) {
@@ -170,6 +208,11 @@ jQuery(async () => {
     // Open summarization modal
     $("#lumia-open-summarization-btn").click(() => {
         showSummarizationModal();
+    });
+
+    // Open prompt settings modal
+    $("#lumia-open-prompt-settings-btn").click(() => {
+        showPromptSettingsModal();
     });
 
     // Open Loom selection modals
