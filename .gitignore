@@ -4,5 +4,6 @@ SillySimTracker/
 .claude/settings.local.json
 *.md
 !README.md
+!docs/*.md
 generate_raw_example.js
 .vscode/settings.json
