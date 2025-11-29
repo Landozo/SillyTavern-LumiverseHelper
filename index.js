@@ -23,7 +23,8 @@ let settings = {
         mode: 'disabled', // 'disabled', 'auto', 'manual'
         apiSource: 'main', // 'main' (SillyTavern's generateRaw) or 'secondary' (custom endpoint)
         autoInterval: 10, // Number of messages between auto-summarizations
-        messageContext: 10, // Number of messages to include in summarization context
+        autoMessageContext: 10, // Number of messages to include for AUTO summarization context
+        manualMessageContext: 10, // Number of messages to include for MANUAL summarization context
         // Secondary LLM settings (when apiSource === 'secondary')
         secondary: {
             provider: 'openai', // 'openai', 'anthropic', 'openrouter', 'custom'
@@ -31,7 +32,8 @@ let settings = {
             endpoint: '',
             apiKey: '',
             temperature: 0.7,
-            maxTokens: 2048
+            topP: 1.0,
+            maxTokens: 8192
         }
     }
 };
@@ -151,16 +153,32 @@ function migrateSettings() {
             mode: 'disabled',
             apiSource: 'main',
             autoInterval: 10,
-            messageContext: 10,
+            autoMessageContext: 10,
+            manualMessageContext: 10,
             secondary: {
                 provider: 'openai',
                 model: '',
                 endpoint: '',
                 apiKey: '',
                 temperature: 0.7,
-                maxTokens: 2048
+                topP: 1.0,
+                maxTokens: 8192
             }
         };
+    }
+    // Migrate old messageContext to new split fields
+    if (settings.summarization.messageContext !== undefined) {
+        settings.summarization.autoMessageContext = settings.summarization.messageContext;
+        settings.summarization.manualMessageContext = settings.summarization.messageContext;
+        delete settings.summarization.messageContext;
+        migrated = true;
+    }
+    // Ensure new fields exist with defaults
+    if (settings.summarization.autoMessageContext === undefined) {
+        settings.summarization.autoMessageContext = 10;
+    }
+    if (settings.summarization.manualMessageContext === undefined) {
+        settings.summarization.manualMessageContext = 10;
     }
     if (!settings.summarization.secondary) {
         settings.summarization.secondary = {
@@ -169,8 +187,17 @@ function migrateSettings() {
             endpoint: '',
             apiKey: '',
             temperature: 0.7,
-            maxTokens: 2048
+            topP: 1.0,
+            maxTokens: 8192
         };
+    }
+    // Ensure topP exists
+    if (settings.summarization.secondary.topP === undefined) {
+        settings.summarization.secondary.topP = 1.0;
+    }
+    // Ensure maxTokens has sane default
+    if (!settings.summarization.secondary.maxTokens || settings.summarization.secondary.maxTokens < 256) {
+        settings.summarization.secondary.maxTokens = 8192;
     }
 
     return migrated;
@@ -642,13 +669,15 @@ function showSummarizationModal() {
     const currentMode = sumSettings.mode || 'disabled';
     const currentSource = sumSettings.apiSource || 'main';
     const currentInterval = sumSettings.autoInterval || 10;
-    const currentContext = sumSettings.messageContext || 10;
+    const currentAutoContext = sumSettings.autoMessageContext || 10;
+    const currentManualContext = sumSettings.manualMessageContext || 10;
     const currentProvider = secondary.provider || 'openai';
     const currentModel = secondary.model || '';
     const currentEndpoint = secondary.endpoint || '';
     const currentApiKey = secondary.apiKey || '';
     const currentTemp = secondary.temperature || 0.7;
-    const currentMaxTokens = secondary.maxTokens || 2048;
+    const currentTopP = secondary.topP !== undefined ? secondary.topP : 1.0;
+    const currentMaxTokens = secondary.maxTokens || 8192;
 
     const providerDefaults = getProviderDefaults(currentProvider);
 
@@ -672,18 +701,25 @@ function showSummarizationModal() {
                 </div>
 
                 <div class="lumia-misc-section" id="lumia-sum-auto-section" style="${currentMode === 'auto' ? '' : 'display: none;'}">
-                    <h4>Auto-Summarization Interval</h4>
-                    <p>Generate a summary every N messages:</p>
+                    <h4>Auto-Summarization Settings</h4>
                     <div class="lumia-item" style="margin-top: 10px;">
+                        <label for="lumia-sum-interval-input">Message Interval:</label>
                         <input type="number" id="lumia-sum-interval-input" class="text_pole" min="1" value="${currentInterval}" />
+                        <small style="color: #888;">Generate a summary every N messages</small>
+                    </div>
+                    <div class="lumia-item" style="margin-top: 10px;">
+                        <label for="lumia-sum-auto-context-input">Auto Message Context:</label>
+                        <input type="number" id="lumia-sum-auto-context-input" class="text_pole" min="1" max="100" value="${currentAutoContext}" />
+                        <small style="color: #888;">Number of recent messages to include for automatic summaries</small>
                     </div>
                 </div>
 
-                <div class="lumia-misc-section">
-                    <h4>Message Context</h4>
-                    <p>Number of recent messages to include when generating summaries:</p>
+                <div class="lumia-misc-section" id="lumia-sum-manual-section" style="${currentMode === 'manual' || currentMode === 'auto' ? '' : 'display: none;'}">
+                    <h4>Manual Summarization Context</h4>
                     <div class="lumia-item" style="margin-top: 10px;">
-                        <input type="number" id="lumia-sum-context-input" class="text_pole" min="1" max="100" value="${currentContext}" />
+                        <label for="lumia-sum-manual-context-input">Manual Message Context:</label>
+                        <input type="number" id="lumia-sum-manual-context-input" class="text_pole" min="1" max="100" value="${currentManualContext}" />
+                        <small style="color: #888;">Number of recent messages to include when using /loom-summarize command</small>
                     </div>
                 </div>
 
@@ -740,9 +776,17 @@ function showSummarizationModal() {
                     </div>
 
                     <div class="lumia-item" style="margin-top: 10px;">
-                        <label for="lumia-sum-maxtokens-input">Max Tokens:</label>
-                        <input type="number" id="lumia-sum-maxtokens-input" class="text_pole"
-                               min="256" max="16384" value="${currentMaxTokens}" />
+                        <label for="lumia-sum-topp-input">Top-P:</label>
+                        <input type="number" id="lumia-sum-topp-input" class="text_pole"
+                               min="0" max="1" step="0.05" value="${currentTopP}" />
+                        <small style="color: #888;">Nucleus sampling (0-1). 1.0 = disabled</small>
+                    </div>
+
+                    <div class="lumia-item" style="margin-top: 10px;">
+                        <label for="lumia-sum-maxtokens-input">Max Response Length:</label>
+                        <input type="text" id="lumia-sum-maxtokens-input" class="text_pole"
+                               value="${currentMaxTokens}" />
+                        <small style="color: #888;">Maximum tokens in response (numbers only, default: 8192)</small>
                     </div>
                 </div>
 
@@ -769,13 +813,18 @@ function showSummarizationModal() {
         $modal.remove();
     };
 
-    // Show/hide auto interval section based on mode
+    // Show/hide sections based on mode
     $modal.find("#lumia-sum-mode-select").change(function() {
         const mode = $(this).val();
         if (mode === 'auto') {
             $modal.find("#lumia-sum-auto-section").show();
+            $modal.find("#lumia-sum-manual-section").show();
+        } else if (mode === 'manual') {
+            $modal.find("#lumia-sum-auto-section").hide();
+            $modal.find("#lumia-sum-manual-section").show();
         } else {
             $modal.find("#lumia-sum-auto-section").hide();
+            $modal.find("#lumia-sum-manual-section").hide();
         }
     });
 
@@ -797,29 +846,41 @@ function showSummarizationModal() {
         $modal.find("#lumia-sum-endpoint-input").attr("placeholder", defaults.endpoint);
     });
 
+    // Helper to parse and validate maxTokens
+    const parseMaxTokens = (val) => {
+        const parsed = parseInt(val, 10);
+        // If not a valid number or contains non-numeric chars, return default
+        if (isNaN(parsed) || !/^\d+$/.test(String(val).trim())) {
+            return 8192;
+        }
+        return Math.max(256, parsed);
+    };
+
     // Test button
     $modal.find("#lumia-sum-test-btn").click(async function() {
         const $status = $modal.find("#lumia-sum-test-status");
         $status.text("Generating summary...");
 
         try {
-            // Temporarily apply current form values
+            // Temporarily apply current form values (test uses manual context since it's a manual action)
             const tempSettings = {
                 mode: $modal.find("#lumia-sum-mode-select").val(),
                 apiSource: $modal.find("#lumia-sum-source-select").val(),
                 autoInterval: parseInt($modal.find("#lumia-sum-interval-input").val()) || 10,
-                messageContext: parseInt($modal.find("#lumia-sum-context-input").val()) || 10,
+                autoMessageContext: parseInt($modal.find("#lumia-sum-auto-context-input").val()) || 10,
+                manualMessageContext: parseInt($modal.find("#lumia-sum-manual-context-input").val()) || 10,
                 secondary: {
                     provider: $modal.find("#lumia-sum-provider-select").val(),
                     model: $modal.find("#lumia-sum-model-input").val(),
                     endpoint: $modal.find("#lumia-sum-endpoint-input").val(),
                     apiKey: $modal.find("#lumia-sum-apikey-input").val(),
                     temperature: parseFloat($modal.find("#lumia-sum-temp-input").val()) || 0.7,
-                    maxTokens: parseInt($modal.find("#lumia-sum-maxtokens-input").val()) || 2048
+                    topP: parseFloat($modal.find("#lumia-sum-topp-input").val()) || 1.0,
+                    maxTokens: parseMaxTokens($modal.find("#lumia-sum-maxtokens-input").val())
                 }
             };
 
-            const result = await generateLoomSummary(tempSettings);
+            const result = await generateLoomSummary(tempSettings, true); // true = manual trigger
             if (result) {
                 $status.html(`<span style="color: #4CAF50;">✓ Summary generated successfully!</span><br><small>Check your chat metadata.</small>`);
                 toastr.success("Summary generated and saved to chat metadata!");
@@ -834,18 +895,25 @@ function showSummarizationModal() {
 
     // Save button
     $modal.find(".lumia-sum-save-btn").click(() => {
+        const maxTokensVal = parseMaxTokens($modal.find("#lumia-sum-maxtokens-input").val());
+
+        // Update the input field to show the validated value
+        $modal.find("#lumia-sum-maxtokens-input").val(maxTokensVal);
+
         settings.summarization = {
             mode: $modal.find("#lumia-sum-mode-select").val(),
             apiSource: $modal.find("#lumia-sum-source-select").val(),
             autoInterval: parseInt($modal.find("#lumia-sum-interval-input").val()) || 10,
-            messageContext: parseInt($modal.find("#lumia-sum-context-input").val()) || 10,
+            autoMessageContext: parseInt($modal.find("#lumia-sum-auto-context-input").val()) || 10,
+            manualMessageContext: parseInt($modal.find("#lumia-sum-manual-context-input").val()) || 10,
             secondary: {
                 provider: $modal.find("#lumia-sum-provider-select").val(),
                 model: $modal.find("#lumia-sum-model-input").val(),
                 endpoint: $modal.find("#lumia-sum-endpoint-input").val(),
                 apiKey: $modal.find("#lumia-sum-apikey-input").val(),
                 temperature: parseFloat($modal.find("#lumia-sum-temp-input").val()) || 0.7,
-                maxTokens: parseInt($modal.find("#lumia-sum-maxtokens-input").val()) || 2048
+                topP: parseFloat($modal.find("#lumia-sum-topp-input").val()) || 1.0,
+                maxTokens: maxTokensVal
             }
         };
 
@@ -920,15 +988,17 @@ Please provide an updated comprehensive summary of the story so far, incorporati
 
 /**
  * Generate summary using Main API (SillyTavern's generateRaw)
+ * @param {Object} sumSettings - Summarization settings
+ * @param {number} messageContext - Number of messages to include
  */
-async function generateSummaryWithMainAPI(sumSettings) {
+async function generateSummaryWithMainAPI(sumSettings, messageContext) {
     const { generateRaw } = getContext();
 
     if (!generateRaw) {
         throw new Error("generateRaw not available - is SillyTavern properly loaded?");
     }
 
-    const prompts = buildSummarizationPrompt(sumSettings.messageContext || 10);
+    const prompts = buildSummarizationPrompt(messageContext);
     if (!prompts) {
         throw new Error("No chat messages to summarize");
     }
@@ -946,14 +1016,17 @@ async function generateSummaryWithMainAPI(sumSettings) {
 
 /**
  * Generate summary using Secondary LLM (custom endpoint)
+ * @param {Object} sumSettings - Summarization settings
+ * @param {number} messageContext - Number of messages to include
  */
-async function generateSummaryWithSecondaryLLM(sumSettings) {
+async function generateSummaryWithSecondaryLLM(sumSettings, messageContext) {
     const secondary = sumSettings.secondary || {};
     const provider = secondary.provider || 'openai';
     const model = secondary.model;
     const apiKey = secondary.apiKey;
     const temperature = secondary.temperature || 0.7;
-    const maxTokens = secondary.maxTokens || 2048;
+    const topP = secondary.topP !== undefined ? secondary.topP : 1.0;
+    const maxTokens = secondary.maxTokens || 8192;
 
     if (!model) {
         throw new Error("No model specified for secondary LLM");
@@ -963,7 +1036,7 @@ async function generateSummaryWithSecondaryLLM(sumSettings) {
         throw new Error("No API key specified for secondary LLM");
     }
 
-    const prompts = buildSummarizationPrompt(sumSettings.messageContext || 10);
+    const prompts = buildSummarizationPrompt(messageContext);
     if (!prompts) {
         throw new Error("No chat messages to summarize");
     }
@@ -982,6 +1055,21 @@ async function generateSummaryWithSecondaryLLM(sumSettings) {
 
     if (provider === 'anthropic') {
         // Anthropic uses a different API format
+        // Note: Anthropic uses top_p, not topP
+        const requestBody = {
+            model: model,
+            max_tokens: maxTokens,
+            system: prompts.systemPrompt,
+            messages: [
+                { role: 'user', content: prompts.userPrompt }
+            ],
+            temperature: temperature
+        };
+        // Only include top_p if it's not the default (1.0)
+        if (topP < 1.0) {
+            requestBody.top_p = topP;
+        }
+
         response = await fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -989,15 +1077,7 @@ async function generateSummaryWithSecondaryLLM(sumSettings) {
                 'x-api-key': apiKey,
                 'anthropic-version': '2023-06-01'
             },
-            body: JSON.stringify({
-                model: model,
-                max_tokens: maxTokens,
-                system: prompts.systemPrompt,
-                messages: [
-                    { role: 'user', content: prompts.userPrompt }
-                ],
-                temperature: temperature
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
@@ -1027,18 +1107,24 @@ async function generateSummaryWithSecondaryLLM(sumSettings) {
             headers['X-Title'] = 'Lumia Injector';
         }
 
+        const requestBody = {
+            model: model,
+            messages: [
+                { role: 'system', content: prompts.systemPrompt },
+                { role: 'user', content: prompts.userPrompt }
+            ],
+            temperature: temperature,
+            max_tokens: maxTokens
+        };
+        // Only include top_p if it's not the default (1.0)
+        if (topP < 1.0) {
+            requestBody.top_p = topP;
+        }
+
         response = await fetch(endpoint, {
             method: 'POST',
             headers: headers,
-            body: JSON.stringify({
-                model: model,
-                messages: [
-                    { role: 'system', content: prompts.systemPrompt },
-                    { role: 'user', content: prompts.userPrompt }
-                ],
-                temperature: temperature,
-                max_tokens: maxTokens
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
@@ -1059,8 +1145,9 @@ async function generateSummaryWithSecondaryLLM(sumSettings) {
 /**
  * Main function to generate a loom summary
  * @param {Object} overrideSettings - Optional settings override for testing
+ * @param {boolean} isManual - Whether this is a manual trigger (uses manualMessageContext)
  */
-async function generateLoomSummary(overrideSettings = null) {
+async function generateLoomSummary(overrideSettings = null, isManual = false) {
     const sumSettings = overrideSettings || settings.summarization;
 
     if (!sumSettings) {
@@ -1074,13 +1161,20 @@ async function generateLoomSummary(overrideSettings = null) {
         return null;
     }
 
+    // Determine which message context to use based on trigger type
+    const messageContext = isManual
+        ? (sumSettings.manualMessageContext || 10)
+        : (sumSettings.autoMessageContext || 10);
+
+    console.log(`[${MODULE_NAME}] 📜 Using ${isManual ? 'manual' : 'auto'} message context: ${messageContext} messages`);
+
     try {
         let summaryText;
 
         if (sumSettings.apiSource === 'main') {
-            summaryText = await generateSummaryWithMainAPI(sumSettings);
+            summaryText = await generateSummaryWithMainAPI(sumSettings, messageContext);
         } else if (sumSettings.apiSource === 'secondary') {
-            summaryText = await generateSummaryWithSecondaryLLM(sumSettings);
+            summaryText = await generateSummaryWithSecondaryLLM(sumSettings, messageContext);
         } else {
             throw new Error(`Unknown API source: ${sumSettings.apiSource}`);
         }
@@ -2588,7 +2682,7 @@ jQuery(async () => {
 
                 try {
                     toastr.info("Generating loom summary...");
-                    const result = await generateLoomSummary();
+                    const result = await generateLoomSummary(null, true); // true = manual trigger
                     if (result) {
                         toastr.success("Loom summary generated and saved!");
                         return "Summary generated successfully.";
@@ -2602,7 +2696,7 @@ jQuery(async () => {
                 }
             },
             aliases: ["loom-sum", "summarize"],
-            helpString: "Manually generate a loom summary of the current chat using your configured summarization settings."
+            helpString: "Manually generate a loom summary of the current chat using your configured summarization settings (uses Manual Message Context)."
         })
     );
 
