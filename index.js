@@ -268,12 +268,12 @@ jQuery(async () => {
 
   // Handle character message rendered - primary OOC processing trigger
   eventSource.on(event_types.CHARACTER_MESSAGE_RENDERED, (mesId) => {
-    const eventTime = Date.now();
     console.log(
-      `[${MODULE_NAME}] CHARACTER_MESSAGE_RENDERED event for mesId ${mesId} at ${eventTime}`,
+      `[${MODULE_NAME}] CHARACTER_MESSAGE_RENDERED event for mesId ${mesId}`,
     );
 
     // Reset generation flag - successful render means generation completed
+    // This also triggers flush of any pending RAF updates
     setIsGenerating(false);
 
     // Capture loom summary from chat messages
@@ -282,41 +282,27 @@ jQuery(async () => {
     // Check if auto-summarization should trigger
     checkAutoSummarization();
 
-    // Delay to run after SimTracker's 150ms delayed re-render
-    setTimeout(() => {
-      const processTime = Date.now();
-      console.log(
-        `[${MODULE_NAME}] Processing callback fired for mesId ${mesId} at ${processTime} (${processTime - eventTime}ms after event)`,
-      );
+    // Process immediately via RAF - no artificial delays
+    // The RAF batch renderer handles timing and scroll preservation
+    const messageElement = query(`div[mesid="${mesId}"] .mes_text`);
+    if (messageElement) {
+      // Hide any loom_sum blocks in the DOM
+      hideLoomSumBlocks(messageElement);
 
-      const messageElement = query(`div[mesid="${mesId}"] .mes_text`);
-      if (messageElement) {
-        // Hide any loom_sum blocks in the DOM
-        hideLoomSumBlocks(messageElement);
+      // Unhide any markers that were hidden during streaming
+      unhideAndProcessOOCMarkers(messageElement);
 
-        // Unhide any markers that were hidden during streaming
-        unhideAndProcessOOCMarkers(messageElement);
+      // Check for any unprocessed OOC fonts and process them
+      const fontElements = queryAll("font", messageElement);
+      const oocFonts = fontElements.filter(isLumiaOOCFont);
 
-        // Check for any unprocessed OOC fonts and process them
-        const fontElements = queryAll("font", messageElement);
-        const oocFonts = fontElements.filter(isLumiaOOCFont);
-
-        if (oocFonts.length > 0) {
-          console.log(
-            `[${MODULE_NAME}] Found ${oocFonts.length} OOC font(s), processing message ${mesId}`,
-          );
-          processLumiaOOCComments(mesId);
-        } else {
-          console.log(
-            `[${MODULE_NAME}] No OOC fonts found in message ${mesId}`,
-          );
-        }
-      } else {
+      if (oocFonts.length > 0) {
         console.log(
-          `[${MODULE_NAME}] Message element not found for mesId ${mesId}`,
+          `[${MODULE_NAME}] Found ${oocFonts.length} OOC font(s), scheduling OOC processing for message ${mesId}`,
         );
+        processLumiaOOCComments(mesId);
       }
-    }, 200);
+    }
   });
 
   // Handle message edits - reprocess OOC comments
@@ -327,13 +313,15 @@ jQuery(async () => {
       const existingBoxes = queryAll("[data-lumia-ooc]", messageElement);
       existingBoxes.forEach((box) => box.remove());
     }
-    setTimeout(() => processLumiaOOCComments(mesId), 50);
+    // Schedule via RAF - no artificial delay needed
+    processLumiaOOCComments(mesId);
   });
 
   // Handle swipes - reprocess OOC comments
   eventSource.on(event_types.MESSAGE_SWIPED, (mesId) => {
     console.log(`[${MODULE_NAME}] MESSAGE_SWIPED event for mesId ${mesId}`);
-    setTimeout(() => processLumiaOOCComments(mesId), 50);
+    // Schedule via RAF - no artificial delay needed
+    processLumiaOOCComments(mesId);
   });
 
   // Handle chat changes - reprocess all OOC comments and capture summaries
