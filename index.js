@@ -59,6 +59,8 @@ import {
   setupLumiaOOCObserver,
   isLumiaOOCFont,
   setIsGenerating,
+  initializeRAFBatchRenderer,
+  flushPendingUpdates,
 } from "./lib/oocComments.js";
 
 // --- GENERATION INTERCEPTOR ---
@@ -167,6 +169,9 @@ MacrosParser.registerMacro("lumiaOOCTrigger", () => {
 jQuery(async () => {
   // Load settings
   loadSettings();
+
+  // Initialize RAF batch renderer for optimized OOC rendering
+  initializeRAFBatchRenderer();
 
   // Set up UI refresh callback for modals
   setRefreshUICallback(refreshUIDisplay);
@@ -348,20 +353,24 @@ jQuery(async () => {
     setIsGenerating(true);
   });
 
-  // GENERATION_ENDED fires on errors - reset state
+  // GENERATION_ENDED fires on errors - reset state and flush pending updates
   eventSource.on(event_types.GENERATION_ENDED, () => {
     console.log(
-      `[${MODULE_NAME}] GENERATION_ENDED (error case) - resetting state`,
+      `[${MODULE_NAME}] GENERATION_ENDED (error case) - resetting state and flushing updates`,
     );
     setIsGenerating(false);
+    // Flush any pending RAF updates immediately
+    flushPendingUpdates();
   });
 
-  // GENERATION_STOPPED fires when user cancels - reset state
+  // GENERATION_STOPPED fires when user cancels - reset state and flush pending updates
   eventSource.on(event_types.GENERATION_STOPPED, () => {
     console.log(
-      `[${MODULE_NAME}] GENERATION_STOPPED (user cancel) - resetting state`,
+      `[${MODULE_NAME}] GENERATION_STOPPED (user cancel) - resetting state and flushing updates`,
     );
     setIsGenerating(false);
+    // Flush any pending RAF updates immediately
+    flushPendingUpdates();
   });
 
   // Set up MutationObserver for streaming support
