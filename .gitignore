@@ -7,3 +7,4 @@ SillySimTracker/
 !docs/*.md
 generate_raw_example.js
 .vscode/settings.json
+secrets_st.js
