@@ -3,6 +3,11 @@
    Modern Apple-esque minimal design
    ============================================ */
 
+/* Utility Classes */
+.lumia-hidden {
+  display: none !important;
+}
+
 .lumia-injector-settings {
   padding: 0;
   font-family:
