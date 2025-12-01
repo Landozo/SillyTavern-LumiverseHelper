@@ -1504,6 +1504,95 @@ details.lumia-panel[open] .lumia-panel-chevron {
   padding-bottom: 0;
 }
 
+/* Panel Content Inner - wrapper for collapsible content */
+.lumia-panel-content-inner {
+  padding: 16px;
+}
+
+/* Panel Status Badge */
+.lumia-panel-status {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 10px;
+  background: rgba(128, 128, 128, 0.2);
+  color: rgba(255, 255, 255, 0.4);
+  transition: all 0.2s ease;
+}
+
+.lumia-panel-status-active {
+  background: rgba(147, 112, 219, 0.25);
+  color: #9370db;
+}
+
+/* Filter Item Styles */
+.lumia-filter-item {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.1);
+}
+
+.lumia-filter-item:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.lumia-filter-item:first-child {
+  padding-top: 0;
+}
+
+.lumia-filter-options {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.lumia-filter-options-hidden {
+  display: none;
+}
+
+.lumia-input-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.lumia-input-label span {
+  white-space: nowrap;
+}
+
+.lumia-input-number {
+  width: 70px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid rgba(128, 128, 128, 0.3);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  color: rgba(255, 255, 255, 0.9);
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.lumia-input-number:focus {
+  outline: none;
+  border-color: rgba(147, 112, 219, 0.5);
+  box-shadow: 0 0 0 2px rgba(147, 112, 219, 0.15);
+}
+
+.lumia-input-hint {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.4;
+}
+
 /* Panel Content Variants */
 .lumia-modal-panel-content-cards {
   padding: 12px;

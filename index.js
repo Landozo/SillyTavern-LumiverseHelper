@@ -63,6 +63,119 @@ import {
   flushPendingUpdates,
 } from "./lib/oocComments.js";
 
+// --- CONTEXT FILTER FUNCTIONS ---
+
+/**
+ * Strip common HTML formatting tags from content, preserving the text inside
+ * @param {string} content - The content to filter
+ * @returns {string} Content with HTML tags stripped
+ */
+function stripHtmlTags(content) {
+  if (!content) return content;
+
+  // List of common formatting/layout tags to strip (preserving content)
+  // Match opening and closing tags, keeping the content inside
+  const tagsToStrip = [
+    "font",
+    "div",
+    "span",
+    "b",
+    "i",
+    "u",
+    "em",
+    "strong",
+    "s",
+    "strike",
+    "sub",
+    "sup",
+    "mark",
+    "small",
+    "big",
+  ];
+
+  let result = content;
+
+  for (const tag of tagsToStrip) {
+    // Match opening tag with any attributes, capture content, match closing tag
+    // Use non-greedy matching and handle nested tags by repeating
+    const openTagRegex = new RegExp(`<${tag}(?:\\s[^>]*)?>`, "gi");
+    const closeTagRegex = new RegExp(`</${tag}>`, "gi");
+
+    result = result.replace(openTagRegex, "");
+    result = result.replace(closeTagRegex, "");
+  }
+
+  return result;
+}
+
+/**
+ * Remove <details> blocks from content entirely
+ * @param {string} content - The content to filter
+ * @returns {string} Content with details blocks removed
+ */
+function stripDetailsBlocks(content) {
+  if (!content) return content;
+
+  // Match <details>...</details> including nested content
+  // Use a non-greedy match that handles the most common cases
+  // For deeply nested details, we may need multiple passes
+  let result = content;
+  let prevResult;
+
+  // Keep removing until no more changes (handles nested details)
+  do {
+    prevResult = result;
+    // Match details blocks - handles attributes on the tag
+    result = result.replace(/<details(?:\s[^>]*)?>([\s\S]*?)<\/details>/gi, "");
+  } while (result !== prevResult);
+
+  return result;
+}
+
+/**
+ * Remove Loom-related tags from content
+ * These are custom tags used by Lucid Loom system
+ * @param {string} content - The content to filter
+ * @returns {string} Content with Loom tags stripped
+ */
+function stripLoomTags(content) {
+  if (!content) return content;
+
+  // List of Loom-related custom tags
+  const loomTags = [
+    "loom_sum",
+    "loom_if",
+    "loom_else",
+    "loom_endif",
+    "lumia_ooc",
+    "loom_state",
+    "loom_memory",
+    "loom_context",
+    "loom_inject",
+    "loom_var",
+    "loom_set",
+    "loom_get",
+  ];
+
+  let result = content;
+
+  for (const tag of loomTags) {
+    // Match both self-closing and paired tags
+    const pairedTagRegex = new RegExp(
+      `<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`,
+      "gi",
+    );
+    const selfClosingRegex = new RegExp(`<${tag}(?:\\s[^>]*)?\\/?>`, "gi");
+
+    // For paired tags, remove the entire block including content
+    result = result.replace(pairedTagRegex, "");
+    // For self-closing or orphan opening tags
+    result = result.replace(selfClosingRegex, "");
+  }
+
+  return result;
+}
+
 // --- GENERATION INTERCEPTOR ---
 // This interceptor is called before each generation (send, regenerate, swipe, continue, impersonate)
 // It ensures that randomLumia is reset on every generation, including swipes
@@ -81,6 +194,7 @@ globalThis.lumiverseHelperGenInterceptor = async function (
 
   const settings = getSettings();
   const sovereignHandEnabled = settings.sovereignHand?.enabled || false;
+  const contextFilters = settings.contextFilters || {};
 
   // Sovereign Hand: Capture and exclude last user message
   if (sovereignHandEnabled) {
@@ -118,14 +232,65 @@ globalThis.lumiverseHelperGenInterceptor = async function (
     setLastUserMessageContent("");
   }
 
-  // Process loomIf conditionals in all chat messages
+  // Calculate "keep depth" thresholds for depth-based filters
+  // Depth is measured from the END of the chat (most recent messages)
+  const detailsKeepDepth = contextFilters.detailsBlocks?.keepDepth ?? 3;
+  const loomKeepDepth = contextFilters.loomItems?.keepDepth ?? 5;
+
+  // Check if any filters are enabled
+  const htmlFilterEnabled = contextFilters.htmlTags?.enabled || false;
+  const detailsFilterEnabled = contextFilters.detailsBlocks?.enabled || false;
+  const loomFilterEnabled = contextFilters.loomItems?.enabled || false;
+  const anyFilterEnabled =
+    htmlFilterEnabled || detailsFilterEnabled || loomFilterEnabled;
+
+  // Process loomIf conditionals and apply content filters in all chat messages
   for (let i = 0; i < chat.length; i++) {
+    // Calculate depth from end (0 = last message, 1 = second to last, etc.)
+    const depthFromEnd = chat.length - 1 - i;
+
+    // Helper function to apply filters to a content string
+    const filterContent = (content) => {
+      if (!content || typeof content !== "string") return content;
+
+      let result = content;
+
+      // HTML tags filter - applies to ALL messages when enabled
+      if (htmlFilterEnabled) {
+        result = stripHtmlTags(result);
+      }
+
+      // Details blocks filter - only applies to messages BEYOND the keep depth
+      if (detailsFilterEnabled && depthFromEnd >= detailsKeepDepth) {
+        result = stripDetailsBlocks(result);
+      }
+
+      // Loom tags filter - only applies to messages BEYOND the keep depth
+      if (loomFilterEnabled && depthFromEnd >= loomKeepDepth) {
+        result = stripLoomTags(result);
+      }
+
+      return result;
+    };
+
+    // Process 'content' field
     if (chat[i] && typeof chat[i].content === "string") {
       chat[i].content = processLoomConditionals(chat[i].content);
+
+      // Apply content filters if any are enabled
+      if (anyFilterEnabled) {
+        chat[i].content = filterContent(chat[i].content);
+      }
     }
+
     // Also process 'mes' field which some contexts use
     if (chat[i] && typeof chat[i].mes === "string") {
       chat[i].mes = processLoomConditionals(chat[i].mes);
+
+      // Apply content filters if any are enabled
+      if (anyFilterEnabled) {
+        chat[i].mes = filterContent(chat[i].mes);
+      }
     }
   }
 
