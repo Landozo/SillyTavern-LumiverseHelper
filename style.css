@@ -1593,16 +1593,6 @@ details.lumia-panel[open] .lumia-panel-chevron {
   line-height: 1.4;
 }
 
-/* Truncation Options */
-.lumia-trunc-options {
-  margin-top: 16px;
-  transition: all 0.2s ease;
-}
-
-.lumia-trunc-options-hidden {
-  display: none;
-}
-
 /* Warning Box - Themed alert component */
 .lumia-warning-box {
   display: flex;
