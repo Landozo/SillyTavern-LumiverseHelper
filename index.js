@@ -71,6 +71,12 @@ import {
   setEditorRefreshUICallback,
 } from "./lib/lumiaEditor.js";
 
+import {
+  initializeReactUI,
+  registerCallback as registerReactCallback,
+  notifyReactOfSettingsChange,
+} from "./lib/reactBridge.js";
+
 // --- CONTEXT FILTER FUNCTIONS ---
 
 /**
@@ -422,6 +428,9 @@ MacrosParser.registerMacro("lumiaOOCTrigger", () => {
 
 // --- INITIALIZATION ---
 jQuery(async () => {
+  console.log(`[${MODULE_NAME}] jQuery initialization starting...`);
+  console.log(`[${MODULE_NAME}] window.LumiverseUI available:`, !!window.LumiverseUI);
+
   // Load settings
   loadSettings();
 
@@ -437,12 +446,54 @@ jQuery(async () => {
   // Set up editor refresh callback
   setEditorRefreshUICallback(refreshUIDisplay);
 
-  // Load and append settings HTML
-  const settingsHtml = await loadSettingsHtml();
-  $("#extensions_settings").append(settingsHtml);
+  // --- REACT UI INITIALIZATION ---
+  // Register callbacks that React components can trigger
+  registerReactCallback("showSelectionModal", showSelectionModal);
+  registerReactCallback("showLoomSelectionModal", showLoomSelectionModal);
+  registerReactCallback("showMiscFeaturesModal", showMiscFeaturesModal);
+  registerReactCallback("showSummarizationModal", showSummarizationModal);
+  registerReactCallback("showPromptSettingsModal", showPromptSettingsModal);
+  registerReactCallback("showLumiaEditorModal", showLumiaEditorModal);
+  registerReactCallback("showLucidCardsModal", showLucidCardsModal);
+  registerReactCallback("fetchWorldBook", () => {
+    const url = $("#lumia-url-input-react").val() || $("#lumia-url-input").val();
+    fetchWorldBook(url).then(() => {
+      refreshUIDisplay();
+      notifyReactOfSettingsChange();
+    });
+  });
+  registerReactCallback("handleNewBook", (data, filename) => {
+    handleNewBook(data, filename, false);
+    refreshUIDisplay();
+    notifyReactOfSettingsChange();
+  });
+  registerReactCallback("refreshUIDisplay", () => {
+    refreshUIDisplay();
+    notifyReactOfSettingsChange();
+  });
 
-  // Create the Loom Summary button in the viewport
-  createLoomSummaryButton();
+  // Try to initialize React UI (will gracefully fail if bundle not loaded)
+  console.log(`[${MODULE_NAME}] About to initialize React UI...`);
+  const reactContainer = document.getElementById("extensions_settings");
+  console.log(`[${MODULE_NAME}] extensions_settings container:`, reactContainer);
+  if (reactContainer) {
+    const reactInitialized = await initializeReactUI(reactContainer);
+    if (reactInitialized) {
+      console.log(`[${MODULE_NAME}] React UI initialized successfully`);
+    } else {
+      console.log(`[${MODULE_NAME}] React UI not available, using legacy HTML UI`);
+      // Fall back to legacy HTML settings
+      const settingsHtml = await loadSettingsHtml();
+      $("#extensions_settings").append(settingsHtml);
+    }
+  } else {
+    // Load legacy HTML settings as fallback
+    const settingsHtml = await loadSettingsHtml();
+    $("#extensions_settings").append(settingsHtml);
+  }
+
+  // Loom Summary button is now redundant - summary is accessible via the Lumiverse Drawer
+  // createLoomSummaryButton();
 
   // Initial UI refresh
   refreshUIDisplay();
