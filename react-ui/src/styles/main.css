@@ -3883,7 +3883,8 @@ details.lumia-panel[open] .lumia-panel-chevron {
 
 .lumiverse-vp-summary-actions {
     display: flex;
-    gap: 8px;
+    gap: 10px;
+    justify-content: center;
 }
 
 .lumiverse-vp-action-btn {
@@ -3900,6 +3901,16 @@ details.lumia-panel[open] .lumia-panel-chevron {
     transition: all 0.2s ease;
 }
 
+/* Icon-only button mode */
+.lumiverse-vp-action-btn--icon-only {
+    padding: 10px 12px;
+    min-width: 44px;
+    width: 44px;
+    height: 40px;
+    flex: 1;
+    max-width: 56px;
+}
+
 .lumiverse-vp-action-btn--secondary {
     background: var(--lumiverse-bg-elevated);
     color: var(--lumiverse-text);
@@ -3911,7 +3922,6 @@ details.lumia-panel[open] .lumia-panel-chevron {
 }
 
 .lumiverse-vp-action-btn--primary {
-    flex: 1;
     background: var(--lumiverse-primary);
     color: white;
 }
@@ -3950,6 +3960,11 @@ details.lumia-panel[open] .lumia-panel-chevron {
     border-top-color: white;
     border-radius: 50%;
     animation: lumiverse-spin 0.8s linear infinite;
+}
+
+.lumiverse-vp-action-btn--icon-only .lumiverse-vp-action-btn-spinner {
+    width: 16px;
+    height: 16px;
 }
 
 @keyframes lumiverse-spin {

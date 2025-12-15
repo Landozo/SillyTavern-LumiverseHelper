@@ -1147,6 +1147,64 @@ details.lumia-panel[open] .lumia-panel-chevron {
   border-radius: 50%;
 }
 
+/* Summarizing state - pulsing/spinning animation */
+.lumia-loom-summary-btn-summarizing {
+  border-color: rgba(147, 112, 219, 0.7);
+  pointer-events: none; /* Disable clicking while summarizing */
+}
+
+.lumia-loom-summary-btn-summarizing svg {
+  stroke: rgba(147, 112, 219, 1);
+  animation: lumia-loom-btn-spin 1.2s linear infinite;
+}
+
+.lumia-loom-summary-btn-summarizing::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 10px;
+  background: linear-gradient(
+    45deg,
+    rgba(147, 112, 219, 0.4),
+    rgba(186, 135, 255, 0.6),
+    rgba(147, 112, 219, 0.4)
+  );
+  background-size: 200% 200%;
+  animation: lumia-loom-btn-pulse 1.5s ease-in-out infinite;
+  z-index: -1;
+}
+
+@keyframes lumia-loom-btn-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes lumia-loom-btn-pulse {
+  0%, 100% {
+    opacity: 0.5;
+    background-position: 0% 50%;
+  }
+  50% {
+    opacity: 1;
+    background-position: 100% 50%;
+  }
+}
+
+/* Reduce motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .lumia-loom-summary-btn-summarizing svg {
+    animation: none;
+  }
+  .lumia-loom-summary-btn-summarizing::before {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
 /* Summary Modal */
 .lumia-modal-summary {
   width: 600px;

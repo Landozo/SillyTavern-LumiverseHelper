@@ -235,26 +235,28 @@ function StatusIndicator({ hasContent, hasChat }) {
 /**
  * Action button component
  */
-function ActionButton({ Icon, label, onClick, disabled, variant = 'secondary', loading = false }) {
+function ActionButton({ Icon, label, onClick, disabled, variant = 'secondary', loading = false, iconOnly = false }) {
     return (
         <motion.button
             className={clsx(
                 'lumiverse-vp-action-btn',
                 `lumiverse-vp-action-btn--${variant}`,
-                disabled && 'lumiverse-vp-action-btn--disabled'
+                disabled && 'lumiverse-vp-action-btn--disabled',
+                iconOnly && 'lumiverse-vp-action-btn--icon-only'
             )}
             onClick={onClick}
             disabled={disabled || loading}
-            whileHover={disabled ? {} : { scale: 1.02 }}
-            whileTap={disabled ? {} : { scale: 0.98 }}
+            whileHover={disabled ? {} : { scale: 1.05 }}
+            whileTap={disabled ? {} : { scale: 0.95 }}
             type="button"
+            title={label}
         >
             {loading ? (
                 <span className="lumiverse-vp-action-btn-spinner" />
             ) : (
-                <Icon size={14} strokeWidth={2} />
+                <Icon size={iconOnly ? 16 : 14} strokeWidth={2} />
             )}
-            <span>{label}</span>
+            {!iconOnly && <span>{label}</span>}
         </motion.button>
     );
 }
@@ -734,12 +736,14 @@ function SummaryTextEditor() {
                     disabled={!hasChat}
                     loading={isGenerating}
                     variant="primary"
+                    iconOnly
                 />
                 <ActionButton
                     Icon={RefreshCw}
                     label="Refresh"
                     onClick={handleRefresh}
                     disabled={!hasChat}
+                    iconOnly
                 />
                 <ActionButton
                     Icon={Trash2}
@@ -747,6 +751,7 @@ function SummaryTextEditor() {
                     onClick={handleClear}
                     disabled={!hasChat || !originalSummary}
                     variant="danger"
+                    iconOnly
                 />
                 <ActionButton
                     Icon={isSaving ? Check : Save}
@@ -754,6 +759,7 @@ function SummaryTextEditor() {
                     onClick={handleSave}
                     disabled={!hasChat || !hasChanges}
                     variant="primary"
+                    iconOnly
                 />
             </div>
 

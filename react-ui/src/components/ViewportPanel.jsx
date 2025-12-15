@@ -179,29 +179,39 @@ function ViewportPanel({
         }
     };
 
-    // Calculate the right position - when closed, only show toggle button
-    // Toggle button is ~90px wide, so position container to show just that
-    const containerRight = isVisible ? 0 : -(PANEL_WIDTH);
-
+    // Use transform for smooth GPU-accelerated animation
     return (
-        <div
-            className="lumiverse-viewport-wrapper"
-            style={{
-                position: 'fixed',
-                top: 0,
-                right: containerRight,
-                bottom: 0,
-                zIndex: 9998,
-                transition: 'right 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                pointerEvents: 'none',
-            }}
-        >
-            {/* Toggle button - positioned to the left of the panel */}
-            <div className="lumiverse-toggle-container">
+        <>
+            {/* Toggle button - fixed position, independent of panel sliding */}
+            <div
+                className="lumiverse-toggle-container"
+                style={{
+                    position: 'fixed',
+                    top: 12,
+                    right: PANEL_WIDTH + 12, // Panel width + margin
+                    zIndex: 9999,
+                    pointerEvents: 'auto',
+                }}
+            >
                 <ToggleButton isVisible={isVisible} onClick={onToggle} />
             </div>
 
-            {/* Main panel */}
+            {/* Panel wrapper - slides via transform */}
+            <div
+                className="lumiverse-viewport-wrapper"
+                style={{
+                    position: 'fixed',
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                    width: PANEL_WIDTH,
+                    zIndex: 9998,
+                    transform: `translateX(${isVisible ? 0 : PANEL_WIDTH}px)`,
+                    transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                    pointerEvents: 'none',
+                }}
+            >
+                {/* Main panel */}
             <div
                 className={clsx(
                     'lumiverse-viewport-panel',
@@ -251,7 +261,8 @@ function ViewportPanel({
                     </div>
                 </div>
             </div>
-        </div>
+            </div>
+        </>
     );
 }
 
