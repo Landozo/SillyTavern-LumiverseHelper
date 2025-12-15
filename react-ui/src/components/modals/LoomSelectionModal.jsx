@@ -1,28 +1,36 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { useSettings, usePacks, useLumiverseActions, saveToExtension } from '../../store/LumiverseContext';
+import { usePacks, useLumiverseActions, useLoomSelections, saveToExtension } from '../../store/LumiverseContext';
 import clsx from 'clsx';
 
 /**
  * Category mapping for Loom types
- * Maps modal type to the pack field name and settings key
+ * Maps modal type to the pack field name and store action
+ *
+ * OLD CODE: Selections are stored at root level, NOT nested under settings.loom
+ * - selectedLoomStyle: [] (not settings.loom.selectedStyle)
+ * - selectedLoomUtils: [] (not settings.loom.selectedUtility)
+ * - selectedLoomRetrofits: []
  */
 const LOOM_CATEGORIES = {
     loomStyles: {
         category: 'Narrative Style',
-        packField: 'loomStyles',           // Field in pack structure
-        settingsKey: 'selectedStyle',       // Field in settings.loom
+        packField: 'loomStyles',           // Field in pack structure (legacy)
+        storeField: 'styles',              // Field name in useLoomSelections() return value
+        toggleAction: 'toggleLoomStyle',   // Action name in store
         isMulti: true,
     },
     loomUtilities: {
         category: 'Loom Utilities',
         packField: 'loomUtils',
-        settingsKey: 'selectedUtility',
+        storeField: 'utilities',
+        toggleAction: 'toggleLoomUtility',
         isMulti: true,
     },
     loomRetrofits: {
         category: 'Retrofits',
         packField: 'loomRetrofits',
-        settingsKey: 'selectedRetrofits',
+        storeField: 'retrofits',
+        toggleAction: 'toggleLoomRetrofit',
         isMulti: true,
     },
 };
@@ -161,27 +169,29 @@ function getLoomItemsFromPack(pack, config) {
 /**
  * Loom Selection Modal
  * Used for selecting Narrative Styles, Loom Utilities, and Retrofits
+ *
+ * OLD CODE: Selections stored at root level as arrays of { packName, itemName }
  */
 function LoomSelectionModal({ type, onClose }) {
     const [searchQuery, setSearchQuery] = useState('');
-    const settings = useSettings();
     const { allPacks } = usePacks();
     const actions = useLumiverseActions();
+    const loomSelections = useLoomSelections();  // { styles, utilities, retrofits }
 
     const config = LOOM_CATEGORIES[type];
     if (!config) {
         return <div className="lumiverse-error">Unknown Loom type: {type}</div>;
     }
 
-    const { category, settingsKey, isMulti } = config;
+    const { category, storeField, toggleAction, isMulti } = config;
 
-    // Get current selections from settings.loom
+    // Get current selections from the correct store field
+    // useLoomSelections returns: { styles: [...], utilities: [...], retrofits: [...] }
     const currentSelections = useMemo(() => {
-        const loomSettings = settings.loom || {};
-        const selection = loomSettings[settingsKey];
+        const selection = loomSelections[storeField];
         if (!selection) return [];
         return Array.isArray(selection) ? selection : [selection];
-    }, [settings.loom, settingsKey]);
+    }, [loomSelections, storeField]);
 
     // Check if an item is selected
     const isSelected = useCallback((packName, itemName) => {
@@ -190,40 +200,33 @@ function LoomSelectionModal({ type, onClose }) {
         );
     }, [currentSelections]);
 
-    // Toggle selection
+    // Toggle selection using the store's toggle actions
     const handleToggle = useCallback((packName, itemName) => {
-        const newSelection = { packName, itemName };
-        let updatedSelections;
-
-        if (isMulti) {
-            if (isSelected(packName, itemName)) {
-                // Remove from selection
-                updatedSelections = currentSelections.filter(
-                    (s) => !(s.packName === packName && s.itemName === itemName)
-                );
-            } else {
-                // Add to selection
-                updatedSelections = [...currentSelections, newSelection];
-            }
+        const selection = { packName, itemName };
+        // Use the appropriate toggle action from the store
+        // toggleLoomStyle, toggleLoomUtility, or toggleLoomRetrofit
+        if (actions[toggleAction]) {
+            actions[toggleAction](selection);
+            saveToExtension();
         } else {
-            // Single select - toggle off if same, otherwise replace
-            if (isSelected(packName, itemName)) {
-                updatedSelections = [];
-            } else {
-                updatedSelections = [newSelection];
-            }
+            console.error(`[LoomSelectionModal] Unknown toggle action: ${toggleAction}`);
         }
+    }, [actions, toggleAction]);
 
-        // Update settings
-        actions.updateSettings(`loom.${settingsKey}`, updatedSelections);
-        saveToExtension();
-    }, [isMulti, isSelected, currentSelections, actions, settingsKey]);
-
-    // Clear all selections
+    // Clear all selections using the appropriate setter action
     const handleClear = useCallback(() => {
-        actions.updateSettings(`loom.${settingsKey}`, []);
-        saveToExtension();
-    }, [actions, settingsKey]);
+        // Map storeField to the setter action
+        const setterMap = {
+            styles: 'setSelectedLoomStyles',
+            utilities: 'setSelectedLoomUtilities',
+            retrofits: 'setSelectedLoomRetrofits',
+        };
+        const setterAction = setterMap[storeField];
+        if (actions[setterAction]) {
+            actions[setterAction]([]);
+            saveToExtension();
+        }
+    }, [actions, storeField]);
 
     // Filter packs and get Loom items
     const filteredPacks = useMemo(() => {

@@ -2212,10 +2212,43 @@ details.lumia-panel[open] .lumia-panel-chevron {
     background: var(--lumiverse-bg-secondary);
 }
 
+.lumiverse-pack-editor-footer-left {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
 .lumiverse-pack-editor-actions {
     display: flex;
     gap: 8px;
     margin-left: auto;
+}
+
+/* Form hint text */
+.lumiverse-form-hint {
+    display: block;
+    font-size: 11px;
+    color: var(--lumiverse-text-muted);
+    margin-top: 4px;
+    font-style: italic;
+}
+
+/* Lumia editor row (side-by-side fields) */
+.lumiverse-lumia-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.lumiverse-lumia-row .lumiverse-form-field {
+    margin-bottom: 0;
+}
+
+/* Lumia name in header */
+.lumiverse-lumia-name {
+    font-weight: 600;
+    color: var(--lumiverse-text);
+    font-size: 14px;
 }
 
 /* Image Input */
