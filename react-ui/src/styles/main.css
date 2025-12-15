@@ -3472,7 +3472,12 @@ details.lumia-panel[open] .lumia-panel-chevron {
 }
 
 .lumiverse-vp-toggle-input {
-    display: none;
+    display: none !important;
+    position: absolute !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
 }
 
 .lumiverse-vp-toggle-track {
@@ -3591,7 +3596,12 @@ details.lumia-panel[open] .lumia-panel-chevron {
 }
 
 .lumiverse-vp-style-option input[type="radio"] {
-    display: none;
+    display: none !important;
+    position: absolute !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
 }
 
 .lumiverse-vp-style-option-icon {
@@ -3974,7 +3984,12 @@ details.lumia-panel[open] .lumia-panel-chevron {
 }
 
 .lumiverse-vp-radio-option input[type="radio"] {
-    display: none;
+    display: none !important;
+    position: absolute !important;
+    opacity: 0 !important;
+    width: 0 !important;
+    height: 0 !important;
+    pointer-events: none !important;
 }
 
 .lumiverse-vp-radio-option-label {

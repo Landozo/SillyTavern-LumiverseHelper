@@ -182,15 +182,16 @@ function ViewportPanel({
     // Use transform for smooth GPU-accelerated animation
     return (
         <>
-            {/* Toggle button - fixed position, independent of panel sliding */}
+            {/* Toggle button - animates alongside the panel */}
             <div
                 className="lumiverse-toggle-container"
                 style={{
                     position: 'fixed',
                     top: 12,
-                    right: PANEL_WIDTH + 12, // Panel width + margin
+                    right: isVisible ? PANEL_WIDTH + 12 : 12,
                     zIndex: 9999,
                     pointerEvents: 'auto',
+                    transition: 'right 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                 }}
             >
                 <ToggleButton isVisible={isVisible} onClick={onToggle} />
