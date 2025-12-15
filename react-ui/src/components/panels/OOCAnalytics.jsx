@@ -229,21 +229,30 @@ function InsightCard({ title, value, description, Icon }) {
 }
 
 /**
- * Toggle for OOC settings
+ * Toggle switch component (iOS-style)
  */
-function QuickToggle({ label, enabled, onChange }) {
+function Toggle({ id, checked, onChange, label, hint }) {
     return (
-        <button
-            className={clsx(
-                'lumiverse-analytics-toggle',
-                enabled && 'lumiverse-analytics-toggle--active'
-            )}
-            onClick={() => onChange(!enabled)}
-            type="button"
-        >
-            <span className="lumiverse-analytics-toggle-dot" />
-            <span className="lumiverse-analytics-toggle-label">{label}</span>
-        </button>
+        <div className="lumiverse-vp-toggle-row">
+            <label className="lumiverse-vp-toggle-label" htmlFor={id}>
+                <span className="lumiverse-vp-toggle-text">{label}</span>
+                {hint && <span className="lumiverse-vp-toggle-hint">{hint}</span>}
+            </label>
+            <div className="lumiverse-vp-toggle-switch-wrapper">
+                <input
+                    type="checkbox"
+                    id={id}
+                    className="lumiverse-vp-toggle-input"
+                    checked={checked}
+                    onChange={(e) => onChange(e.target.checked)}
+                />
+                <label htmlFor={id} className="lumiverse-vp-toggle-switch-label">
+                    <div className={clsx('lumiverse-vp-toggle-track', checked && 'lumiverse-vp-toggle-track--on')}>
+                        <div className="lumiverse-vp-toggle-thumb" />
+                    </div>
+                </label>
+            </div>
+        </div>
     );
 }
 
@@ -332,10 +341,11 @@ function OOCAnalytics() {
             <div className="lumiverse-analytics-section">
                 <h4 className="lumiverse-analytics-section-title">Quick Controls</h4>
                 <div className="lumiverse-analytics-controls">
-                    <QuickToggle
-                        label="OOC Comments"
-                        enabled={oocEnabled}
+                    <Toggle
+                        id="ooc-enabled-toggle"
+                        checked={oocEnabled}
                         onChange={handleToggleOOC}
+                        label="OOC Comments"
                     />
                 </div>
             </div>

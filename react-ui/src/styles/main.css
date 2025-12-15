@@ -3356,45 +3356,6 @@ details.lumia-panel[open] .lumia-panel-chevron {
     gap: 8px;
 }
 
-.lumiverse-analytics-toggle {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 12px;
-    background: rgba(30, 30, 46, 0.8);
-    border: 1px solid rgba(147, 112, 219, 0.2);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.15s ease;
-}
-
-.lumiverse-analytics-toggle:hover {
-    border-color: rgba(147, 112, 219, 0.4);
-}
-
-.lumiverse-analytics-toggle--active {
-    background: rgba(147, 112, 219, 0.15);
-    border-color: var(--lumiverse-primary);
-}
-
-.lumiverse-analytics-toggle-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--lumiverse-text-dim);
-    transition: all 0.15s ease;
-}
-
-.lumiverse-analytics-toggle--active .lumiverse-analytics-toggle-dot {
-    background: var(--lumiverse-success);
-    box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
-}
-
-.lumiverse-analytics-toggle-label {
-    font-size: 13px;
-    color: var(--lumiverse-text);
-}
-
 /* Empty state */
 .lumiverse-analytics-empty {
     padding: 20px;
