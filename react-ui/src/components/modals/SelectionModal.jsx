@@ -47,6 +47,8 @@ function LumiaCard({
     showDominant,
     isDefinition,
     animationIndex,
+    isEditable,
+    onEdit,
 }) {
     const [imageLoaded, setImageLoaded] = useState(false);
     const [imageError, setImageError] = useState(false);
@@ -58,14 +60,20 @@ function LumiaCard({
     const imgToShow = item.lumia_img;
 
     const handleCardClick = (e) => {
-        // Don't trigger if clicking dominant icon
+        // Don't trigger if clicking dominant icon or edit button
         if (e.target.closest('.lumia-dominant-icon')) return;
+        if (e.target.closest('.lumia-edit-icon')) return;
         onSelect(item);
     };
 
     const handleDominantClick = (e) => {
         e.stopPropagation();
         onSetDominant(item);
+    };
+
+    const handleEditClick = (e) => {
+        e.stopPropagation();
+        if (onEdit) onEdit(item);
     };
 
     // Staggered animation delay
@@ -99,6 +107,17 @@ function LumiaCard({
                     </>
                 ) : (
                     <div className="lumia-card-placeholder">?</div>
+                )}
+
+                {/* Edit Icon for custom pack items */}
+                {isEditable && onEdit && (
+                    <div
+                        className="lumia-edit-icon"
+                        onClick={handleEditClick}
+                        title="Edit this Lumia"
+                    >
+                        <Icon name="edit" />
+                    </div>
                 )}
 
                 {/* Dominant Star Icon */}
@@ -142,6 +161,7 @@ function PackSection({
     onSetDominant,
     showDominant,
     onRemovePack,
+    onEditItem,
 }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const packName = pack.name || pack.packName || 'Unknown Pack';
@@ -189,6 +209,8 @@ function PackSection({
                             showDominant={showDominant}
                             isDefinition={type === 'definitions'}
                             animationIndex={index}
+                            isEditable={isEditable}
+                            onEdit={isEditable ? (item) => onEditItem(item, packName) : undefined}
                         />
                     ))}
                 </div>
@@ -438,6 +460,17 @@ function SelectionModal({
         // actions.removePack?.(packName);
     };
 
+    /**
+     * Handle editing a Lumia item from a custom pack
+     * Opens the LumiaEditorModal with the item for editing
+     */
+    const handleEditItem = (item, packName) => {
+        actions.openModal('lumiaEditor', {
+            packName: packName,
+            editingItem: item,
+        });
+    };
+
     return (
         <div className="lumia-modal-selection-content">
             {/* Header with icon, title, subtitle, and clear button */}
@@ -475,6 +508,7 @@ function SelectionModal({
                             onSetDominant={handleSetDominant}
                             showDominant={allowDominant && config.isMulti}
                             onRemovePack={handleRemovePack}
+                            onEditItem={handleEditItem}
                         />
                     ))
                 )}

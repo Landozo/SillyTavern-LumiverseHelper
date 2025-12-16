@@ -2653,6 +2653,126 @@ details.lumia-panel[open] .lumia-panel-chevron {
     background: var(--lumiverse-bg-secondary);
 }
 
+/* Pack Selector - Expandable Item Wrapper */
+.lumiverse-pack-selector-item-wrapper {
+    border-radius: var(--lumiverse-radius);
+    overflow: hidden;
+    transition: all 0.15s ease;
+}
+
+.lumiverse-pack-selector-item-wrapper--expanded {
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--lumiverse-border);
+}
+
+.lumiverse-pack-selector-item-wrapper--expanded .lumiverse-pack-selector-item {
+    border-color: transparent;
+    border-radius: var(--lumiverse-radius) var(--lumiverse-radius) 0 0;
+}
+
+.lumiverse-pack-selector-item-wrapper--expanded .lumiverse-pack-selector-item-arrow {
+    opacity: 1;
+}
+
+/* Pack Selector - Expanded Lumias List */
+.lumiverse-pack-selector-lumias {
+    padding: 8px 12px 12px;
+    border-top: 1px solid var(--lumiverse-border-light);
+}
+
+.lumiverse-pack-selector-add-lumia {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: rgba(147, 112, 219, 0.1);
+    border: 1px dashed rgba(147, 112, 219, 0.3);
+    border-radius: var(--lumiverse-radius-sm);
+    color: var(--lumiverse-primary-text);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.lumiverse-pack-selector-add-lumia:hover {
+    background: rgba(147, 112, 219, 0.2);
+    border-color: rgba(147, 112, 219, 0.5);
+}
+
+.lumiverse-pack-selector-lumia-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.lumiverse-pack-selector-lumia-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(128, 128, 128, 0.08);
+    border-radius: var(--lumiverse-radius-sm);
+    transition: all 0.15s ease;
+}
+
+.lumiverse-pack-selector-lumia-item:hover {
+    background: rgba(0, 0, 0, 0.18);
+    border-color: rgba(147, 112, 219, 0.2);
+}
+
+.lumiverse-pack-selector-lumia-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid rgba(147, 112, 219, 0.2);
+    flex-shrink: 0;
+}
+
+.lumiverse-pack-selector-lumia-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--lumiverse-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lumiverse-pack-selector-lumia-edit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: rgba(147, 112, 219, 0.15);
+    border: 1px solid rgba(147, 112, 219, 0.2);
+    border-radius: var(--lumiverse-radius-sm);
+    color: var(--lumiverse-primary-text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.lumiverse-pack-selector-lumia-edit:hover {
+    background: rgba(147, 112, 219, 0.3);
+    border-color: rgba(147, 112, 219, 0.4);
+}
+
+.lumiverse-pack-selector-lumia-empty {
+    padding: 12px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--lumiverse-text-muted);
+    font-style: italic;
+}
+
 /* ----------------------------------------
    Lumia Editor Modal
    ---------------------------------------- */
@@ -5192,6 +5312,48 @@ details.lumia-panel[open] .lumia-panel-chevron {
 .lumia-dominant-icon.dominant svg {
     fill: rgba(255, 255, 255, 0.95);
     stroke: rgba(255, 255, 255, 0.95);
+}
+
+/* Edit Icon for custom pack items */
+.lumia-edit-icon {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(147, 112, 219, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 50%;
+    border: 1px solid rgba(147, 112, 219, 0.4);
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10;
+    opacity: 0;
+}
+
+.lumia-card:hover .lumia-edit-icon {
+    opacity: 1;
+}
+
+.lumia-edit-icon:hover {
+    background: rgba(147, 112, 219, 1);
+    border-color: rgba(186, 135, 255, 0.6);
+    transform: scale(1.1);
+    box-shadow: 0 2px 12px rgba(147, 112, 219, 0.4);
+}
+
+.lumia-edit-icon svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.95);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 /* Selection Checkmark Overlay */

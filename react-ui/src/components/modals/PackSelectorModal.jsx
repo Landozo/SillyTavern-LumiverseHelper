@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { usePacks, useLumiverseActions, saveToExtension } from '../../store/LumiverseContext';
 import clsx from 'clsx';
-import { Folder, FolderPlus, Check, ChevronRight } from 'lucide-react';
+import { Folder, FolderPlus, Check, ChevronRight, ChevronDown, Plus, Edit2 } from 'lucide-react';
 
 /**
  * Pack Selector Modal
@@ -9,7 +9,8 @@ import { Folder, FolderPlus, Check, ChevronRight } from 'lucide-react';
  * Shows list of existing custom packs to select from,
  * plus option to create a new pack.
  *
- * Used as first step in "Create Lumia" flow from old code.
+ * When a pack is selected, shows existing Lumias with edit buttons
+ * and option to add new Lumia.
  *
  * Props:
  * - onSelect: Optional callback(packName, pack) - if not provided, opens lumiaEditor modal
@@ -19,12 +20,8 @@ function PackSelectorModal({ onSelect, onClose }) {
     const { customPacks, allPacks } = usePacks();
     const actions = useLumiverseActions();
 
-    // Default behavior: open lumiaEditor modal with selected pack
-    const defaultOnSelect = (packName, pack) => {
-        actions.openModal('lumiaEditor', { packName });
-    };
-
-    const handleSelect = onSelect || defaultOnSelect;
+    // State for expanded pack (to show Lumias)
+    const [expandedPackName, setExpandedPackName] = useState(null);
 
     // State for new pack form
     const [showNewPackForm, setShowNewPackForm] = useState(false);
@@ -36,10 +33,20 @@ function PackSelectorModal({ onSelect, onClose }) {
     // Get editable packs (custom packs or packs with no URL)
     const editablePacks = allPacks.filter(pack => pack.isCustom || !pack.url);
 
-    // Handle selecting an existing pack
-    const handleSelectPack = useCallback((pack) => {
-        handleSelect(pack.name, pack);
-    }, [handleSelect]);
+    // Handle clicking on a pack - toggle expansion
+    const handlePackClick = useCallback((pack) => {
+        setExpandedPackName(prev => prev === pack.name ? null : pack.name);
+    }, []);
+
+    // Handle adding a new Lumia to a pack
+    const handleAddNewLumia = useCallback((packName) => {
+        actions.openModal('lumiaEditor', { packName });
+    }, [actions]);
+
+    // Handle editing an existing Lumia
+    const handleEditLumia = useCallback((packName, item) => {
+        actions.openModal('lumiaEditor', { packName, editingItem: item });
+    }, [actions]);
 
     // Handle creating a new pack
     const handleCreatePack = useCallback(() => {
@@ -70,14 +77,24 @@ function PackSelectorModal({ onSelect, onClose }) {
         actions.addCustomPack(newPack);
         saveToExtension();
 
-        // Select the newly created pack
-        handleSelect(name, newPack);
-    }, [newPackName, newPackAuthor, newPackCover, allPacks, actions, handleSelect]);
+        // Reset form and expand the newly created pack
+        setShowNewPackForm(false);
+        setNewPackName('');
+        setNewPackAuthor('');
+        setNewPackCover('');
+        setError('');
+        setExpandedPackName(name);
+    }, [newPackName, newPackAuthor, newPackCover, allPacks, actions]);
+
+    // Get Lumia items from a pack
+    const getLumiaItems = (pack) => {
+        if (!pack.items) return [];
+        return pack.items.filter(item => item.lumiaDefName);
+    };
 
     // Count Lumias in a pack
     const getLumiaCount = (pack) => {
-        if (!pack.items) return 0;
-        return pack.items.filter(item => item.lumiaDefName).length;
+        return getLumiaItems(pack).length;
     };
 
     return (
@@ -93,28 +110,96 @@ function PackSelectorModal({ onSelect, onClose }) {
                         </div>
                     ) : (
                         <div className="lumiverse-pack-selector-list">
-                            {editablePacks.map((pack) => (
-                                <button
-                                    key={pack.id || pack.name}
-                                    className="lumiverse-pack-selector-item"
-                                    onClick={() => handleSelectPack(pack)}
-                                    type="button"
-                                >
-                                    <div className="lumiverse-pack-selector-item-icon">
-                                        <Folder size={20} strokeWidth={1.5} />
+                            {editablePacks.map((pack) => {
+                                const isExpanded = expandedPackName === pack.name;
+                                const lumiaItems = getLumiaItems(pack);
+
+                                return (
+                                    <div
+                                        key={pack.id || pack.name}
+                                        className={clsx(
+                                            'lumiverse-pack-selector-item-wrapper',
+                                            isExpanded && 'lumiverse-pack-selector-item-wrapper--expanded'
+                                        )}
+                                    >
+                                        {/* Pack Header */}
+                                        <button
+                                            className="lumiverse-pack-selector-item"
+                                            onClick={() => handlePackClick(pack)}
+                                            type="button"
+                                        >
+                                            <div className="lumiverse-pack-selector-item-icon">
+                                                <Folder size={20} strokeWidth={1.5} />
+                                            </div>
+                                            <div className="lumiverse-pack-selector-item-info">
+                                                <span className="lumiverse-pack-selector-item-name">
+                                                    {pack.name}
+                                                </span>
+                                                <span className="lumiverse-pack-selector-item-meta">
+                                                    {getLumiaCount(pack)} Lumias
+                                                    {pack.author && ` • by ${pack.author}`}
+                                                </span>
+                                            </div>
+                                            {isExpanded ? (
+                                                <ChevronDown size={16} className="lumiverse-pack-selector-item-arrow" />
+                                            ) : (
+                                                <ChevronRight size={16} className="lumiverse-pack-selector-item-arrow" />
+                                            )}
+                                        </button>
+
+                                        {/* Expanded Lumias List */}
+                                        {isExpanded && (
+                                            <div className="lumiverse-pack-selector-lumias">
+                                                {/* Add New Lumia Button */}
+                                                <button
+                                                    className="lumiverse-pack-selector-add-lumia"
+                                                    onClick={() => handleAddNewLumia(pack.name)}
+                                                    type="button"
+                                                >
+                                                    <Plus size={14} strokeWidth={2} />
+                                                    <span>Add New Lumia</span>
+                                                </button>
+
+                                                {/* Existing Lumias */}
+                                                {lumiaItems.length > 0 ? (
+                                                    <div className="lumiverse-pack-selector-lumia-list">
+                                                        {lumiaItems.map((item, index) => (
+                                                            <div
+                                                                key={item.lumiaDefName || index}
+                                                                className="lumiverse-pack-selector-lumia-item"
+                                                            >
+                                                                {item.lumia_img && (
+                                                                    <img
+                                                                        src={item.lumia_img}
+                                                                        alt=""
+                                                                        className="lumiverse-pack-selector-lumia-avatar"
+                                                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                                                    />
+                                                                )}
+                                                                <span className="lumiverse-pack-selector-lumia-name">
+                                                                    {item.lumiaDefName}
+                                                                </span>
+                                                                <button
+                                                                    className="lumiverse-pack-selector-lumia-edit"
+                                                                    onClick={() => handleEditLumia(pack.name, item)}
+                                                                    title="Edit this Lumia"
+                                                                    type="button"
+                                                                >
+                                                                    <Edit2 size={14} strokeWidth={1.5} />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <div className="lumiverse-pack-selector-lumia-empty">
+                                                        No Lumias yet. Add your first one!
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="lumiverse-pack-selector-item-info">
-                                        <span className="lumiverse-pack-selector-item-name">
-                                            {pack.name}
-                                        </span>
-                                        <span className="lumiverse-pack-selector-item-meta">
-                                            {getLumiaCount(pack)} Lumias
-                                            {pack.author && ` • by ${pack.author}`}
-                                        </span>
-                                    </div>
-                                    <ChevronRight size={16} className="lumiverse-pack-selector-item-arrow" />
-                                </button>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
