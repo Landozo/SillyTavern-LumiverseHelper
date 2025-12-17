@@ -2,6 +2,24 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { usePacks, useLumiverseActions, useLoomSelections, saveToExtension } from '../../store/LumiverseContext';
 import clsx from 'clsx';
 
+// SVG icons for controls
+const SVG_ICONS = {
+    trash: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`,
+    chevronDown: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`,
+    chevronUp: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>`,
+};
+
+function Icon({ name, className }) {
+    const svg = SVG_ICONS[name];
+    if (!svg) return null;
+    return (
+        <span
+            className={className}
+            dangerouslySetInnerHTML={{ __html: svg }}
+        />
+    );
+}
+
 /**
  * Category mapping for Loom types
  * Maps modal type to the pack field name and store action
@@ -101,19 +119,44 @@ function LoomItem({ item, packName, isSelected, onToggle, isMulti }) {
 
 /**
  * Collapsible pack section for Loom items
+ * Can be controlled (via isCollapsed + onToggleCollapse props) or uncontrolled
  */
-function PackSection({ pack, children, defaultOpen = true }) {
-    const [isOpen, setIsOpen] = useState(defaultOpen);
+function PackSection({
+    pack,
+    children,
+    defaultOpen = true,
+    isEditable,
+    onRemovePack,
+    // Optional controlled mode props
+    isCollapsed: controlledCollapsed,
+    onToggleCollapse,
+}) {
+    const [internalOpen, setInternalOpen] = useState(defaultOpen);
     const itemCount = React.Children.count(children);
     const packName = pack.name || pack.packName || 'Unknown Pack';
 
+    // Use controlled or uncontrolled state
+    const isControlled = controlledCollapsed !== undefined;
+    const isOpen = isControlled ? !controlledCollapsed : internalOpen;
+
     if (itemCount === 0) return null;
 
+    const handleHeaderClick = (e) => {
+        // Don't collapse if clicking remove button
+        if (e.target.closest('.lumiverse-remove-pack-btn')) return;
+
+        if (isControlled && onToggleCollapse) {
+            onToggleCollapse(packName);
+        } else {
+            setInternalOpen(!internalOpen);
+        }
+    };
+
     return (
-        <div className="lumiverse-pack-section">
+        <div className={clsx('lumiverse-pack-section', !isOpen && 'collapsed')}>
             <button
                 className="lumiverse-pack-header"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={handleHeaderClick}
                 type="button"
             >
                 <span className={clsx('lumiverse-pack-chevron', isOpen && 'rotated')}>
@@ -121,7 +164,19 @@ function PackSection({ pack, children, defaultOpen = true }) {
                 </span>
                 <span className="lumiverse-pack-icon">📁</span>
                 <span className="lumiverse-pack-name">{packName}</span>
+                {isEditable && <span className="lumiverse-pack-badge-custom">Custom</span>}
                 <span className="lumiverse-pack-count">{itemCount} items</span>
+                <button
+                    className="lumiverse-icon-btn-sm lumiverse-remove-pack-btn"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onRemovePack(packName);
+                    }}
+                    title="Remove Pack"
+                    type="button"
+                >
+                    <Icon name="trash" className="lumiverse-icon-sm" />
+                </button>
             </button>
             {isOpen && <div className="lumiverse-pack-items">{children}</div>}
         </div>
@@ -174,6 +229,8 @@ function getLoomItemsFromPack(pack, config) {
  */
 function LoomSelectionModal({ type, onClose }) {
     const [searchQuery, setSearchQuery] = useState('');
+    const [collapsedPacks, setCollapsedPacks] = useState(new Set());
+    const [sortBy, setSortBy] = useState('default'); // 'default', 'name', 'author'
     const { allPacks } = usePacks();
     const actions = useLumiverseActions();
     const loomSelections = useLoomSelections();  // { styles, utilities, retrofits }
@@ -248,12 +305,65 @@ function LoomSelectionModal({ type, onClose }) {
                 return {
                     ...pack,
                     loomItems: filteredItems,
+                    isEditable: pack.isCustom || pack.isEditable || false,
                 };
             })
             .filter((pack) => pack.loomItems.length > 0);
     }, [allPacks, config, searchQuery]);
 
-    const totalItems = filteredPacks.reduce((sum, pack) => sum + pack.loomItems.length, 0);
+    // Sorted packs
+    const sortedPacks = useMemo(() => {
+        if (sortBy === 'default') return filteredPacks;
+
+        return [...filteredPacks].sort((a, b) => {
+            if (sortBy === 'name') {
+                const nameA = (a.name || a.packName || '').toLowerCase();
+                const nameB = (b.name || b.packName || '').toLowerCase();
+                return nameA.localeCompare(nameB);
+            }
+            if (sortBy === 'author') {
+                const authorA = (a.author || '').toLowerCase();
+                const authorB = (b.author || '').toLowerCase();
+                return authorA.localeCompare(authorB);
+            }
+            return 0;
+        });
+    }, [filteredPacks, sortBy]);
+
+    // Collapse/Expand all functions
+    const collapseAll = useCallback(() => {
+        const allPackNames = filteredPacks.map(p => p.name || p.packName);
+        setCollapsedPacks(new Set(allPackNames));
+    }, [filteredPacks]);
+
+    const expandAll = useCallback(() => {
+        setCollapsedPacks(new Set());
+    }, []);
+
+    const togglePackCollapse = useCallback((packName) => {
+        setCollapsedPacks(prev => {
+            const next = new Set(prev);
+            if (next.has(packName)) {
+                next.delete(packName);
+            } else {
+                next.add(packName);
+            }
+            return next;
+        });
+    }, []);
+
+    const isPackCollapsed = (packName) => collapsedPacks.has(packName);
+
+    // Handle removing a pack
+    const handleRemovePack = useCallback((packName) => {
+        if (!window.confirm(`Delete pack "${packName}"? This action cannot be undone.`)) {
+            return;
+        }
+        actions.removeCustomPack(packName);
+        saveToExtension();
+    }, [actions]);
+
+    const totalItems = sortedPacks.reduce((sum, pack) => sum + pack.loomItems.length, 0);
     const selectedCount = currentSelections.length;
 
     // Get pack name helper
@@ -283,6 +393,47 @@ function LoomSelectionModal({ type, onClose }) {
                 </div>
             </div>
 
+            {/* Controls - Collapse/Expand and Sort */}
+            {sortedPacks.length > 0 && (
+                <div className="lumiverse-modal-controls">
+                    {/* Collapse/Expand controls */}
+                    <div className="lumiverse-modal-controls-group">
+                        <button
+                            className="lumiverse-modal-control-btn"
+                            onClick={expandAll}
+                            title="Expand all packs"
+                            type="button"
+                        >
+                            <Icon name="chevronDown" className="lumiverse-control-icon" />
+                            <span>Expand All</span>
+                        </button>
+                        <button
+                            className="lumiverse-modal-control-btn"
+                            onClick={collapseAll}
+                            title="Collapse all packs"
+                            type="button"
+                        >
+                            <Icon name="chevronUp" className="lumiverse-control-icon" />
+                            <span>Collapse All</span>
+                        </button>
+                    </div>
+
+                    {/* Sort dropdown */}
+                    <div className="lumiverse-modal-sort">
+                        <span className="lumiverse-modal-sort-label">Sort:</span>
+                        <select
+                            className="lumiverse-select"
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                        >
+                            <option value="default">Default</option>
+                            <option value="name">Pack Name</option>
+                            <option value="author">Author</option>
+                        </select>
+                    </div>
+                </div>
+            )}
+
             <div className="lumiverse-selection-content">
                 {totalItems === 0 ? (
                     <div className="lumiverse-empty-state">
@@ -299,24 +450,33 @@ function LoomSelectionModal({ type, onClose }) {
                         )}
                     </div>
                 ) : (
-                    filteredPacks.map((pack) => (
-                        <PackSection key={pack.id || getPackName(pack)} pack={pack}>
-                            {pack.loomItems.map((item) => {
-                                const itemName = item.loomName || item.itemName || item.name;
-                                const packName = getPackName(pack);
-                                return (
-                                    <LoomItem
-                                        key={`${packName}-${itemName}`}
-                                        item={item}
-                                        packName={packName}
-                                        isSelected={isSelected(packName, itemName)}
-                                        onToggle={handleToggle}
-                                        isMulti={isMulti}
-                                    />
-                                );
-                            })}
-                        </PackSection>
-                    ))
+                    sortedPacks.map((pack) => {
+                        const packName = getPackName(pack);
+                        return (
+                            <PackSection
+                                key={pack.id || packName}
+                                pack={pack}
+                                isEditable={pack.isEditable}
+                                onRemovePack={handleRemovePack}
+                                isCollapsed={isPackCollapsed(packName)}
+                                onToggleCollapse={togglePackCollapse}
+                            >
+                                {pack.loomItems.map((item) => {
+                                    const itemName = item.loomName || item.itemName || item.name;
+                                    return (
+                                        <LoomItem
+                                            key={`${packName}-${itemName}`}
+                                            item={item}
+                                            packName={packName}
+                                            isSelected={isSelected(packName, itemName)}
+                                            onToggle={handleToggle}
+                                            isMulti={isMulti}
+                                        />
+                                    );
+                                })}
+                            </PackSection>
+                        );
+                    })
                 )}
             </div>
 

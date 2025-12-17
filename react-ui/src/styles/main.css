@@ -2252,6 +2252,188 @@ details.lumia-panel[open] .lumia-panel-chevron {
     border-radius: 0 0 var(--lumiverse-radius) var(--lumiverse-radius);
 }
 
+/* Pack section collapsed state */
+.lumiverse-pack-section.collapsed .lumiverse-pack-items {
+    display: none;
+}
+
+/* Custom pack badge */
+.lumiverse-pack-badge-custom {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    background: rgba(var(--lumiverse-primary-rgb, 147, 112, 219), 0.2);
+    color: var(--lumiverse-primary);
+    border-radius: 4px;
+    margin-left: 8px;
+}
+
+/* Small icon button */
+.lumiverse-icon-btn-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--lumiverse-text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.lumiverse-icon-btn-sm:hover {
+    color: var(--lumiverse-danger, #ef4444);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.lumiverse-icon-btn-sm svg,
+.lumiverse-icon-sm svg {
+    width: 16px;
+    height: 16px;
+}
+
+.lumiverse-icon-sm {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ============================================
+   LOOM MODAL CONTROLS - Collapse/Expand & Sort
+   ============================================ */
+
+.lumiverse-modal-controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--lumiverse-bg-elevated, #1a1a1a);
+    border-bottom: 1px solid var(--lumiverse-border);
+}
+
+.lumiverse-modal-controls-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.lumiverse-modal-control-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--lumiverse-text-secondary, #999);
+    background: var(--lumiverse-bg-tertiary, #2a2a2a);
+    border: 1px solid var(--lumiverse-border, #3a3a3a);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.lumiverse-modal-control-btn:hover {
+    color: var(--lumiverse-text, #fff);
+    background: var(--lumiverse-bg-hover, #333);
+    border-color: var(--lumiverse-accent, #7c3aed);
+}
+
+.lumiverse-modal-control-btn:active {
+    transform: scale(0.97);
+}
+
+.lumiverse-control-icon,
+.lumiverse-control-icon svg {
+    width: 14px;
+    height: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Sort Dropdown for Loom modals */
+.lumiverse-modal-sort {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: var(--lumiverse-bg-tertiary, #2a2a2a);
+    border: 1px solid var(--lumiverse-border, #3a3a3a);
+    border-radius: 8px;
+}
+
+.lumiverse-modal-sort-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--lumiverse-text-muted, #666);
+}
+
+.lumiverse-select {
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--lumiverse-text, #fff);
+    background: var(--lumiverse-bg-secondary, #1e1e1e);
+    border: 1px solid var(--lumiverse-border, #3a3a3a);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    min-width: 100px;
+}
+
+.lumiverse-select:hover {
+    border-color: var(--lumiverse-border-hover, #4a4a4a);
+}
+
+.lumiverse-select:focus {
+    outline: none;
+    border-color: var(--lumiverse-accent, #7c3aed);
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+}
+
+/* Mobile adjustments for Loom modal controls */
+@media (max-width: 600px) {
+    .lumiverse-modal-controls {
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 10px 12px;
+    }
+
+    .lumiverse-modal-control-btn {
+        padding: 6px 10px;
+        font-size: 11px;
+    }
+
+    .lumiverse-modal-control-btn span {
+        display: none;
+    }
+
+    .lumiverse-modal-control-btn .lumiverse-control-icon {
+        margin: 0;
+    }
+
+    .lumiverse-modal-sort {
+        flex: 1;
+        min-width: 100%;
+        justify-content: space-between;
+    }
+
+    .lumiverse-select {
+        flex: 1;
+        min-width: 0;
+    }
+}
+
 /* ----------------------------------------
    Pack Editor Modal
    ---------------------------------------- */
@@ -5648,43 +5830,52 @@ details.lumia-panel[open] .lumia-panel-chevron {
 
 /* ============================================
    MODAL CONTROLS - Collapse/Expand & Sort
+   Shared styling for Lumia Selection modals
    ============================================ */
 
 .lumia-modal-controls {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-left: auto;
-    flex-shrink: 0;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid rgba(128, 128, 128, 0.12);
+    margin: 0 -16px 16px -16px;
+    width: calc(100% + 32px);
 }
 
 .lumia-modal-controls-group {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
 }
 
 .lumia-modal-control-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    padding: 6px 10px;
+    gap: 6px;
+    padding: 8px 12px;
     font-size: 12px;
     font-weight: 500;
-    color: var(--lumiverse-text-secondary, #999);
-    background: var(--lumiverse-bg-tertiary, #2a2a2a);
-    border: 1px solid var(--lumiverse-border, #3a3a3a);
-    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.7);
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(128, 128, 128, 0.15);
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s ease;
     white-space: nowrap;
 }
 
 .lumia-modal-control-btn:hover {
-    color: var(--lumiverse-text, #fff);
-    background: var(--lumiverse-bg-hover, #333);
-    border-color: var(--lumiverse-border-hover, #4a4a4a);
+    color: rgba(255, 255, 255, 0.95);
+    background: rgba(0, 0, 0, 0.35);
+    border-color: rgba(147, 112, 219, 0.5);
+}
+
+.lumia-modal-control-btn:active {
+    transform: scale(0.97);
 }
 
 .lumia-modal-control-btn svg {
@@ -5696,43 +5887,59 @@ details.lumia-panel[open] .lumia-panel-chevron {
 .lumia-modal-sort {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(128, 128, 128, 0.15);
+    border-radius: 8px;
 }
 
 .lumia-modal-sort-label {
     font-size: 12px;
-    color: var(--lumiverse-text-muted, #666);
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .lumia-select {
-    padding: 6px 10px;
+    padding: 4px 8px;
     font-size: 12px;
-    color: var(--lumiverse-text, #fff);
-    background: var(--lumiverse-bg-tertiary, #2a2a2a);
-    border: 1px solid var(--lumiverse-border, #3a3a3a);
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(128, 128, 128, 0.2);
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s ease;
+    min-width: 100px;
 }
 
 .lumia-select:hover {
-    border-color: var(--lumiverse-border-hover, #4a4a4a);
+    border-color: rgba(147, 112, 219, 0.4);
 }
 
 .lumia-select:focus {
     outline: none;
-    border-color: var(--lumiverse-accent, #7c3aed);
+    border-color: rgba(147, 112, 219, 0.6);
+    box-shadow: 0 0 0 2px rgba(147, 112, 219, 0.15);
+}
+
+.lumia-select option {
+    background: #1a1a1a;
+    color: #fff;
 }
 
 /* Mobile adjustments for controls */
 @media (max-width: 600px) {
     .lumia-modal-controls {
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 8px;
+        padding: 10px 12px;
+        margin: 0 -12px 12px -12px;
+        width: calc(100% + 24px);
     }
 
     .lumia-modal-control-btn {
-        padding: 5px 8px;
+        padding: 6px 10px;
         font-size: 11px;
     }
 
@@ -5740,7 +5947,15 @@ details.lumia-panel[open] .lumia-panel-chevron {
         display: none;
     }
 
+    .lumia-modal-sort {
+        flex: 1;
+        min-width: 100%;
+        justify-content: space-between;
+    }
+
     .lumia-select {
+        flex: 1;
+        min-width: 0;
         padding: 5px 8px;
         font-size: 11px;
     }
