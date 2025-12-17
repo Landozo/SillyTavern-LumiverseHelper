@@ -519,7 +519,7 @@ function SettingsPanel() {
                 <div className="lumia-tools-row">
                     <ToolButton
                         icon={Icons.plus}
-                        label="Create Lumia"
+                        label="Lumia Editor"
                         onClick={() => actions.openModal('packSelector')}
                         accent
                     />

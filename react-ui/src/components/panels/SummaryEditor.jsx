@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
 import {
     FileText, Check, AlertCircle, Trash2, Save, RefreshCw,
-    Settings, Clock, Cloud, Cpu, ChevronDown, Play, MessageSquare, Scissors
+    Settings, Clock, Cloud, Cpu, ChevronDown, Play, MessageSquare, Scissors, RefreshCcw
 } from 'lucide-react';
 import { useLumiverseStore, saveToExtension } from '../../store/LumiverseContext';
 
@@ -522,6 +522,43 @@ function SummarizationConfig() {
                                     max={128000}
                                 />
                             </div>
+                        </CollapsibleSection>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Claude Cache Control - Show when using Anthropic provider or main API (which might be Claude) */}
+            <AnimatePresence>
+                {mode !== 'disabled' && (apiSource === 'main' || secondary.provider === 'anthropic') && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                    >
+                        <CollapsibleSection Icon={RefreshCcw} title="Claude Cache" defaultOpen={false}>
+                            <p className="lumiverse-vp-settings-desc">
+                                If Claude seems to ignore changes to your Lumia definitions,
+                                clearing the cache will force fresh responses on the next summarization.
+                            </p>
+                            <ActionButton
+                                Icon={RefreshCcw}
+                                label="Clear Claude Cache"
+                                onClick={() => {
+                                    if (typeof LumiverseBridge !== 'undefined' && LumiverseBridge.clearClaudeCache) {
+                                        LumiverseBridge.clearClaudeCache();
+                                        // Show success feedback
+                                        if (typeof toastr !== 'undefined') {
+                                            toastr.success('Claude cache cleared! Next request will use fresh definitions.');
+                                        }
+                                    } else {
+                                        console.warn('[SummaryEditor] clearClaudeCache not available');
+                                        if (typeof toastr !== 'undefined') {
+                                            toastr.error('Cache clear function not available');
+                                        }
+                                    }
+                                }}
+                                variant="secondary"
+                            />
                         </CollapsibleSection>
                     </motion.div>
                 )}

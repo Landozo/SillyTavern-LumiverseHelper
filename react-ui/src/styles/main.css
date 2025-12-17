@@ -5497,21 +5497,48 @@ details.lumia-panel[open] .lumia-panel-chevron {
 .lumia-card.lumia-card-appear:nth-child(n+11) { animation-delay: 300ms; }
 
 /* ============================================
+   MODAL PORTAL - Renders at document.body level
+   ============================================ */
+
+.lumia-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+/* ============================================
    LUMIA MODAL RESPONSIVE
    ============================================ */
 
 @media (max-width: 600px) {
+    /* Adjusted modal style - centered, not full-screen */
     .lumia-modal {
-        width: 100%;
-        max-width: none;
-        max-height: 100vh;
-        max-height: 100dvh;
-        border-radius: 0;
-        margin: 0;
+        width: 94vw;
+        max-width: 400px;
+        max-height: 90vh;
+        max-height: 90dvh;
+        border-radius: 16px;
+        margin: auto;
     }
 
     .lumia-modal-selection {
-        max-width: none;
+        max-width: 94vw;
+    }
+
+    /* Ensure backdrop properly centers the modal */
+    .lumia-modal-backdrop {
+        padding: 16px;
+    }
+
+    /* Modal content scrolling for mobile */
+    .lumia-modal-content {
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     }
 
     .lumia-modal-header-inner {
@@ -5594,5 +5621,127 @@ details.lumia-panel[open] .lumia-panel-chevron {
 
     .lumia-card:hover .lumia-card-image img {
         transform: none;
+    }
+
+    /* Viewport Panel Mobile */
+    .lumiverse-viewport-wrapper {
+        width: 100vw !important;
+    }
+
+    .lumiverse-viewport-panel {
+        width: 100%;
+    }
+
+    .lumiverse-vp-tabs {
+        width: 48px;
+    }
+
+    .lumiverse-vp-tab {
+        width: 44px;
+        height: 44px;
+    }
+
+    .lumiverse-vp-tab-label {
+        font-size: 9px;
+    }
+}
+
+/* ============================================
+   MODAL CONTROLS - Collapse/Expand & Sort
+   ============================================ */
+
+.lumia-modal-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.lumia-modal-controls-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.lumia-modal-control-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--lumiverse-text-secondary, #999);
+    background: var(--lumiverse-bg-tertiary, #2a2a2a);
+    border: 1px solid var(--lumiverse-border, #3a3a3a);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.lumia-modal-control-btn:hover {
+    color: var(--lumiverse-text, #fff);
+    background: var(--lumiverse-bg-hover, #333);
+    border-color: var(--lumiverse-border-hover, #4a4a4a);
+}
+
+.lumia-modal-control-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Sort Dropdown */
+.lumia-modal-sort {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.lumia-modal-sort-label {
+    font-size: 12px;
+    color: var(--lumiverse-text-muted, #666);
+}
+
+.lumia-select {
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--lumiverse-text, #fff);
+    background: var(--lumiverse-bg-tertiary, #2a2a2a);
+    border: 1px solid var(--lumiverse-border, #3a3a3a);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.lumia-select:hover {
+    border-color: var(--lumiverse-border-hover, #4a4a4a);
+}
+
+.lumia-select:focus {
+    outline: none;
+    border-color: var(--lumiverse-accent, #7c3aed);
+}
+
+/* Mobile adjustments for controls */
+@media (max-width: 600px) {
+    .lumia-modal-controls {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .lumia-modal-control-btn {
+        padding: 5px 8px;
+        font-size: 11px;
+    }
+
+    .lumia-modal-control-btn span:not(.lumia-btn-icon) {
+        display: none;
+    }
+
+    .lumia-select {
+        padding: 5px 8px;
+        font-size: 11px;
     }
 }

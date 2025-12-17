@@ -1,4 +1,5 @@
 import React, { useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useUI, useLumiverseActions } from '../store/LumiverseContext';
 import clsx from 'clsx';
 
@@ -176,7 +177,9 @@ function ModalContainer() {
 
     const { component: ModalComponent, modalType, size, hasCustomHeader, props: defaultProps } = config;
 
-    return (
+    // Use createPortal to render modal at document.body level
+    // This ensures proper positioning on mobile devices
+    return createPortal(
         <ModalWrapper
             modalType={modalType}
             size={size}
@@ -184,7 +187,8 @@ function ModalContainer() {
             onClose={actions.closeModal}
         >
             <ModalComponent {...defaultProps} {...modalProps} onClose={actions.closeModal} />
-        </ModalWrapper>
+        </ModalWrapper>,
+        document.body
     );
 }
 

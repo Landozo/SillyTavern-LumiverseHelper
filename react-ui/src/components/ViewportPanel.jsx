@@ -1,10 +1,31 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
 import { User, Package, MessageSquare, Sliders, FileText, ChevronRight, X, Sparkles } from 'lucide-react';
 
 // Panel dimensions
-const PANEL_WIDTH = 376; // 56px tabs + 320px content
+const DESKTOP_PANEL_WIDTH = 376; // 56px tabs + 320px content
+const MOBILE_BREAKPOINT = 600;
+
+/**
+ * Custom hook to detect mobile viewport
+ */
+function useIsMobile(breakpoint = MOBILE_BREAKPOINT) {
+    const [isMobile, setIsMobile] = useState(
+        typeof window !== 'undefined' ? window.innerWidth <= breakpoint : false
+    );
+
+    useEffect(() => {
+        const handleResize = () => {
+            setIsMobile(window.innerWidth <= breakpoint);
+        };
+
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, [breakpoint]);
+
+    return isMobile;
+}
 
 /**
  * Toggle button - now part of the sliding container
@@ -147,6 +168,11 @@ function ViewportPanel({
 }) {
     const [activeTab, setActiveTab] = useState(defaultTab);
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const isMobile = useIsMobile();
+
+    // Calculate panel width based on viewport
+    const panelWidth = isMobile ? window.innerWidth : DESKTOP_PANEL_WIDTH;
+    const mainContentWidth = isMobile ? window.innerWidth - 56 : 320;
 
     const handleTabClick = useCallback((tabId) => {
         if (isCollapsed) {
@@ -183,15 +209,17 @@ function ViewportPanel({
     return (
         <>
             {/* Toggle button - animates alongside the panel */}
+            {/* Hide toggle when panel is visible on mobile - use close button instead */}
             <div
                 className="lumiverse-toggle-container"
                 style={{
                     position: 'fixed',
                     top: 12,
-                    right: isVisible ? PANEL_WIDTH + 12 : 12,
+                    right: isVisible ? panelWidth + 12 : 12,
                     zIndex: 9999,
                     pointerEvents: 'auto',
                     transition: 'right 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                    display: isMobile && isVisible ? 'none' : 'block',
                 }}
             >
                 <ToggleButton isVisible={isVisible} onClick={onToggle} />
@@ -205,9 +233,9 @@ function ViewportPanel({
                     top: 0,
                     right: 0,
                     bottom: 0,
-                    width: PANEL_WIDTH,
+                    width: panelWidth,
                     zIndex: 9998,
-                    transform: `translateX(${isVisible ? 0 : PANEL_WIDTH}px)`,
+                    transform: `translateX(${isVisible ? 0 : panelWidth}px)`,
                     transition: 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                     pointerEvents: 'none',
                 }}
@@ -242,8 +270,8 @@ function ViewportPanel({
                 <div
                     className="lumiverse-vp-main"
                     style={{
-                        width: 320,
-                        transform: isCollapsed ? 'translateX(320px)' : 'translateX(0)',
+                        width: mainContentWidth,
+                        transform: isCollapsed ? `translateX(${mainContentWidth}px)` : 'translateX(0)',
                         opacity: isCollapsed ? 0 : 1,
                         transition: 'transform 0.2s ease, opacity 0.2s ease',
                     }}

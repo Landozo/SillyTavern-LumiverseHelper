@@ -3,6 +3,7 @@ import {
     usePacks,
     useSelections,
     useLumiverseActions,
+    saveToExtension,
 } from '../../store/LumiverseContext';
 import { useAdaptiveImagePosition } from '../../hooks/useAdaptiveImagePosition';
 import clsx from 'clsx';
@@ -154,6 +155,7 @@ function LumiaCard({
 
 /**
  * Collapsible pack section
+ * Can be controlled (via isCollapsed + onToggleCollapse props) or uncontrolled
  */
 function PackSection({
     pack,
@@ -167,14 +169,27 @@ function PackSection({
     showDominant,
     onRemovePack,
     onEditItem,
+    // Optional controlled mode props
+    isCollapsed: controlledCollapsed,
+    onToggleCollapse,
 }) {
-    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [internalCollapsed, setInternalCollapsed] = useState(false);
+
+    // Use controlled or uncontrolled state
+    const isControlled = controlledCollapsed !== undefined;
+    const isCollapsed = isControlled ? controlledCollapsed : internalCollapsed;
+
     const packName = pack.name || pack.packName || 'Unknown Pack';
 
     const handleHeaderClick = (e) => {
         // Don't collapse if clicking remove button
         if (e.target.closest('.lumia-remove-pack-btn')) return;
-        setIsCollapsed(!isCollapsed);
+
+        if (isControlled && onToggleCollapse) {
+            onToggleCollapse(packName);
+        } else {
+            setInternalCollapsed(!internalCollapsed);
+        }
     };
 
     return (
@@ -381,6 +396,12 @@ function SelectionModal({
         }
     }, [type, selections, actions]);
 
+    // State for collapse/expand all
+    const [collapsedPacks, setCollapsedPacks] = useState(new Set());
+
+    // State for sorting
+    const [sortBy, setSortBy] = useState('default'); // 'default', 'name', 'author'
+
     // Filter packs to get Lumia items of the correct type
     const packsWithItems = useMemo(() => {
         return allPacks
@@ -394,6 +415,49 @@ function SelectionModal({
             })
             .filter((pack) => pack.lumiaItems.length > 0);
     }, [allPacks, type]);
+
+    // Sorted packs
+    const sortedPacks = useMemo(() => {
+        if (sortBy === 'default') return packsWithItems;
+
+        return [...packsWithItems].sort((a, b) => {
+            if (sortBy === 'name') {
+                const nameA = (a.name || a.packName || '').toLowerCase();
+                const nameB = (b.name || b.packName || '').toLowerCase();
+                return nameA.localeCompare(nameB);
+            }
+            if (sortBy === 'author') {
+                const authorA = (a.author || '').toLowerCase();
+                const authorB = (b.author || '').toLowerCase();
+                return authorA.localeCompare(authorB);
+            }
+            return 0;
+        });
+    }, [packsWithItems, sortBy]);
+
+    // Collapse/Expand all functions
+    const collapseAll = () => {
+        const allPackNames = packsWithItems.map(p => p.name || p.packName);
+        setCollapsedPacks(new Set(allPackNames));
+    };
+
+    const expandAll = () => {
+        setCollapsedPacks(new Set());
+    };
+
+    const togglePackCollapse = (packName) => {
+        setCollapsedPacks(prev => {
+            const next = new Set(prev);
+            if (next.has(packName)) {
+                next.delete(packName);
+            } else {
+                next.add(packName);
+            }
+            return next;
+        });
+    };
+
+    const isPackCollapsed = (packName) => collapsedPacks.has(packName);
 
     /**
      * Check if an item is selected
@@ -459,10 +523,11 @@ function SelectionModal({
     };
 
     const handleRemovePack = (packName) => {
-        // This would need to call an action to remove the pack
-        // For now just log - the actual implementation depends on the context
-        console.log('Remove pack:', packName);
-        // actions.removePack?.(packName);
+        if (!window.confirm(`Delete pack "${packName}"? This action cannot be undone.`)) {
+            return;
+        }
+        actions.removeCustomPack(packName);
+        saveToExtension();
     };
 
     /**
@@ -493,29 +558,73 @@ function SelectionModal({
                 </button>
             </div>
 
+            {/* Controls - Collapse/Expand and Sort */}
+            {sortedPacks.length > 0 && (
+                <div className="lumia-modal-controls">
+                    {/* Collapse/Expand controls */}
+                    <div className="lumia-modal-controls-group">
+                        <button
+                            className="lumia-modal-control-btn"
+                            onClick={expandAll}
+                            title="Expand all packs"
+                            type="button"
+                        >
+                            <span>Expand All</span>
+                        </button>
+                        <button
+                            className="lumia-modal-control-btn"
+                            onClick={collapseAll}
+                            title="Collapse all packs"
+                            type="button"
+                        >
+                            <span>Collapse All</span>
+                        </button>
+                    </div>
+
+                    {/* Sort dropdown */}
+                    <div className="lumia-modal-sort">
+                        <span className="lumia-modal-sort-label">Sort:</span>
+                        <select
+                            className="lumia-select"
+                            value={sortBy}
+                            onChange={(e) => setSortBy(e.target.value)}
+                        >
+                            <option value="default">Default</option>
+                            <option value="name">Pack Name</option>
+                            <option value="author">Author</option>
+                        </select>
+                    </div>
+                </div>
+            )}
+
             {/* Content - pack sections with cards */}
             <div className="lumia-modal-content">
-                {packsWithItems.length === 0 ? (
+                {sortedPacks.length === 0 ? (
                     <div className="lumia-modal-empty">
                         No Lumia Packs loaded. Add one in settings!
                     </div>
                 ) : (
-                    packsWithItems.map((pack) => (
-                        <PackSection
-                            key={pack.id || pack.name || pack.packName}
-                            pack={pack}
-                            items={pack.lumiaItems}
-                            isEditable={pack.isEditable}
-                            type={type}
-                            isSelected={isSelected}
-                            isDominant={isDominant}
-                            onSelect={handleSelect}
-                            onSetDominant={handleSetDominant}
-                            showDominant={allowDominant && config.isMulti}
-                            onRemovePack={handleRemovePack}
-                            onEditItem={handleEditItem}
-                        />
-                    ))
+                    sortedPacks.map((pack) => {
+                        const packName = pack.name || pack.packName;
+                        return (
+                            <PackSection
+                                key={pack.id || packName}
+                                pack={pack}
+                                items={pack.lumiaItems}
+                                isEditable={pack.isEditable}
+                                type={type}
+                                isSelected={isSelected}
+                                isDominant={isDominant}
+                                onSelect={handleSelect}
+                                onSetDominant={handleSetDominant}
+                                showDominant={allowDominant && config.isMulti}
+                                onRemovePack={handleRemovePack}
+                                onEditItem={handleEditItem}
+                                isCollapsed={isPackCollapsed(packName)}
+                                onToggleCollapse={togglePackCollapse}
+                            />
+                        );
+                    })
                 )}
             </div>
 
