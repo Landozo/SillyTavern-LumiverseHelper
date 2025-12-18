@@ -3760,8 +3760,12 @@ details.lumia-panel[open] .lumia-panel-chevron {
   }
 
   .lucid-cards-footer {
+    flex-direction: row; /* Override column-reverse from base .lumia-modal-footer mobile */
     flex-wrap: wrap;
     gap: 10px;
+    /* Reserve height for expanded state (button row + info row + gap + padding) to prevent modal shift */
+    min-height: 110px;
+    align-content: flex-start;
   }
 
   .lucid-cards-close-btn {
