@@ -5899,6 +5899,7 @@ details.lumia-panel[open] .lumia-panel-chevron {
     width: 16px;
     height: 16px;
     stroke: currentColor;
+    display: block;
 }
 
 /* Sort icon */
@@ -5916,6 +5917,7 @@ details.lumia-panel[open] .lumia-panel-chevron {
     width: 16px;
     height: 16px;
     stroke: currentColor;
+    display: block;
 }
 
 /* Sort Dropdown */
@@ -5927,6 +5929,15 @@ details.lumia-panel[open] .lumia-panel-chevron {
     background: rgba(0, 0, 0, 0.25);
     border: 1px solid rgba(128, 128, 128, 0.15);
     border-radius: 8px;
+}
+
+/* Direct SVG targeting for sort dropdown - mirrors .lumia-modal-control-btn svg pattern */
+.lumia-modal-sort svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    flex-shrink: 0;
+    display: block;
 }
 
 .lumia-modal-sort-label {
