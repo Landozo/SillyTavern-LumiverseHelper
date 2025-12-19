@@ -167,8 +167,8 @@ function PromptSettings() {
     // Get settings directly from store (old code uses root-level fields)
     const sovereignHand = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().sovereignHand || { enabled: false, excludeLastMessage: true },
-        () => store.getState().sovereignHand || { enabled: false, excludeLastMessage: true }
+        () => store.getState().sovereignHand || { enabled: false, excludeLastMessage: true, includeMessageInPrompt: true },
+        () => store.getState().sovereignHand || { enabled: false, excludeLastMessage: true, includeMessageInPrompt: true }
     );
     const contextFilters = useSyncExternalStore(
         store.subscribe,
@@ -239,13 +239,21 @@ function PromptSettings() {
                     hint="When enabled, removes the last user message from the outgoing context"
                     disabled={!sovereignEnabled}
                 />
+                <Toggle
+                    id="sovereign-hand-include-in-prompt-toggle"
+                    checked={sovereignHand.includeMessageInPrompt ?? true}
+                    onChange={(v) => updateSetting('sovereignHand.includeMessageInPrompt', v)}
+                    label="Include Message in Master Prompt"
+                    hint="When enabled, includes the user message in the {{loomSovHand}} macro output"
+                    disabled={!sovereignEnabled}
+                />
                 <InfoBox
                     muted={!sovereignEnabled}
                     items={[
                         <><code>{'{{loomLastUserMessage}}'}</code> returns the last user message</>,
+                        <><code>{'{{loomLastCharMessage}}'}</code> returns the last character message</>,
                         <><code>{'{{lastMessageName}}'}</code> returns the name of whoever sent the last message</>,
                         <><code>{'{{loomContinuePrompt}}'}</code> adds continuation instructions when character spoke last</>,
-                        'Use these macros to provide instructions with the user\'s input to specific prompt locations',
                     ]}
                 />
             </CollapsibleSection>
