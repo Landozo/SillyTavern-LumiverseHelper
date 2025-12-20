@@ -51,6 +51,7 @@ import {
   hideLoomSumBlocks,
   registerLoomMacros,
   setLastUserMessageContent,
+  setCapturedUserMessageFlag,
   findLastUserMessage,
 } from "./lib/loomSystem.js";
 
@@ -303,6 +304,9 @@ globalThis.lumiverseHelperGenInterceptor = async function (
 
       // Store the content for the {{loomLastUserMessage}} macro
       setLastUserMessageContent(messageContent);
+      // Mark that we captured a user message this generation
+      // This tells the continuation prompt that user was last speaker
+      setCapturedUserMessageFlag(true);
       console.log(
         `[${MODULE_NAME}] Sovereign Hand: Captured last user message at index ${lastUserIndex}`,
       );
@@ -319,12 +323,18 @@ globalThis.lumiverseHelperGenInterceptor = async function (
         );
       }
     } else {
-      // No user message found, clear the stored content
+      // No user message found - this is a continue/regenerate scenario
+      // Character was last speaker, so don't mark as captured
       setLastUserMessageContent("");
+      setCapturedUserMessageFlag(false);
+      console.log(
+        `[${MODULE_NAME}] Sovereign Hand: No user message found (continuation mode)`,
+      );
     }
   } else {
     // Clear stored content when feature is disabled
     setLastUserMessageContent("");
+    setCapturedUserMessageFlag(false);
   }
 
   // Calculate "keep depth" thresholds for depth-based filters
