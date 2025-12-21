@@ -237,13 +237,15 @@ export function getLoomContent(selection) {
  * @param {Object} MacrosParser - The SillyTavern MacrosParser instance
  */
 export function registerLumiaMacros(MacrosParser) {
-  const settings = getSettings();
+  console.log("[LumiverseHelper] Registering Lumia macros...");
 
   // Random Lumia macros
   MacrosParser.registerMacro("randomLumia", () => {
     ensureRandomLumia();
     const currentRandomLumia = getCurrentRandomLumia();
-    return currentRandomLumia ? currentRandomLumia.lumiaDef || "" : "";
+    const result = currentRandomLumia ? currentRandomLumia.lumiaDef || "" : "";
+    console.log("[LumiverseHelper] randomLumia macro called, result length:", result.length);
+    return result;
   });
 
   MacrosParser.registerMacro("randomLumia.phys", () => {
@@ -273,8 +275,14 @@ export function registerLumiaMacros(MacrosParser) {
   // Selected Lumia macros
   MacrosParser.registerMacro("lumiaDef", () => {
     const currentSettings = getSettings();
-    if (!currentSettings.selectedDefinition) return "";
-    return getLumiaContent("def", currentSettings.selectedDefinition);
+    console.log("[LumiverseHelper] lumiaDef macro called, selectedDefinition:", currentSettings.selectedDefinition);
+    if (!currentSettings.selectedDefinition) {
+      console.log("[LumiverseHelper] lumiaDef: No definition selected, returning empty");
+      return "";
+    }
+    const result = getLumiaContent("def", currentSettings.selectedDefinition);
+    console.log("[LumiverseHelper] lumiaDef result length:", result.length);
+    return result;
   });
 
   MacrosParser.registerMacro("lumiaDef.len", () => {

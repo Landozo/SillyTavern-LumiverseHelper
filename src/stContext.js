@@ -63,36 +63,79 @@ export function getEventTypes() {
 
 /**
  * Get the MacrosParser for registering custom macros.
- * Uses the new macros.registry API when available, falling back to deprecated methods.
+ * Tries multiple APIs in order of preference with error handling.
  * @returns {Object|null} MacrosParser-compatible object with registerMacro method
  */
 export function getMacrosParser() {
   const ctx = getContext();
 
-  // Preferred: Use the new macros.registry API (non-deprecated)
-  if (ctx?.macros?.registry?.registerMacro) {
+  if (!ctx) {
+    console.warn("[LumiverseHelper] Context not available for macro registration");
+    return null;
+  }
+
+  // Log what's available for debugging
+  console.log("[LumiverseHelper] Macro API detection:", {
+    "ctx.macros": !!ctx.macros,
+    "ctx.macros?.register": typeof ctx.macros?.register,
+    "ctx.registerMacro": typeof ctx.registerMacro,
+    "ctx.MacrosParser": !!ctx.MacrosParser,
+  });
+
+  // Try 1: Use ctx.registerMacro (the documented extension API)
+  // This is what the ST docs recommend for extensions
+  if (typeof ctx.registerMacro === "function") {
+    console.log("[LumiverseHelper] Using ctx.registerMacro (documented extension API)");
     return {
-      registerMacro: ctx.macros.registry.registerMacro.bind(ctx.macros.registry),
+      registerMacro: (name, handlerOrValue) => {
+        try {
+          ctx.registerMacro(name, handlerOrValue);
+          console.log(`[LumiverseHelper] Registered macro: ${name}`);
+        } catch (e) {
+          console.error(`[LumiverseHelper] Failed to register macro ${name}:`, e);
+        }
+      },
     };
   }
 
-  // Fallback: Use context.registerMacro (deprecated but functional)
-  if (ctx?.registerMacro) {
+  // Try 2: Use the new macros.register API with full options
+  if (typeof ctx.macros?.register === "function") {
+    console.log("[LumiverseHelper] Using ctx.macros.register (new API)");
     return {
-      registerMacro: ctx.registerMacro,
+      registerMacro: (name, handlerOrValue) => {
+        try {
+          const handler = typeof handlerOrValue === "function"
+            ? handlerOrValue
+            : () => handlerOrValue;
+          ctx.macros.register(name, {
+            handler,
+            description: `Lumiverse Helper macro: ${name}`,
+            category: "Lumiverse Helper",
+          });
+          console.log(`[LumiverseHelper] Registered macro via macros.register: ${name}`);
+        } catch (e) {
+          console.error(`[LumiverseHelper] Failed to register macro ${name} via macros.register:`, e);
+        }
+      },
     };
   }
 
-  // Legacy fallbacks
-  if (ctx?.MacrosParser) {
-    return ctx.MacrosParser;
+  // Try 3: Legacy MacrosParser
+  if (ctx.MacrosParser?.registerMacro) {
+    console.log("[LumiverseHelper] Using ctx.MacrosParser (legacy)");
+    return {
+      registerMacro: (name, handlerOrValue) => {
+        try {
+          ctx.MacrosParser.registerMacro(name, handlerOrValue);
+          console.log(`[LumiverseHelper] Registered macro via MacrosParser: ${name}`);
+        } catch (e) {
+          console.error(`[LumiverseHelper] Failed to register macro ${name} via MacrosParser:`, e);
+        }
+      },
+    };
   }
 
-  if (typeof SillyTavern !== "undefined" && SillyTavern.MacrosParser) {
-    return SillyTavern.MacrosParser;
-  }
-
-  console.warn("[LumiverseHelper] Macro registration API not available");
+  console.warn("[LumiverseHelper] No macro registration API found");
   return null;
 }
 
