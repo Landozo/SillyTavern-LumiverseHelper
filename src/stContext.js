@@ -8,22 +8,16 @@
  * Do NOT use relative imports to ST internals (e.g., ../../../extensions.js)
  */
 
-// Cache the context after first retrieval
-let _cachedContext = null;
-
 /**
  * Get the SillyTavern context object.
  * This provides access to chat, characters, and various utilities.
+ * Note: We don't cache the context because it may be populated progressively
+ * during ST initialization, and caching early could miss properties.
  * @returns {Object|null} ST context with all APIs, or null if not available
  */
 export function getContext() {
-  if (_cachedContext) {
-    return _cachedContext;
-  }
-
   if (typeof SillyTavern !== "undefined" && SillyTavern.getContext) {
-    _cachedContext = SillyTavern.getContext();
-    return _cachedContext;
+    return SillyTavern.getContext();
   }
 
   console.error("[LumiverseHelper] SillyTavern global not available");
@@ -69,29 +63,91 @@ export function getEventTypes() {
 
 /**
  * Get the MacrosParser for registering custom macros.
- * @returns {Object|null} MacrosParser instance
+ * Uses the new macros.registry API when available, falling back to deprecated methods.
+ * @returns {Object|null} MacrosParser-compatible object with registerMacro method
  */
 export function getMacrosParser() {
   const ctx = getContext();
-  return ctx?.MacrosParser || null;
+
+  // Preferred: Use the new macros.registry API (non-deprecated)
+  if (ctx?.macros?.registry?.registerMacro) {
+    return {
+      registerMacro: ctx.macros.registry.registerMacro.bind(ctx.macros.registry),
+    };
+  }
+
+  // Fallback: Use context.registerMacro (deprecated but functional)
+  if (ctx?.registerMacro) {
+    return {
+      registerMacro: ctx.registerMacro,
+    };
+  }
+
+  // Legacy fallbacks
+  if (ctx?.MacrosParser) {
+    return ctx.MacrosParser;
+  }
+
+  if (typeof SillyTavern !== "undefined" && SillyTavern.MacrosParser) {
+    return SillyTavern.MacrosParser;
+  }
+
+  console.warn("[LumiverseHelper] Macro registration API not available");
+  return null;
 }
 
 /**
  * Get the SlashCommandParser for registering slash commands.
+ * ST may expose this differently depending on version.
  * @returns {Object|null} SlashCommandParser instance
  */
 export function getSlashCommandParser() {
   const ctx = getContext();
-  return ctx?.SlashCommandParser || null;
+
+  // Try context first
+  if (ctx?.SlashCommandParser) {
+    return ctx.SlashCommandParser;
+  }
+
+  // Try SillyTavern namespace
+  if (typeof SillyTavern !== "undefined" && SillyTavern.SlashCommandParser) {
+    return SillyTavern.SlashCommandParser;
+  }
+
+  // Try globalThis
+  if (typeof globalThis.SlashCommandParser !== "undefined") {
+    return globalThis.SlashCommandParser;
+  }
+
+  console.warn("[LumiverseHelper] SlashCommandParser not available");
+  return null;
 }
 
 /**
  * Get the SlashCommand class for creating commands.
+ * ST may expose this differently depending on version.
  * @returns {Function|null} SlashCommand constructor
  */
 export function getSlashCommand() {
   const ctx = getContext();
-  return ctx?.SlashCommand || null;
+
+  // Try context first
+  if (ctx?.SlashCommand) {
+    return ctx.SlashCommand;
+  }
+
+  // Try SillyTavern namespace
+  if (typeof SillyTavern !== "undefined" && SillyTavern.SlashCommand) {
+    return SillyTavern.SlashCommand;
+  }
+
+  // Try globalThis
+  if (typeof globalThis.SlashCommand !== "undefined") {
+    return globalThis.SlashCommand;
+  }
+
+  console.warn("[LumiverseHelper] SlashCommand not available");
+  return null;
 }
 
 /**
@@ -151,9 +207,3 @@ export function getChat() {
   return ctx?.chat || [];
 }
 
-/**
- * Clear the cached context (useful for testing or when context changes).
- */
-export function clearContextCache() {
-  _cachedContext = null;
-}

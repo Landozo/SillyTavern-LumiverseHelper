@@ -14,6 +14,7 @@ let initialExtensionSettings = null;
 
 /**
  * Mount the main Lumiverse settings panel into the extensions settings area
+ * Uses ST's inline-drawer (accordion) structure for proper integration
  * @param {string} containerId - The ID of the container element
  * @param {Object} settings - Initial settings from the extension
  * @returns {Function} Cleanup function to unmount
@@ -38,9 +39,35 @@ function mountSettingsPanel(containerId = 'lumiverse-settings-root', settings = 
         return null;
     }
 
+    // Create ST's inline-drawer (accordion) wrapper structure
+    const drawerWrapper = document.createElement('div');
+    drawerWrapper.className = 'lumia-injector-settings';
+
+    const drawer = document.createElement('div');
+    drawer.className = 'inline-drawer';
+
+    // Create the accordion header (toggle)
+    const drawerHeader = document.createElement('div');
+    drawerHeader.className = 'inline-drawer-toggle inline-drawer-header';
+    drawerHeader.innerHTML = `
+        <b>Lumiverse Helper</b>
+        <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+    `;
+
+    // Create the accordion content area
+    const drawerContent = document.createElement('div');
+    drawerContent.className = 'inline-drawer-content';
+
+    // Create the React root inside the drawer content
     const rootElement = document.createElement('div');
     rootElement.id = containerId;
-    container.appendChild(rootElement);
+    drawerContent.appendChild(rootElement);
+
+    // Assemble the drawer structure
+    drawer.appendChild(drawerHeader);
+    drawer.appendChild(drawerContent);
+    drawerWrapper.appendChild(drawer);
+    container.appendChild(drawerWrapper);
 
     const root = ReactDOM.createRoot(rootElement);
     root.render(
@@ -51,8 +78,9 @@ function mountSettingsPanel(containerId = 'lumiverse-settings-root', settings = 
         </React.StrictMode>
     );
 
-    mountedRoots.set(containerId, { root, element: rootElement });
-    console.log('[LumiverseUI] Settings panel mounted');
+    // Store reference to the outer wrapper for cleanup
+    mountedRoots.set(containerId, { root, element: drawerWrapper });
+    console.log('[LumiverseUI] Settings panel mounted with inline-drawer accordion');
 
     return () => unmount(containerId);
 }

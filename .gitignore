@@ -9,4 +9,5 @@ generate_raw_example.js
 .vscode/settings.json
 secrets_st.js
 example_bun.js
-,claude/*
+claude/*
+node_modules/
