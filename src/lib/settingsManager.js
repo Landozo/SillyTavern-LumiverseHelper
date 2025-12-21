@@ -3,8 +3,7 @@
  * Handles all settings persistence, migration, and state management for Lumia Injector
  */
 
-import { extension_settings } from "../../../../extensions.js";
-import { saveSettingsDebounced } from "../../../../../script.js";
+import { getExtensionSettings, getSaveSettingsDebounced } from "../stContext.js";
 
 export const MODULE_NAME = "lumia-injector";
 export const SETTINGS_KEY = "lumia_injector_settings";
@@ -327,6 +326,7 @@ export function migrateSettings() {
  * Load settings from SillyTavern storage
  */
 export function loadSettings() {
+  const extension_settings = getExtensionSettings();
   if (extension_settings[SETTINGS_KEY]) {
     settings = { ...settings, ...extension_settings[SETTINGS_KEY] };
 
@@ -342,6 +342,8 @@ export function loadSettings() {
  * Save settings to SillyTavern storage
  */
 export function saveSettings() {
+  const extension_settings = getExtensionSettings();
+  const saveSettingsDebounced = getSaveSettingsDebounced();
   extension_settings[SETTINGS_KEY] = settings;
   saveSettingsDebounced();
 }
@@ -389,21 +391,19 @@ export function clearClaudeCache() {
 
 /**
  * Get the extension directory path
+ * Note: In bundled mode, this is less reliable - use for compatibility only
  * @returns {string} Extension directory path
  */
 export function getExtensionDirectory() {
-  const index_path = new URL(import.meta.url).pathname;
-  // Go up from lib/ to extension root
-  const libPath = index_path.substring(0, index_path.lastIndexOf("/"));
-  return libPath.substring(0, libPath.lastIndexOf("/"));
-}
-
-/**
- * Load the settings HTML template
- * @returns {Promise<string>} Settings HTML content
- */
-export async function loadSettingsHtml() {
-  const response = await fetch(`${getExtensionDirectory()}/settings.html`);
-  const html = await response.text();
-  return html;
+  // Try to find extension path from script tags
+  const scripts = document.querySelectorAll('script[src*="lumia"], script[src*="lumiverse"]');
+  for (const script of scripts) {
+    const src = script.src;
+    const match = src.match(/(\/scripts\/extensions\/third-party\/[^/]+)/);
+    if (match) {
+      return match[1];
+    }
+  }
+  // Fallback
+  return "/scripts/extensions/third-party/SillyTavern-LumiverseHelper";
 }

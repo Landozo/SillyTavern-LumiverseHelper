@@ -3,7 +3,7 @@
  * Handles all modal dialog rendering and interaction for Lumia Injector
  */
 
-import { getContext } from "../../../../extensions.js";
+import { getContext } from "../stContext.js";
 import { getSettings, saveSettings, MODULE_NAME, LOOM_SUMMARY_KEY } from "./settingsManager.js";
 import { getItemFromLibrary, escapeHtml } from "./dataProcessor.js";
 import { generateLoomSummary, getProviderDefaults, PROVIDER_CONFIG, getProviderConfig, getIsSummarizing } from "./summarization.js";

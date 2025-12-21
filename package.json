@@ -1,8 +1,8 @@
 {
-  "name": "lumiverse-helper-ui",
+  "name": "sillytavern-lumiverse-helper",
   "version": "1.0.0",
   "private": true,
-  "description": "React-based UI components for LumiverseHelper",
+  "description": "Lumia and Loom injection extension for SillyTavern with React UI",
   "scripts": {
     "build": "webpack --mode production",
     "dev": "webpack --mode development --watch",

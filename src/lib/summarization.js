@@ -3,8 +3,7 @@
  * Handles all summarization logic including API calls, prompt building, and auto-trigger
  */
 
-import { getContext } from "../../../../extensions.js";
-import { getRequestHeaders } from "../../../../../script.js";
+import { getContext, getRequestHeaders } from "../stContext.js";
 import {
   getSettings,
   MODULE_NAME,

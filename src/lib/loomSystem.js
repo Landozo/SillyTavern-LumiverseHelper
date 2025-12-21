@@ -3,7 +3,7 @@
  * Handles Loom conditionals, summary capture, and summary display
  */
 
-import { getContext } from "../../../../extensions.js";
+import { getContext } from "../stContext.js";
 import {
   MODULE_NAME,
   LOOM_SUMMARY_KEY,

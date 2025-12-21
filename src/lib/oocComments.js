@@ -4,7 +4,7 @@
  * Uses RAF batch rendering for optimized DOM updates
  */
 
-import { getContext } from "../../../../extensions.js";
+import { getContext } from "../stContext.js";
 import { query, queryAll, createElement } from "../sthelpers/domUtils.js";
 import { getSettings, MODULE_NAME } from "./settingsManager.js";
 import { getItemFromLibrary } from "./dataProcessor.js";
