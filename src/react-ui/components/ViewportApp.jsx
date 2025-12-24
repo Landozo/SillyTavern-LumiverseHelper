@@ -1,9 +1,11 @@
 import React, { useState, useCallback, useSyncExternalStore } from 'react';
 import ViewportPanel from './ViewportPanel';
 import CharacterProfile from './panels/CharacterProfile';
+import PresetManager from './panels/PresetManager';
 import PackBrowser from './panels/PackBrowser';
 import OOCSettings from './panels/OOCSettings';
 import PromptSettings from './panels/PromptSettings';
+import CouncilManager from './panels/CouncilManager';
 import SummaryEditor from './panels/SummaryEditor';
 import { useLumiverseStore } from '../store/LumiverseContext';
 
@@ -45,9 +47,11 @@ function ViewportApp() {
             onClose={handleClose}
             defaultTab="profile"
             ProfileContent={CharacterProfile}
+            PresetsContent={PresetManager}
             BrowserContent={PackBrowser}
             OOCContent={OOCSettings}
             PromptContent={PromptSettings}
+            CouncilContent={CouncilManager}
             SummaryContent={SummaryEditor}
         />
     );

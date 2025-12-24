@@ -61,6 +61,16 @@ const initialState = {
     selectedLoomUtils: [],        // Note: "Utils" not "Utilities" to match old code
     selectedLoomRetrofits: [],
 
+    // Preset system
+    presets: {},                  // Saved preset configurations keyed by name
+    activePresetName: null,       // Currently loaded preset name
+
+    // Chimera/Council modes
+    chimeraMode: false,
+    selectedDefinitions: [],      // Array of { packName, itemName } - used in Chimera mode
+    councilMode: false,
+    councilMembers: [],           // Array of council member configurations
+
     // OOC settings
     oocEnabled: true,
     lumiaOOCStyle: 'social',
@@ -359,6 +369,319 @@ const actions = {
             selectedLoomUtils: [],
             selectedLoomRetrofits: [],
         });
+    },
+
+    /**
+     * Enable all traits for a Lumia item
+     * Sets the definition (if item has one) and adds behaviors/personalities
+     * without duplicating already-selected items
+     *
+     * @param {string} packName - The pack containing the item
+     * @param {string} itemName - The lumiaDefName of the item
+     */
+    enableAllTraitsForLumia: (packName, itemName) => {
+        const state = store.getState();
+        const pack = state.packs[packName];
+        if (!pack) return;
+
+        const item = pack.items.find(i => i.lumiaDefName === itemName);
+        if (!item) return;
+
+        const selection = { packName, itemName };
+        const newState = {};
+
+        // Set definition if item has one
+        if (item.lumiaDef) {
+            newState.selectedDefinition = selection;
+        }
+
+        // Add behavior if item has one and not already selected
+        if (item.lumia_behavior) {
+            const behaviors = state.selectedBehaviors || [];
+            const alreadySelected = behaviors.some(
+                b => b.packName === packName && b.itemName === itemName
+            );
+            if (!alreadySelected) {
+                newState.selectedBehaviors = [...behaviors, selection];
+            }
+        }
+
+        // Add personality if item has one and not already selected
+        if (item.lumia_personality) {
+            const personalities = state.selectedPersonalities || [];
+            const alreadySelected = personalities.some(
+                p => p.packName === packName && p.itemName === itemName
+            );
+            if (!alreadySelected) {
+                newState.selectedPersonalities = [...personalities, selection];
+            }
+        }
+
+        if (Object.keys(newState).length > 0) {
+            store.setState(newState);
+        }
+    },
+
+    /**
+     * Preset Management Actions
+     */
+
+    /**
+     * Save current Lumia selections as a named preset
+     * @param {string} presetName - Name for the preset
+     */
+    savePreset: (presetName) => {
+        const state = store.getState();
+        const now = Date.now();
+
+        const preset = {
+            name: presetName,
+            createdAt: now,
+            updatedAt: now,
+            // Lumia selections
+            selectedDefinition: state.selectedDefinition,
+            selectedBehaviors: [...(state.selectedBehaviors || [])],
+            selectedPersonalities: [...(state.selectedPersonalities || [])],
+            dominantBehavior: state.dominantBehavior,
+            dominantPersonality: state.dominantPersonality,
+            // Mode flags
+            chimeraMode: state.chimeraMode || false,
+            selectedDefinitions: [...(state.selectedDefinitions || [])],
+            councilMode: state.councilMode || false,
+            councilMembers: JSON.parse(JSON.stringify(state.councilMembers || [])),
+        };
+
+        store.setState({
+            presets: { ...state.presets, [presetName]: preset },
+            activePresetName: presetName,
+        });
+    },
+
+    /**
+     * Load a preset, replacing current selections
+     * @param {string} presetName - Name of the preset to load
+     */
+    loadPreset: (presetName) => {
+        const state = store.getState();
+        const preset = state.presets[presetName];
+        if (!preset) return;
+
+        const updates = {
+            selectedDefinition: preset.selectedDefinition,
+            selectedBehaviors: preset.selectedBehaviors || [],
+            selectedPersonalities: preset.selectedPersonalities || [],
+            dominantBehavior: preset.dominantBehavior,
+            dominantPersonality: preset.dominantPersonality,
+            activePresetName: presetName,
+        };
+
+        // Apply mode flags if present
+        if (preset.chimeraMode !== undefined) {
+            updates.chimeraMode = preset.chimeraMode;
+            updates.selectedDefinitions = preset.selectedDefinitions || [];
+        }
+        if (preset.councilMode !== undefined) {
+            updates.councilMode = preset.councilMode;
+            updates.councilMembers = preset.councilMembers || [];
+        }
+
+        store.setState(updates);
+    },
+
+    /**
+     * Delete a preset
+     * @param {string} presetName - Name of the preset to delete
+     */
+    deletePreset: (presetName) => {
+        const state = store.getState();
+        const { [presetName]: deleted, ...remaining } = state.presets;
+        store.setState({
+            presets: remaining,
+            activePresetName: state.activePresetName === presetName
+                ? null
+                : state.activePresetName,
+        });
+    },
+
+    /**
+     * Update an existing preset with current selections
+     * @param {string} presetName - Name of the preset to update
+     */
+    updatePreset: (presetName) => {
+        const state = store.getState();
+        const existing = state.presets[presetName];
+        if (!existing) return;
+
+        const preset = {
+            ...existing,
+            updatedAt: Date.now(),
+            // Lumia selections
+            selectedDefinition: state.selectedDefinition,
+            selectedBehaviors: [...(state.selectedBehaviors || [])],
+            selectedPersonalities: [...(state.selectedPersonalities || [])],
+            dominantBehavior: state.dominantBehavior,
+            dominantPersonality: state.dominantPersonality,
+            // Mode flags
+            chimeraMode: state.chimeraMode || false,
+            selectedDefinitions: [...(state.selectedDefinitions || [])],
+            councilMode: state.councilMode || false,
+            councilMembers: JSON.parse(JSON.stringify(state.councilMembers || [])),
+        };
+
+        store.setState({
+            presets: { ...state.presets, [presetName]: preset },
+        });
+    },
+
+    /**
+     * Clear active preset indicator (when selections change manually)
+     */
+    clearActivePreset: () => {
+        store.setState({ activePresetName: null });
+    },
+
+    /**
+     * Chimera Mode Actions
+     * Chimera mode allows multiple physical definitions to be selected and fused
+     */
+
+    /**
+     * Toggle Chimera mode on/off
+     * Handles migration between single and multi-definition selection
+     * Chimera and Council modes are mutually exclusive
+     * @param {boolean} enabled - Whether to enable Chimera mode
+     */
+    setChimeraMode: (enabled) => {
+        const state = store.getState();
+
+        // Disable Council mode if enabling Chimera (mutual exclusivity)
+        if (enabled && state.councilMode) {
+            store.setState({ councilMode: false, councilMembers: [] });
+        }
+
+        if (enabled && state.selectedDefinition) {
+            // Migrate single selection to array
+            store.setState({
+                chimeraMode: true,
+                selectedDefinitions: [state.selectedDefinition],
+                selectedDefinition: null,
+            });
+        } else if (!enabled && state.selectedDefinitions?.length > 0) {
+            // Keep first definition when switching back to single mode
+            store.setState({
+                chimeraMode: false,
+                selectedDefinition: state.selectedDefinitions[0],
+                selectedDefinitions: [],
+            });
+        } else {
+            store.setState({ chimeraMode: enabled });
+        }
+    },
+
+    /**
+     * Toggle a definition in Chimera mode (multi-select)
+     * @param {Object} selection - { packName, itemName }
+     */
+    toggleChimeraDefinition: (selection) => {
+        const state = store.getState();
+        const definitions = state.selectedDefinitions || [];
+        const match = actions._selectionsMatch;
+        const index = definitions.findIndex(d => match(d, selection));
+
+        if (index >= 0) {
+            // Remove from selection
+            const newDefinitions = [...definitions];
+            newDefinitions.splice(index, 1);
+            store.setState({ selectedDefinitions: newDefinitions });
+        } else {
+            // Add to selection
+            store.setState({
+                selectedDefinitions: [...definitions, selection],
+            });
+        }
+    },
+
+    /**
+     * Clear all Chimera definitions
+     */
+    clearChimeraDefinitions: () => {
+        store.setState({ selectedDefinitions: [] });
+    },
+
+    /**
+     * Council Mode Actions
+     * Council mode allows multiple independent Lumias that collaborate
+     */
+
+    /**
+     * Toggle Council mode on/off
+     * Council and Chimera modes are mutually exclusive
+     * @param {boolean} enabled - Whether to enable Council mode
+     */
+    setCouncilMode: (enabled) => {
+        const state = store.getState();
+
+        // Disable Chimera mode if enabling Council (mutual exclusivity)
+        if (enabled && state.chimeraMode) {
+            store.setState({ chimeraMode: false, selectedDefinitions: [] });
+        }
+
+        store.setState({ councilMode: enabled });
+    },
+
+    /**
+     * Add a new council member
+     * @param {Object} member - { packName, itemName } of the Lumia to add
+     */
+    addCouncilMember: (member) => {
+        const state = store.getState();
+        store.setState({
+            councilMembers: [
+                ...state.councilMembers,
+                {
+                    id: crypto.randomUUID(),
+                    packName: member.packName,
+                    itemName: member.itemName,
+                    behaviors: [],
+                    personalities: [],
+                    dominantBehavior: null,
+                    dominantPersonality: null,
+                    role: '',
+                },
+            ],
+        });
+    },
+
+    /**
+     * Update a council member's configuration
+     * @param {string} memberId - The ID of the member to update
+     * @param {Object} updates - The fields to update
+     */
+    updateCouncilMember: (memberId, updates) => {
+        const state = store.getState();
+        store.setState({
+            councilMembers: state.councilMembers.map(member =>
+                member.id === memberId ? { ...member, ...updates } : member
+            ),
+        });
+    },
+
+    /**
+     * Remove a council member
+     * @param {string} memberId - The ID of the member to remove
+     */
+    removeCouncilMember: (memberId) => {
+        const state = store.getState();
+        store.setState({
+            councilMembers: state.councilMembers.filter(member => member.id !== memberId),
+        });
+    },
+
+    /**
+     * Clear all council members
+     */
+    clearCouncilMembers: () => {
+        store.setState({ councilMembers: [] });
     },
 
     // UI actions

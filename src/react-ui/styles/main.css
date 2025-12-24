@@ -4022,6 +4022,257 @@ details.lumia-panel[open] .lumia-panel-chevron {
 }
 
 /* ----------------------------------------
+   Preset Manager
+   ---------------------------------------- */
+.lumiverse-preset-manager {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.lumiverse-preset-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.lumiverse-preset-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--lumiverse-text-primary);
+}
+
+.lumiverse-preset-create-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(147, 112, 219, 0.2);
+    border: 1px solid rgba(147, 112, 219, 0.3);
+    border-radius: 6px;
+    color: rgba(147, 112, 219, 1);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.lumiverse-preset-create-btn:hover {
+    background: rgba(147, 112, 219, 0.3);
+    border-color: rgba(147, 112, 219, 0.5);
+}
+
+.lumiverse-preset-create-form {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.lumiverse-preset-input {
+    flex: 1;
+    padding: 6px 10px;
+    background: rgba(30, 30, 46, 0.8);
+    border: 1px solid rgba(147, 112, 219, 0.3);
+    border-radius: 6px;
+    color: var(--lumiverse-text-primary);
+    font-size: 12px;
+    min-width: 120px;
+}
+
+.lumiverse-preset-input:focus {
+    outline: none;
+    border-color: rgba(147, 112, 219, 0.6);
+}
+
+.lumiverse-preset-input::placeholder {
+    color: var(--lumiverse-text-muted);
+}
+
+.lumiverse-preset-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.lumiverse-preset-card {
+    background: rgba(30, 30, 46, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px;
+    transition: all 0.15s ease;
+}
+
+.lumiverse-preset-card:hover {
+    background: rgba(30, 30, 46, 0.8);
+    border-color: rgba(147, 112, 219, 0.2);
+}
+
+.lumiverse-preset-card--active {
+    border-color: rgba(147, 112, 219, 0.4);
+    background: rgba(147, 112, 219, 0.08);
+}
+
+.lumiverse-preset-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.lumiverse-preset-card-icon {
+    color: rgba(147, 112, 219, 0.8);
+}
+
+.lumiverse-preset-card-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--lumiverse-text-primary);
+}
+
+.lumiverse-preset-card-active-badge {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(147, 112, 219, 0.2);
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 500;
+    color: rgba(147, 112, 219, 1);
+}
+
+.lumiverse-preset-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 11px;
+    color: var(--lumiverse-text-muted);
+}
+
+.lumiverse-preset-card-traits {
+    color: var(--lumiverse-text-secondary);
+}
+
+.lumiverse-preset-card-mode {
+    padding: 2px 6px;
+    background: rgba(255, 193, 7, 0.15);
+    border-radius: 4px;
+    font-size: 10px;
+    color: rgba(255, 193, 7, 0.9);
+}
+
+.lumiverse-preset-card-time {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.lumiverse-preset-card-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.lumiverse-preset-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: var(--lumiverse-text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.lumiverse-preset-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--lumiverse-text-primary);
+}
+
+.lumiverse-preset-btn--primary {
+    background: rgba(147, 112, 219, 0.2);
+    border-color: rgba(147, 112, 219, 0.3);
+    color: rgba(147, 112, 219, 1);
+}
+
+.lumiverse-preset-btn--primary:hover {
+    background: rgba(147, 112, 219, 0.3);
+    border-color: rgba(147, 112, 219, 0.5);
+}
+
+.lumiverse-preset-btn--primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.lumiverse-preset-btn--danger {
+    color: rgba(255, 100, 100, 0.8);
+}
+
+.lumiverse-preset-btn--danger:hover {
+    background: rgba(255, 100, 100, 0.15);
+    border-color: rgba(255, 100, 100, 0.3);
+    color: rgba(255, 100, 100, 1);
+}
+
+.lumiverse-preset-btn--confirming {
+    background: rgba(255, 100, 100, 0.2);
+    border-color: rgba(255, 100, 100, 0.4);
+    color: rgba(255, 100, 100, 1);
+}
+
+.lumiverse-preset-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+    text-align: center;
+}
+
+.lumiverse-preset-empty-icon {
+    margin-bottom: 12px;
+    color: var(--lumiverse-text-muted);
+    opacity: 0.5;
+}
+
+.lumiverse-preset-empty h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--lumiverse-text-primary);
+}
+
+.lumiverse-preset-empty p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--lumiverse-text-muted);
+    max-width: 240px;
+}
+
+.lumiverse-preset-help {
+    padding: 10px;
+    background: rgba(30, 30, 46, 0.4);
+    border-radius: 8px;
+}
+
+.lumiverse-preset-help p {
+    margin: 0;
+    font-size: 11px;
+    color: var(--lumiverse-text-muted);
+    line-height: 1.5;
+}
+
+/* ----------------------------------------
    OOC Analytics Dashboard
    ---------------------------------------- */
 .lumiverse-ooc-analytics {
@@ -5615,6 +5866,48 @@ details.lumia-panel[open] .lumia-panel-chevron {
     stroke-linejoin: round;
 }
 
+/* Enable All Icon - sparkles button for quick-enabling all traits */
+.lumia-enable-all-icon {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 193, 7, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-radius: 50%;
+    border: 1px solid rgba(255, 193, 7, 0.4);
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10;
+    opacity: 0;
+}
+
+.lumia-card:hover .lumia-enable-all-icon {
+    opacity: 1;
+}
+
+.lumia-enable-all-icon:hover {
+    background: rgba(255, 193, 7, 1);
+    border-color: rgba(255, 215, 0, 0.8);
+    transform: scale(1.1);
+    box-shadow: 0 2px 12px rgba(255, 193, 7, 0.5);
+}
+
+.lumia-enable-all-icon svg {
+    width: 14px;
+    height: 14px;
+    fill: none;
+    stroke: rgba(0, 0, 0, 0.85);
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 /* Selection Checkmark Overlay */
 .lumia-card-check {
     position: absolute;
@@ -6192,6 +6485,536 @@ details.lumia-panel[open] .lumia-panel-chevron {
 .lumia-search-clear-icon svg {
     width: 14px;
     height: 14px;
+}
+
+/* ----------------------------------------
+   Lumia Modes Section (Chimera/Council)
+   ---------------------------------------- */
+.lumiverse-vp-mode-option {
+    margin-bottom: 8px;
+}
+
+.lumiverse-vp-mode-option:last-child {
+    margin-bottom: 0;
+}
+
+.lumiverse-vp-mode-details {
+    margin-top: 8px;
+    padding-left: 12px;
+    border-left: 2px solid rgba(147, 112, 219, 0.3);
+}
+
+.lumiverse-vp-mode-note {
+    margin: 8px 0 0;
+    font-size: 11px;
+    color: var(--lumiverse-text-muted);
+    font-style: italic;
+}
+
+/* ----------------------------------------
+   Council Manager Component
+   ---------------------------------------- */
+.lumiverse-council-manager {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.lumiverse-council-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.lumiverse-council-title {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--lumiverse-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lumiverse-council-title svg {
+    color: var(--lumiverse-primary);
+}
+
+.lumiverse-council-mode-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.lumiverse-council-mode-toggle input {
+    display: none;
+}
+
+.lumiverse-council-mode-switch {
+    width: 40px;
+    height: 22px;
+    background: rgba(100, 100, 130, 0.3);
+    border-radius: 11px;
+    position: relative;
+    transition: background 0.2s ease;
+}
+
+.lumiverse-council-mode-switch--on {
+    background: var(--lumiverse-primary);
+}
+
+.lumiverse-council-mode-thumb {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s ease;
+}
+
+.lumiverse-council-mode-switch--on .lumiverse-council-mode-thumb {
+    transform: translateX(18px);
+}
+
+.lumiverse-council-mode-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--lumiverse-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.lumiverse-council-desc {
+    margin: 0;
+    font-size: 12px;
+    color: var(--lumiverse-text-muted);
+    line-height: 1.5;
+}
+
+/* Add member section */
+.lumiverse-council-add-section {
+    margin-top: 4px;
+}
+
+.lumiverse-council-add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 16px;
+    background: rgba(147, 112, 219, 0.1);
+    border: 1px dashed rgba(147, 112, 219, 0.3);
+    border-radius: 8px;
+    color: var(--lumiverse-primary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.lumiverse-council-add-btn:hover:not(:disabled) {
+    background: rgba(147, 112, 219, 0.15);
+    border-color: rgba(147, 112, 219, 0.5);
+}
+
+.lumiverse-council-add-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Add dropdown */
+.lumiverse-council-add-dropdown {
+    background: rgba(30, 30, 46, 0.95);
+    border: 1px solid var(--lumiverse-border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.lumiverse-council-add-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    border-bottom: 1px solid var(--lumiverse-border);
+}
+
+.lumiverse-council-search {
+    flex: 1;
+    padding: 8px 12px;
+    background: var(--lumiverse-bg);
+    border: 1px solid var(--lumiverse-border);
+    border-radius: 6px;
+    color: var(--lumiverse-text);
+    font-size: 13px;
+}
+
+.lumiverse-council-search:focus {
+    outline: none;
+    border-color: var(--lumiverse-primary);
+}
+
+.lumiverse-council-add-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.lumiverse-council-add-empty {
+    padding: 20px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--lumiverse-text-muted);
+}
+
+.lumiverse-council-add-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--lumiverse-text);
+    cursor: pointer;
+    transition: background 0.2s ease;
+    text-align: left;
+}
+
+.lumiverse-council-add-item:hover {
+    background: rgba(147, 112, 219, 0.1);
+}
+
+.lumiverse-council-add-item:last-child {
+    border-bottom: none;
+}
+
+.lumiverse-council-add-item-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(147, 112, 219, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--lumiverse-primary);
+    flex-shrink: 0;
+}
+
+.lumiverse-council-add-item-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.lumiverse-council-add-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.lumiverse-council-add-item-name {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--lumiverse-text);
+}
+
+.lumiverse-council-add-item-pack {
+    display: block;
+    font-size: 11px;
+    color: var(--lumiverse-text-muted);
+}
+
+/* Members list */
+.lumiverse-council-members {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.lumiverse-council-empty {
+    padding: 24px;
+    text-align: center;
+    background: rgba(30, 30, 46, 0.4);
+    border-radius: 10px;
+}
+
+.lumiverse-council-empty-icon {
+    display: block;
+    margin-bottom: 12px;
+    color: var(--lumiverse-primary);
+    opacity: 0.5;
+}
+
+.lumiverse-council-empty h4 {
+    margin: 0 0 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--lumiverse-text);
+}
+
+.lumiverse-council-empty p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--lumiverse-text-muted);
+    line-height: 1.5;
+}
+
+/* Member card */
+.lumiverse-council-member {
+    background: rgba(30, 30, 46, 0.6);
+    border: 1px solid var(--lumiverse-border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.lumiverse-council-member-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.lumiverse-council-member-header:hover {
+    background: rgba(147, 112, 219, 0.05);
+}
+
+.lumiverse-council-member-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(147, 112, 219, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--lumiverse-primary);
+    flex-shrink: 0;
+}
+
+.lumiverse-council-member-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.lumiverse-council-member-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.lumiverse-council-member-name {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--lumiverse-text);
+}
+
+.lumiverse-council-member-role {
+    display: block;
+    font-size: 11px;
+    color: var(--lumiverse-primary);
+    font-weight: 500;
+}
+
+.lumiverse-council-member-stats {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.lumiverse-council-stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--lumiverse-text-muted);
+}
+
+.lumiverse-council-stat svg {
+    opacity: 0.7;
+}
+
+.lumiverse-council-member-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.lumiverse-council-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: rgba(100, 100, 130, 0.2);
+    border: none;
+    border-radius: 6px;
+    color: var(--lumiverse-text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.lumiverse-council-btn:hover {
+    background: rgba(147, 112, 219, 0.2);
+    color: var(--lumiverse-text);
+}
+
+.lumiverse-council-btn--primary {
+    background: var(--lumiverse-primary);
+    color: white;
+}
+
+.lumiverse-council-btn--primary:hover {
+    background: var(--lumiverse-primary-light);
+}
+
+.lumiverse-council-btn--danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--lumiverse-danger);
+}
+
+.lumiverse-council-expand {
+    display: flex;
+    transition: transform 0.2s ease;
+}
+
+.lumiverse-council-expand--open {
+    transform: rotate(180deg);
+}
+
+/* Member body (expanded content) */
+.lumiverse-council-member-body {
+    padding: 12px;
+    border-top: 1px solid var(--lumiverse-border);
+    background: rgba(20, 20, 36, 0.4);
+}
+
+.lumiverse-council-role-edit {
+    margin-bottom: 12px;
+}
+
+.lumiverse-council-role-edit label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--lumiverse-text-muted);
+    margin-bottom: 6px;
+}
+
+.lumiverse-council-role-input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.lumiverse-council-input {
+    flex: 1;
+    padding: 8px 12px;
+    background: var(--lumiverse-bg);
+    border: 1px solid var(--lumiverse-border);
+    border-radius: 6px;
+    color: var(--lumiverse-text);
+    font-size: 13px;
+}
+
+.lumiverse-council-input:focus {
+    outline: none;
+    border-color: var(--lumiverse-primary);
+}
+
+.lumiverse-council-role-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-size: 12px;
+}
+
+.lumiverse-council-role-label {
+    color: var(--lumiverse-text-muted);
+}
+
+.lumiverse-council-role-value {
+    color: var(--lumiverse-text);
+}
+
+.lumiverse-council-role-value em {
+    color: var(--lumiverse-text-muted);
+    font-style: italic;
+}
+
+/* Traits section */
+.lumiverse-council-traits-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.lumiverse-council-traits-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.lumiverse-council-traits-label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--lumiverse-text-muted);
+    flex-shrink: 0;
+}
+
+.lumiverse-council-traits-list {
+    color: var(--lumiverse-text);
+}
+
+.lumiverse-council-traits-empty {
+    color: var(--lumiverse-text-dim);
+    font-style: italic;
+}
+
+.lumiverse-council-help-text {
+    margin: 12px 0 0;
+    padding: 10px;
+    background: rgba(147, 112, 219, 0.08);
+    border-radius: 6px;
+    font-size: 11px;
+    color: var(--lumiverse-text-muted);
+    line-height: 1.5;
+}
+
+/* Help text at bottom */
+.lumiverse-council-help {
+    padding: 10px;
+    background: rgba(30, 30, 46, 0.4);
+    border-radius: 8px;
+}
+
+.lumiverse-council-help p {
+    margin: 0;
+    font-size: 11px;
+    color: var(--lumiverse-text-muted);
+    line-height: 1.5;
+}
+
+.lumiverse-council-help code {
+    background: rgba(147, 112, 219, 0.15);
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 10px;
+    color: var(--lumiverse-primary);
 }
 
 /* ----------------------------------------

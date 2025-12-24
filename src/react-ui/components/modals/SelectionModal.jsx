@@ -1,12 +1,16 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useSyncExternalStore } from 'react';
 import {
     usePacks,
     useSelections,
     useLumiverseActions,
+    useLumiverseStore,
     saveToExtension,
 } from '../../store/LumiverseContext';
 import { useAdaptiveImagePosition } from '../../hooks/useAdaptiveImagePosition';
 import clsx from 'clsx';
+
+// Get store for direct state access
+const store = useLumiverseStore;
 
 // SVG icons matching the old design exactly
 const SVG_ICONS = {
@@ -23,6 +27,7 @@ const SVG_ICONS = {
     behavior: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>`,
     personality: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10H12V2z"></path><path d="M12 2a10 10 0 0 1 10 10"></path><circle cx="12" cy="12" r="6"></circle></svg>`,
     sort: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="14" y2="6"></line><line x1="4" y1="12" x2="11" y2="12"></line><line x1="4" y1="18" x2="8" y2="18"></line><polyline points="15 15 18 18 21 15"></polyline><line x1="18" y1="9" x2="18" y2="18"></line></svg>`,
+    sparkles: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>`,
 };
 
 /**
@@ -40,6 +45,18 @@ function Icon({ name, className }) {
 }
 
 /**
+ * Check if an item has multiple content types (for showing "Enable All" button)
+ */
+function hasMultipleContentTypes(item) {
+    const contentTypes = [
+        !!item.lumiaDef,
+        !!item.lumia_behavior,
+        !!item.lumia_personality,
+    ].filter(Boolean);
+    return contentTypes.length > 1;
+}
+
+/**
  * Individual card component matching old design
  */
 function LumiaCard({
@@ -49,6 +66,7 @@ function LumiaCard({
     isDominant,
     onSelect,
     onSetDominant,
+    onEnableAll,
     showDominant,
     isDefinition,
     animationIndex,
@@ -64,13 +82,17 @@ function LumiaCard({
     const displayName = item.lumiaDefName || 'Unknown';
     const imgToShow = item.lumia_img;
 
+    // Check if this item has multiple content types
+    const showEnableAll = hasMultipleContentTypes(item);
+
     // Adaptive image positioning based on aspect ratio
     const { objectPosition } = useAdaptiveImagePosition(imgToShow);
 
     const handleCardClick = (e) => {
-        // Don't trigger if clicking dominant icon or edit button
+        // Don't trigger if clicking dominant icon, edit button, or enable-all button
         if (e.target.closest('.lumia-dominant-icon')) return;
         if (e.target.closest('.lumia-edit-icon')) return;
+        if (e.target.closest('.lumia-enable-all-icon')) return;
         onSelect(item);
     };
 
@@ -82,6 +104,11 @@ function LumiaCard({
     const handleEditClick = (e) => {
         e.stopPropagation();
         if (onEdit) onEdit(item);
+    };
+
+    const handleEnableAllClick = (e) => {
+        e.stopPropagation();
+        if (onEnableAll) onEnableAll(item);
     };
 
     // Staggered animation delay
@@ -116,6 +143,17 @@ function LumiaCard({
                     </>
                 ) : (
                     <div className="lumia-card-placeholder">?</div>
+                )}
+
+                {/* Enable All Icon - shows when item has multiple content types */}
+                {showEnableAll && onEnableAll && (
+                    <div
+                        className="lumia-enable-all-icon"
+                        onClick={handleEnableAllClick}
+                        title="Enable all traits for this Lumia"
+                    >
+                        <Icon name="sparkles" />
+                    </div>
                 )}
 
                 {/* Edit Icon for custom pack items */}
@@ -169,6 +207,7 @@ function PackSection({
     isDominant,
     onSelect,
     onSetDominant,
+    onEnableAll,
     showDominant,
     onRemovePack,
     onEditItem,
@@ -229,6 +268,7 @@ function PackSection({
                             isDominant={isDominant(item, packName)}
                             onSelect={(item) => onSelect(item, packName)}
                             onSetDominant={(item) => onSetDominant(item, packName)}
+                            onEnableAll={onEnableAll ? (item) => onEnableAll(item, packName) : undefined}
                             showDominant={showDominant}
                             isDefinition={type === 'definitions'}
                             animationIndex={index}
@@ -282,10 +322,21 @@ function getHeaderIcon(type) {
 
 /**
  * Get modal config based on type
+ * @param {string} type - The type of selection
+ * @param {boolean} chimeraMode - Whether Chimera mode is enabled
  */
-function getModalConfig(type) {
+function getModalConfig(type, chimeraMode = false) {
     switch (type) {
         case 'definitions':
+            // Chimera mode allows multi-select definitions
+            if (chimeraMode) {
+                return {
+                    title: 'Select Chimera Forms',
+                    subtitle: 'Choose multiple physical forms to fuse into a Chimera',
+                    isMulti: true,
+                    dominantKey: null,
+                };
+            }
             return {
                 title: 'Select Definition',
                 subtitle: 'Choose the physical form for your Lumia',
@@ -329,7 +380,19 @@ function SelectionModal({
     const selections = useSelections();
     const actions = useLumiverseActions();
 
-    const config = getModalConfig(type);
+    // Subscribe to Chimera mode for multi-select definitions
+    const chimeraMode = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().chimeraMode || false,
+        () => store.getState().chimeraMode || false
+    );
+    const selectedDefinitions = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().selectedDefinitions || [],
+        () => store.getState().selectedDefinitions || []
+    );
+
+    const config = getModalConfig(type, chimeraMode);
     const headerIcon = getHeaderIcon(type);
 
     /**
@@ -365,6 +428,17 @@ function SelectionModal({
                     },
                 };
             case 'definitions':
+                // Chimera mode uses multi-select definitions
+                if (chimeraMode) {
+                    return {
+                        selectedItems: selectedDefinitions,
+                        dominantItem: null,
+                        toggleAction: actions.toggleChimeraDefinition,
+                        setDominantAction: null,
+                        clearAction: actions.clearChimeraDefinitions,
+                    };
+                }
+                // Normal single-select definitions
                 return {
                     selectedItems: selections.definition ? [selections.definition] : [],
                     dominantItem: null,
@@ -391,7 +465,7 @@ function SelectionModal({
                     clearAction: () => {},
                 };
         }
-    }, [type, selections, actions]);
+    }, [type, selections, actions, chimeraMode, selectedDefinitions]);
 
     const {
         selectedItems,
@@ -556,6 +630,18 @@ function SelectionModal({
         });
     };
 
+    /**
+     * Handle enabling all traits for a Lumia item
+     * Uses the enableAllTraitsForLumia action from the store
+     */
+    const handleEnableAll = (item, packName) => {
+        const itemName = item.lumiaDefName;
+        if (itemName) {
+            actions.enableAllTraitsForLumia(packName, itemName);
+            saveToExtension();
+        }
+    };
+
     return (
         <div className="lumia-modal-selection-content">
             {/* Header with icon, title, subtitle, and clear button */}
@@ -635,6 +721,7 @@ function SelectionModal({
                                 isDominant={isDominant}
                                 onSelect={handleSelect}
                                 onSetDominant={handleSetDominant}
+                                onEnableAll={handleEnableAll}
                                 showDominant={allowDominant && config.isMulti}
                                 onRemovePack={handleRemovePack}
                                 onEditItem={handleEditItem}

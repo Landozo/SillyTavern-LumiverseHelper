@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useSyncExternalStore } from 'react';
 import { CollapsibleContent } from '../Collapsible';
 import clsx from 'clsx';
-import { Hand, Filter, ChevronDown, Info } from 'lucide-react';
-import { useLumiverseStore, saveToExtension } from '../../store/LumiverseContext';
+import { Hand, Filter, ChevronDown, Info, Layers, Users } from 'lucide-react';
+import { useLumiverseStore, useLumiverseActions, saveToExtension } from '../../store/LumiverseContext';
 
 // Get the store for direct access (old code uses root-level settings)
 const store = useLumiverseStore;
@@ -153,6 +153,8 @@ function FilterItem({ id, label, hint, enabled, onToggle, depthValue, onDepthCha
  * OLD CODE: sovereignHand and contextFilters are at root level of settings
  */
 function PromptSettings() {
+    const actions = useLumiverseActions();
+
     // Get settings directly from store (old code uses root-level fields)
     const sovereignHand = useSyncExternalStore(
         store.subscribe,
@@ -163,6 +165,28 @@ function PromptSettings() {
         store.subscribe,
         () => store.getState().contextFilters || {},
         () => store.getState().contextFilters || {}
+    );
+
+    // Chimera and Council mode states
+    const chimeraMode = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().chimeraMode || false,
+        () => store.getState().chimeraMode || false
+    );
+    const councilMode = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().councilMode || false,
+        () => store.getState().councilMode || false
+    );
+    const selectedDefinitionsCount = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().selectedDefinitions?.length || 0,
+        () => store.getState().selectedDefinitions?.length || 0
+    );
+    const councilMembersCount = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().councilMembers?.length || 0,
+        () => store.getState().councilMembers?.length || 0
     );
 
     const sovereignEnabled = sovereignHand.enabled ?? false;
@@ -201,8 +225,85 @@ function PromptSettings() {
 
     const filtersActive = htmlTagsEnabled || detailsEnabled || loomEnabled;
 
+    // Handlers for Chimera/Council modes
+    const handleChimeraModeChange = useCallback((enabled) => {
+        actions.setChimeraMode(enabled);
+        saveToExtension();
+    }, [actions]);
+
+    const handleCouncilModeChange = useCallback((enabled) => {
+        actions.setCouncilMode(enabled);
+        saveToExtension();
+    }, [actions]);
+
+    // Determine which mode is active for status display
+    const lumiaModeActive = chimeraMode || councilMode;
+
     return (
         <div className="lumiverse-vp-settings-panel">
+            {/* Lumia Modes Section */}
+            <CollapsibleSection
+                Icon={Layers}
+                title="Lumia Modes"
+                status={lumiaModeActive}
+                defaultOpen={true}
+            >
+                <p className="lumiverse-vp-settings-desc">
+                    Configure special Lumia modes for unique character setups. These modes are mutually exclusive.
+                </p>
+
+                {/* Chimera Mode */}
+                <div className="lumiverse-vp-mode-option">
+                    <Toggle
+                        id="chimera-mode-toggle"
+                        checked={chimeraMode}
+                        onChange={handleChimeraModeChange}
+                        label="Chimera Mode"
+                        hint="Fuse multiple physical definitions into one hybrid form"
+                    />
+                    <CollapsibleContent
+                        isOpen={chimeraMode}
+                        className="lumiverse-vp-mode-details"
+                        duration={150}
+                    >
+                        <InfoBox
+                            items={[
+                                'Select multiple definitions in the Definition modal',
+                                'All selected forms will be fused into one Chimera',
+                                `Currently ${selectedDefinitionsCount} definition${selectedDefinitionsCount !== 1 ? 's' : ''} selected`,
+                            ]}
+                        />
+                    </CollapsibleContent>
+                </div>
+
+                {/* Council Mode - Placeholder for Feature 4 */}
+                <div className="lumiverse-vp-mode-option">
+                    <Toggle
+                        id="council-mode-toggle"
+                        checked={councilMode}
+                        onChange={handleCouncilModeChange}
+                        label="Council Mode"
+                        hint="Multiple independent Lumias that collaborate"
+                    />
+                    <CollapsibleContent
+                        isOpen={councilMode}
+                        className="lumiverse-vp-mode-details"
+                        duration={150}
+                    >
+                        <InfoBox
+                            items={[
+                                'Each council member has independent traits',
+                                'Members can converse and collaborate',
+                                `Currently ${councilMembersCount} council member${councilMembersCount !== 1 ? 's' : ''}`,
+                            ]}
+                        />
+                        <p className="lumiverse-vp-mode-note">
+                            Configure council members in the Council tab.
+                        </p>
+                    </CollapsibleContent>
+                </div>
+            </CollapsibleSection>
+
             {/* Sovereign Hand Section */}
             <CollapsibleSection
                 Icon={Hand}

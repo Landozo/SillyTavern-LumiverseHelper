@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import clsx from 'clsx';
-import { User, Package, MessageSquare, Sliders, FileText, ChevronRight, X, Sparkles } from 'lucide-react';
+import { User, Package, MessageSquare, Sliders, FileText, ChevronRight, X, Sparkles, Bookmark, Users } from 'lucide-react';
 
 // Panel dimensions
 const DESKTOP_PANEL_WIDTH = 376; // 56px tabs + 320px content
@@ -124,6 +124,12 @@ const PANEL_TABS = [
         title: 'Character Lumia Profile',
     },
     {
+        id: 'presets',
+        Icon: Bookmark,
+        label: 'Presets',
+        title: 'Lumia Presets',
+    },
+    {
         id: 'browser',
         Icon: Package,
         label: 'Packs',
@@ -140,6 +146,12 @@ const PANEL_TABS = [
         Icon: Sliders,
         label: 'Prompt',
         title: 'Prompt Settings',
+    },
+    {
+        id: 'council',
+        Icon: Users,
+        label: 'Council',
+        title: 'Council of Lumiae',
     },
     {
         id: 'summary',
@@ -161,9 +173,11 @@ function ViewportPanel({
     defaultTab = 'profile',
     // Tab content components passed as props
     ProfileContent,
+    PresetsContent,
     BrowserContent,
     OOCContent,
     PromptContent,
+    CouncilContent,
     SummaryContent,
 }) {
     const [activeTab, setActiveTab] = useState(defaultTab);
@@ -190,11 +204,13 @@ function ViewportPanel({
     // Memoize tab content components to prevent unnecessary re-renders
     const tabPanels = useMemo(() => ({
         profile: ProfileContent ? <ProfileContent /> : <PlaceholderContent tab="profile" />,
+        presets: PresetsContent ? <PresetsContent /> : <PlaceholderContent tab="presets" />,
         browser: BrowserContent ? <BrowserContent /> : <PlaceholderContent tab="browser" />,
         ooc: OOCContent ? <OOCContent /> : <PlaceholderContent tab="ooc" />,
         prompt: PromptContent ? <PromptContent /> : <PlaceholderContent tab="prompt" />,
+        council: CouncilContent ? <CouncilContent /> : <PlaceholderContent tab="council" />,
         summary: SummaryContent ? <SummaryContent /> : <PlaceholderContent tab="summary" />,
-    }), [ProfileContent, BrowserContent, OOCContent, PromptContent, SummaryContent]);
+    }), [ProfileContent, PresetsContent, BrowserContent, OOCContent, PromptContent, CouncilContent, SummaryContent]);
 
     // Use transform for smooth GPU-accelerated animation
     return (
@@ -309,6 +325,11 @@ function PlaceholderContent({ tab }) {
             title: 'Character Lumia Profile',
             description: 'View and manage Lumia traits for the current character',
         },
+        presets: {
+            Icon: Bookmark,
+            title: 'Lumia Presets',
+            description: 'Save and load preset configurations for quick switching',
+        },
         browser: {
             Icon: Package,
             title: 'Pack Browser',
@@ -323,6 +344,11 @@ function PlaceholderContent({ tab }) {
             Icon: Sliders,
             title: 'Prompt Settings',
             description: 'Configure prompt injection and formatting options',
+        },
+        council: {
+            Icon: Users,
+            title: 'Council of Lumiae',
+            description: 'Manage multiple independent Lumias that collaborate as a council',
         },
         summary: {
             Icon: FileText,

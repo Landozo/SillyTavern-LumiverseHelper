@@ -137,6 +137,218 @@ function appendDominantTag(content, tag) {
 }
 
 /**
+ * Generate Council definition content from multiple independent members
+ * Each member retains their own identity
+ * @param {Array} councilMembers - Array of council member objects
+ * @returns {string} The Council definitions content
+ */
+function getCouncilDefContent(councilMembers) {
+  if (!councilMembers || councilMembers.length === 0) return "";
+
+  const memberData = councilMembers
+    .map((member) => {
+      const item = getItemFromLibrary(member.packName, member.itemName);
+      if (!item || !item.lumiaDef) return null;
+      return {
+        name: item.lumiaDefName || "Unknown",
+        content: processNestedRandomLumiaMacros(item.lumiaDef),
+        role: member.role || "",
+      };
+    })
+    .filter(Boolean);
+
+  if (memberData.length === 0) return "";
+  if (memberData.length === 1) return memberData[0].content;
+
+  // Build Council prompt
+  const memberList = memberData
+    .map((m) => `- **${m.name}**${m.role ? ` (${m.role})` : ""}`)
+    .join("\n");
+
+  let councilParts = [
+    `## THE COUNCIL OF LUMIAE`,
+    "",
+    `You are a collective of ${memberData.length} distinct beings who collaborate, each with their own identity and voice.`,
+    "",
+    `### Council Members:`,
+    memberList,
+    "",
+  ];
+
+  // Add each member's definition
+  memberData.forEach((member, index) => {
+    councilParts.push(`### ${member.name}${member.role ? ` - ${member.role}` : ""}`);
+    councilParts.push(member.content);
+    if (index < memberData.length - 1) {
+      councilParts.push("");
+      councilParts.push("---");
+      councilParts.push("");
+    }
+  });
+
+  councilParts.push("");
+  councilParts.push(
+    "**Interaction**: Each Council member retains their individuality. They may converse, debate, and collaborate.",
+  );
+
+  return councilParts.join("\n").trim();
+}
+
+/**
+ * Generate Council behavior content from all council members
+ * @param {Array} councilMembers - Array of council member objects
+ * @returns {string} The Council behaviors content
+ */
+function getCouncilBehaviorContent(councilMembers) {
+  if (!councilMembers || councilMembers.length === 0) return "";
+
+  const settings = getSettings();
+  const memberBehaviors = [];
+
+  councilMembers.forEach((member) => {
+    const item = getItemFromLibrary(member.packName, member.itemName);
+    const memberName = item?.lumiaDefName || member.itemName || "Unknown";
+
+    // Get behaviors for this council member
+    const behaviors = member.behaviors || [];
+    if (behaviors.length === 0) return;
+
+    const behaviorContents = behaviors
+      .map((sel) => {
+        const behaviorItem = getItemFromLibrary(sel.packName, sel.itemName);
+        if (!behaviorItem || !behaviorItem.lumia_behavior) return null;
+
+        let content = processNestedRandomLumiaMacros(behaviorItem.lumia_behavior);
+
+        // Check if this is the dominant behavior for this member
+        if (
+          member.dominantBehavior &&
+          member.dominantBehavior.packName === sel.packName &&
+          member.dominantBehavior.itemName === sel.itemName
+        ) {
+          content = appendDominantTag(content, "(Most Prevalent for this member)");
+        }
+
+        return content;
+      })
+      .filter(Boolean);
+
+    if (behaviorContents.length > 0) {
+      memberBehaviors.push(`### Behaviors for ${memberName}${member.role ? ` (${member.role})` : ""}:`);
+      memberBehaviors.push(behaviorContents.join("\n"));
+      memberBehaviors.push("");
+    }
+  });
+
+  return memberBehaviors.join("\n").trim();
+}
+
+/**
+ * Generate Council personality content from all council members
+ * @param {Array} councilMembers - Array of council member objects
+ * @returns {string} The Council personalities content
+ */
+function getCouncilPersonalityContent(councilMembers) {
+  if (!councilMembers || councilMembers.length === 0) return "";
+
+  const settings = getSettings();
+  const memberPersonalities = [];
+
+  councilMembers.forEach((member) => {
+    const item = getItemFromLibrary(member.packName, member.itemName);
+    const memberName = item?.lumiaDefName || member.itemName || "Unknown";
+
+    // Get personalities for this council member
+    const personalities = member.personalities || [];
+    if (personalities.length === 0) return;
+
+    const personalityContents = personalities
+      .map((sel) => {
+        const persItem = getItemFromLibrary(sel.packName, sel.itemName);
+        if (!persItem || !persItem.lumia_personality) return null;
+
+        let content = processNestedRandomLumiaMacros(persItem.lumia_personality);
+
+        // Check if this is the dominant personality for this member
+        if (
+          member.dominantPersonality &&
+          member.dominantPersonality.packName === sel.packName &&
+          member.dominantPersonality.itemName === sel.itemName
+        ) {
+          content = appendDominantTag(content, "(Most Prevalent for this member)");
+        }
+
+        return content;
+      })
+      .filter(Boolean);
+
+    if (personalityContents.length > 0) {
+      memberPersonalities.push(`### Personalities for ${memberName}${member.role ? ` (${member.role})` : ""}:`);
+      memberPersonalities.push(personalityContents.join("\n\n"));
+      memberPersonalities.push("");
+    }
+  });
+
+  return memberPersonalities.join("\n").trim();
+}
+
+/**
+ * Generate Chimera content from multiple definitions
+ * Fuses multiple physical definitions into one hybrid form description
+ * @param {Array} selections - Array of { packName, itemName } selections
+ * @returns {string} The fused Chimera content
+ */
+function getChimeraContent(selections) {
+  if (!selections || selections.length === 0) return "";
+
+  const definitions = selections
+    .map((sel) => {
+      const item = getItemFromLibrary(sel.packName, sel.itemName);
+      if (!item || !item.lumiaDef) return null;
+      return {
+        name: item.lumiaDefName || "Unknown",
+        content: processNestedRandomLumiaMacros(item.lumiaDef),
+      };
+    })
+    .filter(Boolean);
+
+  if (definitions.length === 0) return "";
+  if (definitions.length === 1) return definitions[0].content;
+
+  // Build fused Chimera prompt
+  const names = definitions.map((d) => d.name).join(" + ");
+  const nameList = definitions.map((d) => d.name).join(", ");
+
+  let chimeraParts = [`## CHIMERA FORM: ${names}`, ""];
+  chimeraParts.push(
+    `You are a unique fusion of multiple beings - a Chimera combining the physical traits of: ${nameList}.`,
+  );
+  chimeraParts.push("");
+  chimeraParts.push(
+    "Your form seamlessly blends these components into one unified whole.",
+  );
+  chimeraParts.push("");
+
+  // Add each component definition
+  definitions.forEach((def, index) => {
+    chimeraParts.push(`### Component ${index + 1}: ${def.name}`);
+    chimeraParts.push(def.content);
+    if (index < definitions.length - 1) {
+      chimeraParts.push("");
+      chimeraParts.push("---");
+      chimeraParts.push("");
+    }
+  });
+
+  chimeraParts.push("");
+  chimeraParts.push(
+    "**Integration**: Embody this fusion naturally. You are ONE being that incorporates all these natures.",
+  );
+
+  return chimeraParts.join("\n").trim();
+}
+
+/**
  * Get Lumia content (definition, behavior, or personality) for a selection
  * @param {string} type - 'def' | 'behavior' | 'personality'
  * @param {Object|Array} selection - Single selection or array of selections
@@ -275,7 +487,25 @@ export function registerLumiaMacros(MacrosParser) {
   // Selected Lumia macros
   MacrosParser.registerMacro("lumiaDef", () => {
     const currentSettings = getSettings();
-    console.log("[LumiverseHelper] lumiaDef macro called, selectedDefinition:", currentSettings.selectedDefinition);
+    console.log("[LumiverseHelper] lumiaDef macro called, councilMode:", currentSettings.councilMode, "chimeraMode:", currentSettings.chimeraMode, "selectedDefinition:", currentSettings.selectedDefinition);
+
+    // Council mode takes priority: multiple independent Lumias
+    if (currentSettings.councilMode && currentSettings.councilMembers?.length > 0) {
+      console.log("[LumiverseHelper] lumiaDef: Council mode with", currentSettings.councilMembers.length, "members");
+      const result = getCouncilDefContent(currentSettings.councilMembers);
+      console.log("[LumiverseHelper] lumiaDef Council result length:", result.length);
+      return result;
+    }
+
+    // Chimera mode: fuse multiple definitions
+    if (currentSettings.chimeraMode && currentSettings.selectedDefinitions?.length > 0) {
+      console.log("[LumiverseHelper] lumiaDef: Chimera mode with", currentSettings.selectedDefinitions.length, "definitions");
+      const result = getChimeraContent(currentSettings.selectedDefinitions);
+      console.log("[LumiverseHelper] lumiaDef Chimera result length:", result.length);
+      return result;
+    }
+
+    // Normal single definition
     if (!currentSettings.selectedDefinition) {
       console.log("[LumiverseHelper] lumiaDef: No definition selected, returning empty");
       return "";
@@ -287,21 +517,51 @@ export function registerLumiaMacros(MacrosParser) {
 
   MacrosParser.registerMacro("lumiaDef.len", () => {
     const currentSettings = getSettings();
+    // In Council mode, return count of council members
+    if (currentSettings.councilMode && currentSettings.councilMembers?.length > 0) {
+      return String(currentSettings.councilMembers.length);
+    }
+    // In Chimera mode, return count of selected definitions
+    if (currentSettings.chimeraMode && currentSettings.selectedDefinitions?.length > 0) {
+      return String(currentSettings.selectedDefinitions.length);
+    }
     return currentSettings.selectedDefinition ? "1" : "0";
   });
 
   MacrosParser.registerMacro("lumiaBehavior", () => {
     const currentSettings = getSettings();
+
+    // Council mode: get behaviors per member
+    if (currentSettings.councilMode && currentSettings.councilMembers?.length > 0) {
+      return getCouncilBehaviorContent(currentSettings.councilMembers);
+    }
+
+    // Normal mode
     return getLumiaContent("behavior", currentSettings.selectedBehaviors);
   });
 
   MacrosParser.registerMacro("lumiaBehavior.len", () => {
     const currentSettings = getSettings();
+    // In Council mode, count total behaviors across all members
+    if (currentSettings.councilMode && currentSettings.councilMembers?.length > 0) {
+      const total = currentSettings.councilMembers.reduce(
+        (sum, member) => sum + (member.behaviors?.length || 0),
+        0,
+      );
+      return String(total);
+    }
     return String(currentSettings.selectedBehaviors?.length || 0);
   });
 
   MacrosParser.registerMacro("lumiaPersonality", () => {
     const currentSettings = getSettings();
+
+    // Council mode: get personalities per member
+    if (currentSettings.councilMode && currentSettings.councilMembers?.length > 0) {
+      return getCouncilPersonalityContent(currentSettings.councilMembers);
+    }
+
+    // Normal mode
     return getLumiaContent(
       "personality",
       currentSettings.selectedPersonalities,
@@ -310,6 +570,14 @@ export function registerLumiaMacros(MacrosParser) {
 
   MacrosParser.registerMacro("lumiaPersonality.len", () => {
     const currentSettings = getSettings();
+    // In Council mode, count total personalities across all members
+    if (currentSettings.councilMode && currentSettings.councilMembers?.length > 0) {
+      const total = currentSettings.councilMembers.reduce(
+        (sum, member) => sum + (member.personalities?.length || 0),
+        0,
+      );
+      return String(total);
+    }
     return String(currentSettings.selectedPersonalities?.length || 0);
   });
 

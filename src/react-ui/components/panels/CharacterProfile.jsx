@@ -1,8 +1,11 @@
-import React, { useMemo, forwardRef } from 'react';
-import { useSelections, useLoomSelections, usePacks } from '../../store/LumiverseContext';
+import React, { useMemo, forwardRef, useSyncExternalStore } from 'react';
+import { useSelections, useLoomSelections, usePacks, useLumiverseStore } from '../../store/LumiverseContext';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
-import { User, FileText, Zap, Heart, Sparkles, Star, X } from 'lucide-react';
+import { User, FileText, Zap, Heart, Sparkles, Star, X, Layers } from 'lucide-react';
+
+// Get store for direct state access
+const store = useLumiverseStore;
 
 /* global SillyTavern */
 
@@ -186,13 +189,30 @@ function CharacterProfile() {
     const selections = useSelections();
     const { allPacks } = usePacks();
 
+    // Subscribe to Chimera mode state
+    const chimeraMode = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().chimeraMode || false,
+        () => store.getState().chimeraMode || false
+    );
+    const selectedDefinitions = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().selectedDefinitions || [],
+        () => store.getState().selectedDefinitions || []
+    );
+
     // Count stats
+    const definitionCount = chimeraMode
+        ? selectedDefinitions.length
+        : (selections.definition ? 1 : 0);
+
     const stats = useMemo(() => ({
         behaviors: selections.behaviors?.length || 0,
         personalities: selections.personalities?.length || 0,
         hasDefinition: !!selections.definition,
+        definitionCount: definitionCount,
         totalPacks: allPacks.length,
-    }), [selections, allPacks]);
+    }), [selections, allPacks, definitionCount]);
 
     return (
         <div className="lumiverse-character-profile">
@@ -228,19 +248,41 @@ function CharacterProfile() {
 
             {/* Definition Section */}
             <div className="lumiverse-profile-section">
-                <SectionHeader Icon={FileText} title="Definition" count={stats.hasDefinition ? 1 : 0} />
+                <SectionHeader
+                    Icon={chimeraMode ? Layers : FileText}
+                    title={chimeraMode ? "Chimera Definitions" : "Definition"}
+                    count={stats.definitionCount}
+                />
                 {/* Removed mode="popLayout" for better ARM performance */}
-                <AnimatePresence initial={false}>
-                    {selections.definition ? (
-                        <TraitCard
-                            key={getTraitId(selections.definition) || 'def'}
-                            trait={selections.definition}
-                            type="definition"
-                        />
-                    ) : (
-                        <EmptySection message="No definition selected" />
-                    )}
-                </AnimatePresence>
+                <div className="lumiverse-traits-list">
+                    <AnimatePresence initial={false}>
+                        {chimeraMode ? (
+                            // Chimera mode: show multiple definitions
+                            selectedDefinitions.length > 0 ? (
+                                selectedDefinitions.map((def, index) => (
+                                    <TraitCard
+                                        key={getTraitId(def) || `def-${index}`}
+                                        trait={def}
+                                        type="definition"
+                                    />
+                                ))
+                            ) : (
+                                <EmptySection message="No Chimera forms selected" />
+                            )
+                        ) : (
+                            // Normal mode: single definition
+                            selections.definition ? (
+                                <TraitCard
+                                    key={getTraitId(selections.definition) || 'def'}
+                                    trait={selections.definition}
+                                    type="definition"
+                                />
+                            ) : (
+                                <EmptySection message="No definition selected" />
+                            )
+                        )}
+                    </AnimatePresence>
+                </div>
             </div>
 
             {/* Behaviors Section */}

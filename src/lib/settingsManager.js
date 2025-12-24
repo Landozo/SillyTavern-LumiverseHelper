@@ -20,6 +20,14 @@ const DEFAULT_SETTINGS = {
   selectedLoomStyle: [],
   selectedLoomUtils: [],
   selectedLoomRetrofits: [],
+  // Preset system
+  presets: {}, // Saved preset configurations keyed by name
+  activePresetName: null, // Currently loaded preset name (for UI indication)
+  // Chimera/Council modes (for preset compatibility)
+  chimeraMode: false,
+  selectedDefinitions: [], // Array of { packName, itemName } - used in Chimera mode
+  councilMode: false,
+  councilMembers: [], // Array of council member configurations
   lumiaOOCInterval: null,
   lumiaOOCStyle: "social",
   sovereignHand: {
@@ -318,6 +326,18 @@ export function migrateSettings() {
   ) {
     settings.summarization.secondary.maxTokens = 8192;
   }
+
+  // Ensure preset system defaults
+  if (!settings.presets) settings.presets = {};
+  if (settings.activePresetName === undefined) settings.activePresetName = null;
+
+  // Ensure Chimera mode defaults
+  if (settings.chimeraMode === undefined) settings.chimeraMode = false;
+  if (!settings.selectedDefinitions) settings.selectedDefinitions = [];
+
+  // Ensure Council mode defaults
+  if (settings.councilMode === undefined) settings.councilMode = false;
+  if (!settings.councilMembers) settings.councilMembers = [];
 
   return migrated;
 }
