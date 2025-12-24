@@ -1,5 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import clsx from 'clsx';
 import { User, Package, MessageSquare, Sliders, FileText, ChevronRight, X, Sparkles } from 'lucide-react';
 
@@ -188,23 +187,14 @@ function ViewportPanel({
 
     const activeTabConfig = PANEL_TABS.find(tab => tab.id === activeTab);
 
-    // Render the appropriate content based on active tab
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'profile':
-                return ProfileContent ? <ProfileContent /> : <PlaceholderContent tab="profile" />;
-            case 'browser':
-                return BrowserContent ? <BrowserContent /> : <PlaceholderContent tab="browser" />;
-            case 'ooc':
-                return OOCContent ? <OOCContent /> : <PlaceholderContent tab="ooc" />;
-            case 'prompt':
-                return PromptContent ? <PromptContent /> : <PlaceholderContent tab="prompt" />;
-            case 'summary':
-                return SummaryContent ? <SummaryContent /> : <PlaceholderContent tab="summary" />;
-            default:
-                return null;
-        }
-    };
+    // Memoize tab content components to prevent unnecessary re-renders
+    const tabPanels = useMemo(() => ({
+        profile: ProfileContent ? <ProfileContent /> : <PlaceholderContent tab="profile" />,
+        browser: BrowserContent ? <BrowserContent /> : <PlaceholderContent tab="browser" />,
+        ooc: OOCContent ? <OOCContent /> : <PlaceholderContent tab="ooc" />,
+        prompt: PromptContent ? <PromptContent /> : <PlaceholderContent tab="prompt" />,
+        summary: SummaryContent ? <SummaryContent /> : <PlaceholderContent tab="summary" />,
+    }), [ProfileContent, BrowserContent, OOCContent, PromptContent, SummaryContent]);
 
     // Use transform for smooth GPU-accelerated animation
     return (
@@ -288,23 +278,19 @@ function ViewportPanel({
                         onClose={onClose}
                     />
                     <div className="lumiverse-vp-content">
-                        <AnimatePresence initial={false}>
-                            <motion.div
-                                key={activeTab}
-                                className="lumiverse-vp-tab-content"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{
-                                    opacity: 0,
-                                    position: 'absolute',
-                                    inset: 0,
-                                    pointerEvents: 'none',
-                                }}
-                                transition={{ duration: 0.1, ease: 'easeOut' }}
+                        {/* All tabs stay mounted - CSS handles visibility */}
+                        {PANEL_TABS.map(tab => (
+                            <div
+                                key={tab.id}
+                                className={clsx(
+                                    'lumiverse-vp-tab-content',
+                                    activeTab === tab.id && 'lumiverse-vp-tab-content--active'
+                                )}
+                                aria-hidden={activeTab !== tab.id}
                             >
-                                {renderContent()}
-                            </motion.div>
-                        </AnimatePresence>
+                                {tabPanels[tab.id]}
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>

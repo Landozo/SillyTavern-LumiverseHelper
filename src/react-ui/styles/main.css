@@ -3347,8 +3347,12 @@ details.lumia-panel[open] .lumia-panel-chevron {
 }
 
 .lumiverse-vp-tab-content {
+    display: none; /* Hidden by default */
     min-height: 100%;
-    will-change: opacity; /* Hint for GPU acceleration during transitions */
+}
+
+.lumiverse-vp-tab-content--active {
+    display: block; /* Show active tab instantly */
 }
 
 /* Placeholder content */
