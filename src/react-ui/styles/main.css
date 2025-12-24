@@ -936,6 +936,95 @@ details.lumia-panel[open] .lumia-panel-chevron {
     border-color: rgba(147, 112, 219, 0.25);
 }
 
+/* Mode toggles container */
+.lumia-mode-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(147, 112, 219, 0.12);
+}
+
+/* Mode toggle row */
+.lumiverse-mode-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(28, 24, 38, 0.4);
+    border: 1px solid rgba(147, 112, 219, 0.1);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.lumiverse-mode-toggle:hover {
+    background: rgba(147, 112, 219, 0.08);
+    border-color: rgba(147, 112, 219, 0.2);
+}
+
+.lumiverse-mode-toggle--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.lumiverse-mode-toggle-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: rgba(147, 112, 219, 0.15);
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.lumiverse-mode-toggle-icon svg {
+    width: 18px;
+    height: 18px;
+    color: var(--lumiverse-primary);
+}
+
+.lumiverse-mode-toggle-text {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.lumiverse-mode-toggle-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--lumiverse-text);
+}
+
+.lumiverse-mode-toggle-description {
+    font-size: 11px;
+    color: var(--lumiverse-muted);
+    line-height: 1.3;
+}
+
+/* Small toggle variant */
+.lumiverse-toggle--sm {
+    width: 36px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.lumiverse-toggle--sm .lumiverse-toggle-slider {
+    width: 16px;
+    height: 16px;
+    top: 2px;
+    left: 2px;
+}
+
+.lumiverse-toggle--sm.lumiverse-toggle--on .lumiverse-toggle-slider {
+    transform: translateX(16px);
+}
+
 /* ----------------------------------------
    Buttons - Apple-esque with gradients
    ---------------------------------------- */

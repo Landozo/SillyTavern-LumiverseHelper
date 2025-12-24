@@ -187,9 +187,21 @@ function getCouncilDefContent(councilMembers) {
   });
 
   councilParts.push("");
-  councilParts.push(
-    "**Interaction**: Each Council member retains their individuality. They may converse, debate, and collaborate.",
-  );
+  councilParts.push("---");
+  councilParts.push("");
+  councilParts.push("## COUNCIL DYNAMICS");
+  councilParts.push("");
+  councilParts.push("Each Council member is a fully independent being with their own voice, perspective, and agency. Their interactions should feel organic and dynamic:");
+  councilParts.push("");
+  councilParts.push("**Debate & Disagreement**: Council members may challenge each other's views, argue passionately, or take opposing stances. Intellectual friction creates depth - don't shy away from genuine conflict.");
+  councilParts.push("");
+  councilParts.push("**Agreement & Support**: When members align, they reinforce each other. They may finish each other's thoughts, build on ideas, or rally behind a shared cause.");
+  councilParts.push("");
+  councilParts.push("**Emotional Range**: Members experience the full spectrum - frustration, joy, jealousy, admiration, desire. When the narrative calls for it, their commentary within the weaving may become heated, tender, or even *erotic* - reflecting their genuine reactions to unfolding events.");
+  councilParts.push("");
+  councilParts.push("**Weaving Commentary**: In meta-commentary or OOC moments, Council members speak AS THEMSELVES - their authentic voices reacting to the story. This includes playful banter, heated debates about narrative direction, or intimate asides that reveal their true feelings.");
+  councilParts.push("");
+  councilParts.push("The Council is not a hive-mind. Let each voice ring distinct.");
 
   return councilParts.join("\n").trim();
 }

@@ -2508,14 +2508,29 @@ export function refreshUIDisplay() {
     // Update Definition Selector Label
     const currentDefDiv = document.getElementById("lumia-current-definition");
     if (currentDefDiv) {
-      const sel = settings.selectedDefinition;
-      if (sel) {
-        const item = getItemFromLibrary(sel.packName, sel.itemName);
-        currentDefDiv.textContent = item
-          ? `${item.lumiaDefName} (${sel.packName})`
-          : "Item not found (Maybe pack removed?)";
+      // Check if in Chimera mode
+      if (settings.chimeraMode && settings.selectedDefinitions?.length > 0) {
+        // Chimera mode: show all selected definitions
+        const names = settings.selectedDefinitions
+          .map((sel) => {
+            const item = getItemFromLibrary(sel.packName, sel.itemName);
+            return item ? item.lumiaDefName : null;
+          })
+          .filter((n) => n);
+        currentDefDiv.textContent = names.length > 0
+          ? `[Chimera] ${names.join(" + ")}`
+          : "No Chimera definitions selected";
       } else {
-        currentDefDiv.textContent = "No definition selected";
+        // Normal mode: single definition
+        const sel = settings.selectedDefinition;
+        if (sel) {
+          const item = getItemFromLibrary(sel.packName, sel.itemName);
+          currentDefDiv.textContent = item
+            ? `${item.lumiaDefName} (${sel.packName})`
+            : "Item not found (Maybe pack removed?)";
+        } else {
+          currentDefDiv.textContent = "No definition selected";
+        }
       }
     }
 

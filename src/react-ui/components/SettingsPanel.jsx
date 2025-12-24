@@ -12,6 +12,27 @@ import clsx from 'clsx';
 const store = useLumiverseStore;
 
 /**
+ * SVG Icons for mode toggles
+ */
+const ModeIcons = {
+    chimera: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+            <path d="M2 17l10 5 10-5"></path>
+            <path d="M2 12l10 5 10-5"></path>
+        </svg>
+    ),
+    council: (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+    ),
+};
+
+/**
  * SVG Icons - matching the old HTML design exactly
  */
 const Icons = {
@@ -255,6 +276,31 @@ function ToolButton({ icon, label, onClick, accent = false }) {
 }
 
 /**
+ * Mode Toggle component - for Chimera and Council modes
+ */
+function ModeToggle({ icon, label, description, checked, onChange, disabled }) {
+    return (
+        <label className={clsx('lumiverse-mode-toggle', disabled && 'lumiverse-mode-toggle--disabled')}>
+            <span className="lumiverse-mode-toggle-icon">{icon}</span>
+            <div className="lumiverse-mode-toggle-text">
+                <span className="lumiverse-mode-toggle-label">{label}</span>
+                <span className="lumiverse-mode-toggle-description">{description}</span>
+            </div>
+            <div className={clsx('lumiverse-toggle lumiverse-toggle--sm', checked && 'lumiverse-toggle--on')}>
+                <input
+                    type="checkbox"
+                    className="lumiverse-toggle-input"
+                    checked={checked}
+                    onChange={(e) => onChange(e.target.checked)}
+                    disabled={disabled}
+                />
+                <span className="lumiverse-toggle-slider"></span>
+            </div>
+        </label>
+    );
+}
+
+/**
  * Macro reference item
  */
 function MacroItem({ code, description }) {
@@ -290,6 +336,34 @@ function SettingsPanel() {
 
     // Track which custom pack is expanded to show Lumia items
     const [expandedPackId, setExpandedPackId] = useState(null);
+
+    // Subscribe to Chimera and Council mode state
+    const chimeraMode = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().chimeraMode || false,
+        () => store.getState().chimeraMode || false
+    );
+    const councilMode = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().councilMode || false,
+        () => store.getState().councilMode || false
+    );
+    const selectedDefinitions = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().selectedDefinitions || [],
+        () => store.getState().selectedDefinitions || []
+    );
+
+    // Handle mode toggles
+    const handleChimeraModeChange = useCallback((enabled) => {
+        actions.setChimeraMode(enabled);
+        saveToExtension();
+    }, [actions]);
+
+    const handleCouncilModeChange = useCallback((enabled) => {
+        actions.setCouncilMode(enabled);
+        saveToExtension();
+    }, [actions]);
 
     // Toggle pack expansion
     const togglePackExpansion = useCallback((packId) => {
@@ -463,11 +537,31 @@ function SettingsPanel() {
 
             {/* Lumia Configuration Section */}
             <Panel title="Lumia Configuration" icon={Icons.settings}>
+                {/* Mode Toggles */}
+                <div className="lumia-mode-toggles">
+                    <ModeToggle
+                        icon={ModeIcons.chimera}
+                        label="Chimera Mode"
+                        description="Fuse multiple physical definitions"
+                        checked={chimeraMode}
+                        onChange={handleChimeraModeChange}
+                        disabled={councilMode}
+                    />
+                    <ModeToggle
+                        icon={ModeIcons.council}
+                        label="Council Mode"
+                        description="Multiple independent Lumias"
+                        checked={councilMode}
+                        onChange={handleCouncilModeChange}
+                        disabled={chimeraMode}
+                    />
+                </div>
+
                 <div className="lumia-selector-group">
                     <SelectionButton
-                        label="Definition"
-                        hint="Select One"
-                        selections={selections.definition ? [selections.definition] : []}
+                        label={chimeraMode ? "Chimera Definitions" : "Definition"}
+                        hint={chimeraMode ? "Select Multiple" : "Select One"}
+                        selections={chimeraMode ? selectedDefinitions : (selections.definition ? [selections.definition] : [])}
                         modalName="definitions"
                     />
 
