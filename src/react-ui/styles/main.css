@@ -3339,12 +3339,16 @@ details.lumia-panel[open] .lumia-panel-chevron {
 
 .lumiverse-vp-content {
     flex: 1;
+    position: relative; /* Containing block for absolute exit animations */
     overflow-y: auto;
     overflow-x: hidden;
+    scrollbar-gutter: stable; /* Reserve scrollbar space to prevent layout shift */
+    contain: layout style; /* Isolate layout calculations for performance */
 }
 
 .lumiverse-vp-tab-content {
     min-height: 100%;
+    will-change: opacity; /* Hint for GPU acceleration during transitions */
 }
 
 /* Placeholder content */

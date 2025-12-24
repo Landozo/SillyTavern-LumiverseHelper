@@ -47,19 +47,9 @@ function useCurrentCharacter() {
 }
 
 /**
- * Animation variants for trait cards
- * Uses 'inherit' to participate in parent's orchestration (staggerChildren)
- */
-const traitCardVariants = {
-    initial: { opacity: 0, scale: 0.95 },
-    animate: { opacity: 1, scale: 1 },
-    exit: { opacity: 0, scale: 0.95 },
-};
-
-/**
  * Trait card component
  * Note: Removed expensive `layout` prop to improve performance on ARM devices.
- * Using variants for orchestrated animations with parent tab transitions.
+ * Uses simple opacity animation for add/remove - tab transition handles entrance.
  */
 const TraitCard = forwardRef(function TraitCard({ trait, type, isDominant, onRemove }, ref) {
     const typeConfig = {
@@ -76,11 +66,10 @@ const TraitCard = forwardRef(function TraitCard({ trait, type, isDominant, onRem
             ref={ref}
             className={clsx('lumiverse-trait-card', isDominant && 'lumiverse-trait-card--dominant')}
             style={{ background: config.bg, borderColor: config.border }}
-            variants={traitCardVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ duration: 0.12 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.1 }}
         >
             <span className="lumiverse-trait-icon">
                 <Icon size={16} strokeWidth={1.5} />
