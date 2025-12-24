@@ -285,14 +285,14 @@ function ViewportPanel({
                         onClose={onClose}
                     />
                     <div className="lumiverse-vp-content">
-                        <AnimatePresence mode="wait" initial={false}>
+                        <AnimatePresence initial={false}>
                             <motion.div
                                 key={activeTab}
                                 className="lumiverse-vp-tab-content"
-                                initial={{ opacity: 0, x: 10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -10 }}
-                                transition={{ duration: 0.15, ease: 'easeOut' }}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0, position: 'absolute', inset: 0 }}
+                                transition={{ duration: 0.12 }}
                             >
                                 {renderContent()}
                             </motion.div>

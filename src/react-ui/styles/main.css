@@ -4270,12 +4270,12 @@ details.lumia-panel[open] .lumia-panel-chevron {
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(147, 112, 219, 0.4), 0 0 20px rgba(147, 112, 219, 0.2);
     white-space: nowrap;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .lumiverse-panel-toggle:hover {
-    box-shadow: 0 6px 16px rgba(147, 112, 219, 0.5), 0 0 30px rgba(147, 112, 219, 0.3);
-    transform: scale(1.05);
+    box-shadow: 0 4px 16px rgba(147, 112, 219, 0.6), 0 0 35px rgba(147, 112, 219, 0.4);
+    border-color: rgba(255, 255, 255, 0.35);
 }
 
 .lumiverse-panel-toggle--active {
