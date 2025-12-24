@@ -1,11 +1,11 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { usePacks, useLumiverseActions, saveToExtension } from '../../store/LumiverseContext';
+import { usePacks, useSelections, useLumiverseActions, saveToExtension } from '../../store/LumiverseContext';
 import { useAdaptiveImagePosition } from '../../hooks/useAdaptiveImagePosition';
 import { CollapsibleContent } from '../Collapsible';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
-import { Search, X, Package, FileText, Zap, Heart, ChevronDown, Sparkles } from 'lucide-react';
+import { Search, X, Package, FileText, Zap, Heart, ChevronDown, Sparkles, Check } from 'lucide-react';
 
 /**
  * Search input component
@@ -123,11 +123,11 @@ function PackHeader({ pack, isExpanded, onToggle, itemCount }) {
  * Lumia item card
  * OLD CODE FIELD NAMES: lumiaDefName, lumia_img, lumiaDef
  */
-function LumiaItemCard({ item, type, onSelect }) {
+function LumiaItemCard({ item, type, onSelect, isSelected }) {
     const typeInfo = {
-        definition: { Icon: FileText, color: 'rgba(100, 200, 255, 0.15)', border: 'rgba(100, 200, 255, 0.3)' },
-        behavior: { Icon: Zap, color: 'rgba(255, 180, 100, 0.15)', border: 'rgba(255, 180, 100, 0.3)' },
-        personality: { Icon: Heart, color: 'rgba(200, 100, 255, 0.15)', border: 'rgba(200, 100, 255, 0.3)' },
+        definition: { Icon: FileText, color: 'rgba(100, 200, 255, 0.15)', border: 'rgba(100, 200, 255, 0.3)', selectedBorder: 'rgba(100, 200, 255, 0.7)' },
+        behavior: { Icon: Zap, color: 'rgba(255, 180, 100, 0.15)', border: 'rgba(255, 180, 100, 0.3)', selectedBorder: 'rgba(255, 180, 100, 0.7)' },
+        personality: { Icon: Heart, color: 'rgba(200, 100, 255, 0.15)', border: 'rgba(200, 100, 255, 0.3)', selectedBorder: 'rgba(200, 100, 255, 0.7)' },
     };
 
     // Adaptive image positioning based on aspect ratio
@@ -152,8 +152,11 @@ function LumiaItemCard({ item, type, onSelect }) {
 
     return (
         <motion.div
-            className="lumiverse-browser-item"
-            style={{ background: info.color, borderColor: info.border }}
+            className={clsx('lumiverse-browser-item', isSelected && 'lumiverse-browser-item--selected')}
+            style={{
+                background: isSelected ? info.color.replace('0.15', '0.25') : info.color,
+                borderColor: isSelected ? info.selectedBorder : info.border,
+            }}
             onClick={() => onSelect?.(item, type)}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -175,6 +178,11 @@ function LumiaItemCard({ item, type, onSelect }) {
                         <Icon size={14} strokeWidth={1.5} />
                     </span>
                     <span className="lumiverse-browser-item-name">{name}</span>
+                    {isSelected && (
+                        <span className="lumiverse-browser-item-check">
+                            <Check size={14} strokeWidth={2.5} />
+                        </span>
+                    )}
                 </div>
                 {description && (
                     <p className="lumiverse-browser-item-desc">{description}</p>
@@ -185,9 +193,30 @@ function LumiaItemCard({ item, type, onSelect }) {
 }
 
 /**
+ * Check if an item is selected based on type and selections
+ */
+function isItemSelected(item, type, selections) {
+    const itemName = item.lumiaDefName;
+    const packName = item.packName;
+
+    if (type === 'definition') {
+        // Definition is selected if it matches the current definition
+        const def = selections.definition;
+        return def?.itemName === itemName && def?.packName === packName;
+    } else if (type === 'behavior') {
+        // Behavior is selected if it's in the behaviors array
+        return selections.behaviors?.some(b => b.itemName === itemName && b.packName === packName) ?? false;
+    } else if (type === 'personality') {
+        // Personality is selected if it's in the personalities array
+        return selections.personalities?.some(p => p.itemName === itemName && p.packName === packName) ?? false;
+    }
+    return false;
+}
+
+/**
  * Virtualized item list for a pack
  */
-function VirtualizedPackItems({ items, filter, onSelectItem }) {
+function VirtualizedPackItems({ items, filter, onSelectItem, selections }) {
     const parentRef = useRef(null);
 
     // Filter items by type
@@ -243,6 +272,7 @@ function VirtualizedPackItems({ items, filter, onSelectItem }) {
                                 item={item}
                                 type={item.type}
                                 onSelect={onSelectItem}
+                                isSelected={isItemSelected(item, item.type, selections)}
                             />
                         </div>
                     );
@@ -259,7 +289,7 @@ function VirtualizedPackItems({ items, filter, onSelectItem }) {
  * Each item has: lumiaDefName, lumiaDef, lumia_behavior, lumia_personality
  * NOT separate arrays like lumiaDefinitions, lumiaBehaviors, etc.
  */
-function PackSection({ pack, filter, searchQuery, onSelectItem }) {
+function PackSection({ pack, filter, searchQuery, onSelectItem, selections }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const packName = pack.name || pack.packName || 'Unknown Pack';
 
@@ -362,6 +392,7 @@ function PackSection({ pack, filter, searchQuery, onSelectItem }) {
                     items={filteredItems}
                     filter={filter}
                     onSelectItem={onSelectItem}
+                    selections={selections}
                 />
             </CollapsibleContent>
         </div>
@@ -422,6 +453,7 @@ function StatsBar({ packs, customPacks }) {
  */
 function PackBrowser() {
     const { packs, customPacks } = usePacks();
+    const selections = useSelections();
     const actions = useLumiverseActions();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState('all');
@@ -494,6 +526,7 @@ function PackBrowser() {
                             filter={activeFilter}
                             searchQuery={searchQuery}
                             onSelectItem={handleSelectItem}
+                            selections={selections}
                         />
                     ))
                 )}

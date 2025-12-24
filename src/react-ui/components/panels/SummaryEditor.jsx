@@ -6,6 +6,7 @@ import {
     Settings, Clock, Cloud, Cpu, ChevronDown, Play, MessageSquare, Scissors, RefreshCcw
 } from 'lucide-react';
 import { useLumiverseStore, saveToExtension } from '../../store/LumiverseContext';
+import { motion, AnimatePresence } from 'motion/react';
 
 /* global LumiverseBridge, SillyTavern */
 

@@ -3916,6 +3916,25 @@ details.lumia-panel[open] .lumia-panel-chevron {
     transform: translateX(2px);
 }
 
+.lumiverse-browser-item--selected {
+    box-shadow:
+        0 0 0 1px currentColor,
+        0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.lumiverse-browser-item-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(100, 200, 100, 0.9);
+    color: white;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
 .lumiverse-browser-item-image {
     width: 32px;
     height: 32px;
@@ -4251,6 +4270,7 @@ details.lumia-panel[open] .lumia-panel-chevron {
     cursor: pointer;
     box-shadow: 0 4px 12px rgba(147, 112, 219, 0.4), 0 0 20px rgba(147, 112, 219, 0.2);
     white-space: nowrap;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .lumiverse-panel-toggle:hover {

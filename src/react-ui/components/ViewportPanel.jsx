@@ -240,12 +240,16 @@ function ViewportPanel({
                     pointerEvents: 'none',
                 }}
             >
-                {/* Main panel */}
+                {/* Main panel - slides together when collapsed */}
             <div
                 className={clsx(
                     'lumiverse-viewport-panel',
                     isCollapsed && 'lumiverse-viewport-panel--collapsed'
                 )}
+                style={{
+                    transform: isCollapsed ? `translateX(${panelWidth}px)` : 'translateX(0)',
+                    transition: 'transform 0.2s ease',
+                }}
             >
                 {/* Tab sidebar */}
                 <div className="lumiverse-vp-tabs">
@@ -271,9 +275,8 @@ function ViewportPanel({
                     className="lumiverse-vp-main"
                     style={{
                         width: mainContentWidth,
-                        transform: isCollapsed ? `translateX(${mainContentWidth}px)` : 'translateX(0)',
                         opacity: isCollapsed ? 0 : 1,
-                        transition: 'transform 0.2s ease, opacity 0.2s ease',
+                        transition: 'opacity 0.2s ease',
                     }}
                 >
                     <PanelHeader
