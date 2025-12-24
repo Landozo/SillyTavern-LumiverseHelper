@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useSyncExternalStore } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
 import { MessageCircle, BarChart2, Target, TrendingUp, ThoughtBubble, Heart, Zap, FileText, ArrowUp, ArrowDown, Minus } from 'lucide-react';
+import { useLumiverseStore, saveToExtension } from '../../store/LumiverseContext';
 
 /* global SillyTavern, LumiverseBridge */
 
@@ -261,7 +262,14 @@ function Toggle({ id, checked, onChange, label, hint }) {
  */
 function OOCAnalytics() {
     const stats = useOOCStats();
-    const [oocEnabled, setOocEnabled] = useState(true);
+    const store = useLumiverseStore;
+
+    // Subscribe to oocEnabled from store
+    const oocEnabled = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().oocEnabled ?? true,
+        () => store.getState().oocEnabled ?? true
+    );
 
     // Calculate insights
     const insights = useMemo(() => {
@@ -278,11 +286,8 @@ function OOCAnalytics() {
     }, [stats]);
 
     const handleToggleOOC = useCallback((enabled) => {
-        setOocEnabled(enabled);
-        // Update the actual setting via bridge
-        if (typeof LumiverseBridge !== 'undefined' && LumiverseBridge.updateSettings) {
-            LumiverseBridge.updateSettings('ooc.enabled', enabled);
-        }
+        store.setState({ oocEnabled: enabled });
+        saveToExtension();
     }, []);
 
     return (

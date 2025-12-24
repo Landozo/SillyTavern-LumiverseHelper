@@ -62,6 +62,7 @@ const initialState = {
     selectedLoomRetrofits: [],
 
     // OOC settings
+    oocEnabled: true,
     lumiaOOCStyle: 'social',
     lumiaOOCInterval: null,
 

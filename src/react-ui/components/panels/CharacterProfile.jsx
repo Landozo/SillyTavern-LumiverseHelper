@@ -230,7 +230,7 @@ function CharacterProfile() {
             <div className="lumiverse-profile-section">
                 <SectionHeader Icon={FileText} title="Definition" count={stats.hasDefinition ? 1 : 0} />
                 {/* Removed mode="popLayout" for better ARM performance */}
-                <AnimatePresence>
+                <AnimatePresence initial={false}>
                     {selections.definition ? (
                         <TraitCard
                             key={getTraitId(selections.definition) || 'def'}
@@ -248,7 +248,7 @@ function CharacterProfile() {
                 <SectionHeader Icon={Zap} title="Behaviors" count={stats.behaviors} />
                 <div className="lumiverse-traits-list">
                     {/* Removed mode="popLayout" for better ARM performance */}
-                    <AnimatePresence>
+                    <AnimatePresence initial={false}>
                         {selections.behaviors?.length > 0 ? (
                             selections.behaviors.map(behavior => (
                                 <TraitCard
@@ -270,7 +270,7 @@ function CharacterProfile() {
                 <SectionHeader Icon={Heart} title="Personalities" count={stats.personalities} />
                 <div className="lumiverse-traits-list">
                     {/* Removed mode="popLayout" for better ARM performance */}
-                    <AnimatePresence>
+                    <AnimatePresence initial={false}>
                         {selections.personalities?.length > 0 ? (
                             selections.personalities.map(personality => (
                                 <TraitCard
