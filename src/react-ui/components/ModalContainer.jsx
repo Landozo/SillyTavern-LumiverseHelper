@@ -9,6 +9,7 @@ import PackEditorModal from './modals/PackEditorModal';
 import LoomSelectionModal from './modals/LoomSelectionModal';
 import PackSelectorModal from './modals/PackSelectorModal';
 import LumiaEditorModal from './modals/LumiaEditorModal';
+import CouncilSelectModal from './modals/CouncilSelectModal';
 
 /**
  * Modal wrapper that provides backdrop and close functionality
@@ -150,6 +151,14 @@ const MODAL_CONFIG = {
     lumiaEditor: {
         component: LumiaEditorModal,
         modalType: 'lumia-editor',
+        size: 'large',
+        hasCustomHeader: true,
+        props: {},
+    },
+    // Council member selection modal
+    councilSelect: {
+        component: CouncilSelectModal,
+        modalType: 'selection',
         size: 'large',
         hasCustomHeader: true,
         props: {},

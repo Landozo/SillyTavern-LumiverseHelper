@@ -647,12 +647,21 @@ function SettingsPanel() {
                     />
                 </div>
 
-                {/* Council Mode Active Notice */}
-                {isCouncilActive && (
-                    <div className="lumia-council-notice">
+                {/* Council Mode Active Notice / Configure Button */}
+                {councilMode && (
+                    <button
+                        className="lumia-council-config-btn"
+                        onClick={() => actions.openModal('councilSelect')}
+                        type="button"
+                    >
                         <Users size={16} strokeWidth={1.5} />
-                        <span>Council mode active - using council member traits ({councilMembers.length} member{councilMembers.length !== 1 ? 's' : ''})</span>
-                    </div>
+                        <span className="lumia-council-config-text">
+                            {councilMembers.length > 0
+                                ? `${councilMembers.length} council member${councilMembers.length !== 1 ? 's' : ''}`
+                                : 'Configure council members'}
+                        </span>
+                        <span className="lumia-council-config-action">Configure</span>
+                    </button>
                 )}
 
                 <div className={clsx('lumia-selector-group', isCouncilActive && 'lumia-selector-group--disabled')}>

@@ -428,6 +428,63 @@ details.lumia-panel[open] .lumia-panel-chevron {
     stroke: rgba(186, 135, 255, 0.8);
 }
 
+/* Council Config Button (in SettingsPanel) */
+.lumia-council-config-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background: linear-gradient(
+        135deg,
+        rgba(147, 112, 219, 0.12) 0%,
+        rgba(147, 112, 219, 0.06) 100%
+    );
+    border: 1px solid rgba(147, 112, 219, 0.3);
+    border-radius: 10px;
+    color: var(--lumiverse-text);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.lumia-council-config-btn:hover {
+    background: linear-gradient(
+        135deg,
+        rgba(147, 112, 219, 0.18) 0%,
+        rgba(147, 112, 219, 0.1) 100%
+    );
+    border-color: rgba(147, 112, 219, 0.5);
+}
+
+.lumia-council-config-btn svg {
+    flex-shrink: 0;
+    color: var(--lumiverse-primary);
+}
+
+.lumia-council-config-text {
+    flex: 1;
+    text-align: left;
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.lumia-council-config-action {
+    padding: 4px 10px;
+    background: rgba(147, 112, 219, 0.2);
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--lumiverse-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.lumia-council-config-btn:hover .lumia-council-config-action {
+    background: var(--lumiverse-primary);
+    color: white;
+}
+
 /* Clear All Button */
 .lumia-clear-all-btn {
     display: inline-flex;
@@ -7390,6 +7447,519 @@ details.lumia-panel[open] .lumia-panel-chevron {
     border-radius: 3px;
     font-size: 10px;
     color: var(--lumiverse-primary);
+}
+
+/* ========================================
+   Council Select Modal
+   Mobile-friendly modal for selecting council members
+   ======================================== */
+
+.lumiverse-council-select-modal {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 80vh;
+}
+
+/* Header */
+.lumiverse-council-select-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--lumiverse-border);
+}
+
+.lumiverse-council-select-header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, var(--lumiverse-primary), var(--lumiverse-primary-light));
+    border-radius: 10px;
+    color: white;
+    flex-shrink: 0;
+}
+
+.lumiverse-council-select-header-text h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--lumiverse-text);
+}
+
+.lumiverse-council-select-header-text p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--lumiverse-text-muted);
+    line-height: 1.4;
+}
+
+/* Sections */
+.lumiverse-council-select-section {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--lumiverse-border);
+}
+
+.lumiverse-council-select-section--available {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.lumiverse-council-select-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--lumiverse-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.lumiverse-council-select-count {
+    padding: 2px 8px;
+    background: var(--lumiverse-primary);
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: white;
+}
+
+/* Search */
+.lumiverse-council-search-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: rgba(30, 30, 46, 0.6);
+    border: 1px solid var(--lumiverse-border);
+    border-radius: 8px;
+    flex: 1;
+    max-width: 200px;
+}
+
+.lumiverse-council-search-wrapper svg {
+    color: var(--lumiverse-text-muted);
+    flex-shrink: 0;
+}
+
+.lumiverse-council-search-input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    color: var(--lumiverse-text);
+    font-size: 12px;
+}
+
+.lumiverse-council-search-input::placeholder {
+    color: var(--lumiverse-text-dim);
+}
+
+.lumiverse-council-search-input:focus {
+    outline: none;
+}
+
+.lumiverse-council-search-clear {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    background: rgba(100, 100, 130, 0.3);
+    border: none;
+    border-radius: 50%;
+    color: var(--lumiverse-text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.lumiverse-council-search-clear:hover {
+    background: rgba(239, 68, 68, 0.3);
+    color: var(--lumiverse-danger);
+}
+
+/* Members list (horizontal scrolling on mobile) */
+.lumiverse-council-select-members {
+    min-height: 60px;
+}
+
+.lumiverse-council-member-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Member card (in modal) */
+.lumiverse-council-member-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(30, 30, 46, 0.6);
+    border: 1px solid var(--lumiverse-border);
+    border-radius: 10px;
+}
+
+.lumiverse-council-member-card-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: rgba(147, 112, 219, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--lumiverse-primary);
+    flex-shrink: 0;
+}
+
+.lumiverse-council-member-card-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.lumiverse-council-member-card-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.lumiverse-council-member-card-name {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--lumiverse-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lumiverse-council-member-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.lumiverse-council-member-card-role {
+    font-size: 11px;
+    color: var(--lumiverse-primary);
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.lumiverse-council-member-card-role:hover {
+    text-decoration: underline;
+}
+
+.lumiverse-council-add-role-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0;
+    background: none;
+    border: none;
+    font-size: 10px;
+    color: var(--lumiverse-text-dim);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.lumiverse-council-add-role-btn:hover {
+    color: var(--lumiverse-primary);
+}
+
+.lumiverse-council-member-card-stats {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.lumiverse-council-member-card-stats span {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 10px;
+    color: var(--lumiverse-text-dim);
+}
+
+/* Small buttons for modal */
+.lumiverse-council-btn-sm {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: rgba(100, 100, 130, 0.2);
+    border: none;
+    border-radius: 6px;
+    color: var(--lumiverse-text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.lumiverse-council-btn-sm:hover {
+    background: rgba(147, 112, 219, 0.2);
+    color: var(--lumiverse-text);
+}
+
+.lumiverse-council-btn-sm--primary {
+    background: var(--lumiverse-primary);
+    color: white;
+}
+
+.lumiverse-council-btn-sm--primary:hover {
+    background: var(--lumiverse-primary-light);
+}
+
+.lumiverse-council-btn-sm--danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--lumiverse-danger);
+}
+
+/* Role edit in modal */
+.lumiverse-council-member-role-edit {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.lumiverse-council-input-sm {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 8px;
+    background: var(--lumiverse-bg);
+    border: 1px solid var(--lumiverse-border);
+    border-radius: 4px;
+    color: var(--lumiverse-text);
+    font-size: 11px;
+}
+
+.lumiverse-council-input-sm:focus {
+    outline: none;
+    border-color: var(--lumiverse-primary);
+}
+
+/* Grid wrapper for available Lumias */
+.lumiverse-council-select-grid-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 150px;
+}
+
+/* Card grid for available Lumias */
+.lumiverse-council-select-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+    padding: 4px 0;
+}
+
+/* Selectable card */
+.lumiverse-council-select-card {
+    display: flex;
+    flex-direction: column;
+    background: rgba(30, 30, 46, 0.6);
+    border: 1px solid var(--lumiverse-border);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.lumiverse-council-select-card:hover {
+    border-color: var(--lumiverse-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(147, 112, 219, 0.15);
+}
+
+.lumiverse-council-select-card-image {
+    position: relative;
+    aspect-ratio: 1;
+    background: rgba(147, 112, 219, 0.1);
+}
+
+.lumiverse-council-select-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.lumiverse-council-select-card-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: var(--lumiverse-text-dim);
+}
+
+.lumiverse-council-select-card-add {
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: var(--lumiverse-primary);
+    border-radius: 50%;
+    color: white;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.2s ease;
+}
+
+.lumiverse-council-select-card:hover .lumiverse-council-select-card-add {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.lumiverse-council-select-card-info {
+    padding: 8px;
+    text-align: center;
+}
+
+.lumiverse-council-select-card-name {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--lumiverse-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lumiverse-council-select-card-pack {
+    display: block;
+    font-size: 9px;
+    color: var(--lumiverse-text-dim);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Empty states */
+.lumiverse-council-select-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+    color: var(--lumiverse-primary);
+}
+
+.lumiverse-council-select-empty--muted {
+    color: var(--lumiverse-text-dim);
+}
+
+.lumiverse-council-select-empty span {
+    display: block;
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--lumiverse-text);
+}
+
+.lumiverse-council-select-empty p {
+    margin: 4px 0 0;
+    font-size: 11px;
+    color: var(--lumiverse-text-muted);
+    line-height: 1.4;
+}
+
+/* Footer */
+.lumiverse-council-select-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--lumiverse-border);
+    background: rgba(20, 20, 36, 0.4);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 480px) {
+    .lumiverse-council-select-modal {
+        max-height: 90vh;
+    }
+
+    .lumiverse-council-select-header {
+        padding: 12px 16px;
+    }
+
+    .lumiverse-council-select-header-icon {
+        width: 36px;
+        height: 36px;
+    }
+
+    .lumiverse-council-select-header-text h3 {
+        font-size: 15px;
+    }
+
+    .lumiverse-council-select-section {
+        padding: 12px 16px;
+    }
+
+    .lumiverse-council-select-section-header {
+        flex-wrap: wrap;
+    }
+
+    .lumiverse-council-search-wrapper {
+        max-width: none;
+        width: 100%;
+        margin-top: 8px;
+        order: 1;
+    }
+
+    .lumiverse-council-member-list {
+        /* Horizontal scroll on mobile */
+        flex-direction: row;
+        overflow-x: auto;
+        padding-bottom: 8px;
+        gap: 10px;
+        scrollbar-width: thin;
+    }
+
+    .lumiverse-council-member-card {
+        flex-shrink: 0;
+        min-width: 200px;
+        max-width: 280px;
+    }
+
+    .lumiverse-council-select-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .lumiverse-council-select-card-info {
+        padding: 6px;
+    }
+
+    .lumiverse-council-select-card-name {
+        font-size: 10px;
+    }
+
+    .lumiverse-council-select-card-pack {
+        display: none;
+    }
+
+    .lumiverse-council-select-footer {
+        padding: 10px 16px;
+    }
 }
 
 /* ----------------------------------------
