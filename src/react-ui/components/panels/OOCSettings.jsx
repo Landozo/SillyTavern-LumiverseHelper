@@ -1,7 +1,9 @@
 import React, { useCallback, useSyncExternalStore } from 'react';
 import clsx from 'clsx';
 import { Clock, LayoutGrid, MessageCircle, FileText, Quote } from 'lucide-react';
-import { useLumiverseActions, saveToExtension, useLumiverseStore } from '../../store/LumiverseContext';
+import { useLumiverseActions, saveToExtensionImmediate, useLumiverseStore } from '../../store/LumiverseContext';
+
+/* global LumiverseBridge */
 
 // Get the store for direct access (old code uses root-level settings)
 const store = useLumiverseStore;
@@ -106,12 +108,21 @@ function OOCSettings() {
     const handleIntervalChange = useCallback((value) => {
         const intervalNum = value ? parseInt(value, 10) : null;
         store.setState({ lumiaOOCInterval: intervalNum });
-        saveToExtension();
+        saveToExtensionImmediate();
     }, []);
 
     const handleStyleChange = useCallback((value) => {
         store.setState({ lumiaOOCStyle: value });
-        saveToExtension();
+        saveToExtensionImmediate();
+
+        // Re-render existing OOC comments with the new style
+        if (typeof LumiverseBridge !== 'undefined') {
+            const callbacks = LumiverseBridge.getCallbacks();
+            if (callbacks?.refreshOOCComments) {
+                // Pass true to clear existing OOC boxes and re-render
+                callbacks.refreshOOCComments(true);
+            }
+        }
     }, []);
 
     const styleOptions = [

@@ -239,6 +239,13 @@ function clearProcessedTexts(mesId) {
 }
 
 /**
+ * Clear ALL processed texts (used when style changes require full reprocessing)
+ */
+function clearAllProcessedTexts() {
+  processedOOCTexts.clear();
+}
+
+/**
  * Check if text has already been processed for a message
  * @param {number} mesId - Message ID
  * @param {string} text - Text to check
@@ -730,6 +737,9 @@ function performAllOOCProcessing(clearExisting = false) {
 
   // If clearing existing OOC boxes (e.g., style change), remove them all first
   if (clearExisting) {
+    // Clear ALL tracking so texts can be reprocessed with new style
+    clearAllProcessedTexts();
+
     const allOOCBoxes = queryAll("[data-lumia-ooc]");
     allOOCBoxes.forEach((box) => {
       // Get the text content from the appropriate element based on style

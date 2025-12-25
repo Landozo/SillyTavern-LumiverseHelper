@@ -397,6 +397,77 @@ details.lumia-panel[open] .lumia-panel-chevron {
     min-width: 0;
 }
 
+/* Selector Group Disabled State (Council Mode Active) */
+.lumia-selector-group--disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    filter: grayscale(30%);
+}
+
+/* Council Notice */
+.lumia-council-notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    background: linear-gradient(
+        135deg,
+        rgba(147, 112, 219, 0.15) 0%,
+        rgba(100, 80, 180, 0.1) 100%
+    );
+    border: 1px solid rgba(147, 112, 219, 0.25);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(186, 135, 255, 0.9);
+}
+
+.lumia-council-notice svg {
+    flex-shrink: 0;
+    stroke: rgba(186, 135, 255, 0.8);
+}
+
+/* Clear All Button */
+.lumia-clear-all-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(239, 68, 68, 0.8);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+}
+
+.lumia-clear-all-btn:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: rgba(239, 68, 68, 1);
+}
+
+.lumia-clear-all-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* Panel Action (header button area) */
+.lumia-panel-action {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+}
+
+/* Panel Chevron for collapsible panels */
+.lumia-panel-chevron--expanded {
+    transform: rotate(180deg);
+}
+
 /* Tools Row */
 .lumia-tools-row {
     display: grid;
@@ -7824,6 +7895,25 @@ details.lumia-panel[open] .lumia-panel-chevron {
     color: var(--lumiverse-text-muted);
 }
 
+/* Downloaded Pack Actions */
+.lumia-downloaded-pack-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+/* Danger Icon Button */
+.lumia-btn-icon-danger {
+    color: var(--lumiverse-danger);
+    opacity: 0.6;
+}
+
+.lumia-btn-icon-danger:hover {
+    opacity: 1;
+    background: rgba(239, 68, 68, 0.15);
+}
+
 /* Loom Pack Detail Modal Additions */
 .lumiverse-loom-detail-modal {
     /* Uses same base styles as pack detail modal */
@@ -8082,6 +8172,14 @@ details.lumia-panel[open] .lumia-panel-chevron {
     display: flex;
     align-items: center;
     gap: 3px;
+}
+
+/* Loom Pack Actions */
+.lumia-loom-pack-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
 /* Mobile responsive */

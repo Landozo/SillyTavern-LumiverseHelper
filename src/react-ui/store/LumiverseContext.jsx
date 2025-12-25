@@ -203,6 +203,27 @@ const actions = {
         store.setState({ packs: packsObj });
     },
 
+    // Generic pack removal (works for any pack - custom or downloaded)
+    removePack: (packName) => {
+        const state = store.getState();
+        const packsObj = state.packs && typeof state.packs === 'object' ? { ...state.packs } : {};
+
+        // Find and remove by key or name
+        if (packsObj[packName]) {
+            delete packsObj[packName];
+        } else {
+            // Search by pack.name property
+            for (const [key, pack] of Object.entries(packsObj)) {
+                if (pack.name === packName || pack.packName === packName) {
+                    delete packsObj[key];
+                    break;
+                }
+            }
+        }
+
+        store.setState({ packs: packsObj });
+    },
+
     /**
      * Selection actions
      *
@@ -830,6 +851,15 @@ function saveToExtension() {
     });
 }
 
+// Save to extension immediately (no debounce - for critical settings like OOC style)
+function saveToExtensionImmediate() {
+    if (typeof LumiverseBridge !== 'undefined' && LumiverseBridge.saveSettings) {
+        const exportedState = exportForExtension();
+        LumiverseBridge.saveSettings(exportedState);
+        console.log('[LumiverseStore] Settings saved immediately');
+    }
+}
+
 // Create a "store-like" object that matches what we were exporting before
 const useLumiverseStore = {
     getState: store.getState,
@@ -1047,7 +1077,7 @@ export function useUI() {
 }
 
 // Export the store object for external access
-export { useLumiverseStore, saveToExtension };
+export { useLumiverseStore, saveToExtension, saveToExtensionImmediate };
 
 /**
  * DEBUG FUNCTION: Logs all pack data for debugging purposes.

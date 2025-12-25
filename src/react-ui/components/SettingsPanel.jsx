@@ -5,7 +5,7 @@ import { exportPackAsWorldBook } from './modals/PackEditorModal';
 import { CollapsibleContent } from './Collapsible';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
-import { Eye, Sparkles, Wrench, Layers } from 'lucide-react';
+import { Eye, Sparkles, Wrench, Layers, Trash2, Users } from 'lucide-react';
 
 /* global LumiverseBridge, toastr */
 
@@ -163,18 +163,50 @@ function LumiaPackItem({ item, packName, onEdit, editIcon }) {
 }
 
 /**
- * Panel component - static panel with header (non-collapsible)
+ * Panel component - panel with header, optional action button, and optional collapsibility
  */
-function Panel({ title, icon, children }) {
+function Panel({ title, icon, action, collapsible, collapsed, onToggle, children }) {
+    // If collapsible, handle internal state if not controlled externally
+    const isControlled = collapsed !== undefined;
+    const [internalCollapsed, setInternalCollapsed] = useState(false);
+    const isCollapsed = isControlled ? collapsed : internalCollapsed;
+
+    const handleToggle = useCallback(() => {
+        if (isControlled && onToggle) {
+            onToggle();
+        } else {
+            setInternalCollapsed(prev => !prev);
+        }
+    }, [isControlled, onToggle]);
+
     return (
-        <div className="lumia-panel">
-            <div className="lumia-panel-header">
+        <div className={clsx('lumia-panel', collapsible && isCollapsed && 'lumia-panel--collapsed')}>
+            <div
+                className={clsx('lumia-panel-header', collapsible && 'lumia-panel-header-clickable')}
+                onClick={collapsible ? handleToggle : undefined}
+            >
                 <span className="lumia-panel-icon">{icon}</span>
                 <span className="lumia-panel-title">{title}</span>
+                {action && (
+                    <span className="lumia-panel-action" onClick={(e) => e.stopPropagation()}>
+                        {action}
+                    </span>
+                )}
+                {collapsible && (
+                    <span className={clsx('lumia-panel-chevron', !isCollapsed && 'lumia-panel-chevron--expanded')}>
+                        {Icons.chevronDown}
+                    </span>
+                )}
             </div>
-            <div className="lumia-panel-content">
-                {children}
-            </div>
+            {collapsible ? (
+                <CollapsibleContent isOpen={!isCollapsed} className="lumia-panel-content" duration={200}>
+                    {children}
+                </CollapsibleContent>
+            ) : (
+                <div className="lumia-panel-content">
+                    {children}
+                </div>
+            )}
         </div>
     );
 }
@@ -338,6 +370,20 @@ function SettingsPanel() {
     // Track which custom pack is expanded to show Lumia items
     const [expandedPackId, setExpandedPackId] = useState(null);
 
+    // Track collapsed state for pack sections (start expanded)
+    const [sectionsCollapsed, setSectionsCollapsed] = useState({
+        customPacks: false,
+        downloadedPacks: false,
+        loomPacks: false,
+    });
+
+    const toggleSection = useCallback((section) => {
+        setSectionsCollapsed(prev => ({
+            ...prev,
+            [section]: !prev[section]
+        }));
+    }, []);
+
     // Subscribe to Chimera and Council mode state
     const chimeraMode = useSyncExternalStore(
         store.subscribe,
@@ -349,11 +395,19 @@ function SettingsPanel() {
         () => store.getState().councilMode || false,
         () => store.getState().councilMode || false
     );
+    const councilMembers = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().councilMembers || [],
+        () => store.getState().councilMembers || []
+    );
     const selectedDefinitions = useSyncExternalStore(
         store.subscribe,
         () => store.getState().selectedDefinitions || [],
         () => store.getState().selectedDefinitions || []
     );
+
+    // Check if council mode is active with members
+    const isCouncilActive = councilMode && councilMembers.length > 0;
 
     // Handle mode toggles
     const handleChimeraModeChange = useCallback((enabled) => {
@@ -364,6 +418,27 @@ function SettingsPanel() {
     const handleCouncilModeChange = useCallback((enabled) => {
         actions.setCouncilMode(enabled);
         saveToExtension();
+    }, [actions]);
+
+    // Handle Clear All selections
+    const handleClearAll = useCallback(() => {
+        actions.clearSelections();
+        saveToExtension();
+        if (typeof toastr !== 'undefined') {
+            toastr.info('All Lumia selections cleared');
+        }
+    }, [actions]);
+
+    // Handle pack deletion
+    const handleDeletePack = useCallback((packName) => {
+        if (!confirm(`Are you sure you want to delete "${packName}"?`)) {
+            return;
+        }
+        actions.removePack(packName);
+        saveToExtension();
+        if (typeof toastr !== 'undefined') {
+            toastr.success(`Pack "${packName}" deleted`);
+        }
     }, [actions]);
 
     // Toggle pack expansion
@@ -537,7 +612,21 @@ function SettingsPanel() {
             </Panel>
 
             {/* Lumia Configuration Section */}
-            <Panel title="Lumia Configuration" icon={Icons.settings}>
+            <Panel
+                title="Lumia Configuration"
+                icon={Icons.settings}
+                action={
+                    <button
+                        className="lumia-clear-all-btn"
+                        onClick={handleClearAll}
+                        title="Clear all Lumia selections"
+                        type="button"
+                    >
+                        <Trash2 size={14} strokeWidth={1.5} />
+                        Clear All
+                    </button>
+                }
+            >
                 {/* Mode Toggles */}
                 <div className="lumia-mode-toggles">
                     <ModeToggle
@@ -558,7 +647,15 @@ function SettingsPanel() {
                     />
                 </div>
 
-                <div className="lumia-selector-group">
+                {/* Council Mode Active Notice */}
+                {isCouncilActive && (
+                    <div className="lumia-council-notice">
+                        <Users size={16} strokeWidth={1.5} />
+                        <span>Council mode active - using council member traits ({councilMembers.length} member{councilMembers.length !== 1 ? 's' : ''})</span>
+                    </div>
+                )}
+
+                <div className={clsx('lumia-selector-group', isCouncilActive && 'lumia-selector-group--disabled')}>
                     <SelectionButton
                         label={chimeraMode ? "Chimera Definitions" : "Definition"}
                         hint={chimeraMode ? "Select Multiple" : "Select One"}
@@ -699,7 +796,13 @@ function SettingsPanel() {
 
             {/* Custom Packs Section (only if custom packs exist) */}
             {customPacks.length > 0 && (
-                <Panel title="Custom Packs" icon={Icons.package}>
+                <Panel
+                    title="Custom Packs"
+                    icon={Icons.package}
+                    collapsible
+                    collapsed={sectionsCollapsed.customPacks}
+                    onToggle={() => toggleSection('customPacks')}
+                >
                     <div className="lumia-custom-packs">
                         {customPacks.map((pack) => {
                             // Use pack.name as fallback if pack.id is undefined
@@ -789,7 +892,13 @@ function SettingsPanel() {
 
             {/* Downloaded Packs Section (non-custom packs) */}
             {packs.length > 0 && (
-                <Panel title="Downloaded Packs" icon={Icons.box}>
+                <Panel
+                    title="Downloaded Packs"
+                    icon={Icons.box}
+                    collapsible
+                    collapsed={sectionsCollapsed.downloadedPacks}
+                    onToggle={() => toggleSection('downloadedPacks')}
+                >
                     <div className="lumia-downloaded-packs">
                         {packs.map((pack) => {
                             const packName = pack.name || pack.packName || 'Unknown Pack';
@@ -814,14 +923,24 @@ function SettingsPanel() {
                                             {lumiaItems.length} Lumia{lumiaItems.length !== 1 ? 's' : ''}
                                         </span>
                                     </div>
-                                    <button
-                                        className="lumia-btn lumia-btn-icon"
-                                        onClick={() => actions.openPackDetail(packName)}
-                                        title="View pack contents"
-                                        type="button"
-                                    >
-                                        <Eye size={16} strokeWidth={1.5} />
-                                    </button>
+                                    <div className="lumia-downloaded-pack-actions">
+                                        <button
+                                            className="lumia-btn lumia-btn-icon"
+                                            onClick={() => actions.openPackDetail(packName)}
+                                            title="View pack contents"
+                                            type="button"
+                                        >
+                                            <Eye size={16} strokeWidth={1.5} />
+                                        </button>
+                                        <button
+                                            className="lumia-btn lumia-btn-icon lumia-btn-icon-danger"
+                                            onClick={() => handleDeletePack(packName)}
+                                            title="Delete pack"
+                                            type="button"
+                                        >
+                                            <Trash2 size={16} strokeWidth={1.5} />
+                                        </button>
+                                    </div>
                                 </div>
                             );
                         })}
@@ -845,7 +964,13 @@ function SettingsPanel() {
                 if (loomPacks.length === 0) return null;
 
                 return (
-                    <Panel title="Loom Packs" icon={Icons.layers}>
+                    <Panel
+                        title="Loom Packs"
+                        icon={Icons.layers}
+                        collapsible
+                        collapsed={sectionsCollapsed.loomPacks}
+                        onToggle={() => toggleSection('loomPacks')}
+                    >
                         <div className="lumia-loom-packs">
                             {loomPacks.map((pack) => {
                                 const packName = pack.name || pack.packName || 'Unknown Pack';
@@ -892,14 +1017,24 @@ function SettingsPanel() {
                                                 )}
                                             </div>
                                         </div>
-                                        <button
-                                            className="lumia-btn lumia-btn-icon"
-                                            onClick={() => actions.openLoomPackDetail(packName)}
-                                            title="View loom contents"
-                                            type="button"
-                                        >
-                                            <Eye size={16} strokeWidth={1.5} />
-                                        </button>
+                                        <div className="lumia-loom-pack-actions">
+                                            <button
+                                                className="lumia-btn lumia-btn-icon"
+                                                onClick={() => actions.openLoomPackDetail(packName)}
+                                                title="View loom contents"
+                                                type="button"
+                                            >
+                                                <Eye size={16} strokeWidth={1.5} />
+                                            </button>
+                                            <button
+                                                className="lumia-btn lumia-btn-icon lumia-btn-icon-danger"
+                                                onClick={() => handleDeletePack(packName)}
+                                                title="Delete pack"
+                                                type="button"
+                                            >
+                                                <Trash2 size={16} strokeWidth={1.5} />
+                                            </button>
+                                        </div>
                                     </div>
                                 );
                             })}

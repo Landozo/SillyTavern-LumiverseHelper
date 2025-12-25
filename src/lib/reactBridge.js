@@ -39,6 +39,9 @@ const extensionCallbacks = {
 
   // UI refresh
   refreshUIDisplay: null,
+
+  // OOC comment processing
+  refreshOOCComments: null,
 };
 
 /**

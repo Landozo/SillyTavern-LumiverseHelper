@@ -390,6 +390,9 @@ jQuery(async () => {
     refreshUIDisplay();
     notifyReactOfSettingsChange();
   });
+  registerReactCallback("refreshOOCComments", (clearExisting = true) => {
+    processAllLumiaOOCComments(clearExisting);
+  });
 
   // Initialize React UI (bundled together, should be available immediately)
   console.log(`[${MODULE_NAME}] About to initialize React UI...`);

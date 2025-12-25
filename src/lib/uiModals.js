@@ -2233,10 +2233,27 @@ export async function showLucidCardsModal() {
     const $content = $modal.find(".lucid-cards-content");
     $content.empty();
 
-    // Find the category
-    const category = cachedData.categories.find(
-      (c) => c.displayName === currentCategory || c.name === currentCategory,
-    );
+    // Find the category - use flexible matching since API names may vary
+    // Map tab categories to possible API category names
+    const categoryNameMap = {
+      "Lumia DLCs": ["Lumia DLCs", "Lumia", "DLCs", "Lumia Packs"],
+      "Loom Utilities": ["Loom Utilities", "Utilities", "Loom Utils"],
+      "Loom Retrofits": ["Loom Retrofits", "Retrofits", "Retrofit"],
+      "Loom Narratives": ["Loom Narratives", "Narratives", "Narrative Styles", "Narrative"],
+    };
+
+    const possibleNames = categoryNameMap[currentCategory] || [currentCategory];
+    const category = cachedData.categories.find((c) => {
+      const catDisplayName = c.displayName || "";
+      const catName = c.name || "";
+      return possibleNames.some(
+        (name) =>
+          catDisplayName.toLowerCase() === name.toLowerCase() ||
+          catName.toLowerCase() === name.toLowerCase() ||
+          catDisplayName.toLowerCase().includes(name.toLowerCase()) ||
+          catName.toLowerCase().includes(name.toLowerCase())
+      );
+    });
 
     if (!category || !category.books || category.books.length === 0) {
       $content.html(
@@ -2246,71 +2263,38 @@ export async function showLucidCardsModal() {
       return;
     }
 
-    // Determine layout based on category
-    const isLumiaDLC = currentCategory === "Lumia DLCs";
+    // Use unified card grid layout for all categories
+    const cardsHtml = category.books
+      .map((book) => {
+        const escapedName = escapeHtml(book.prettyName);
+        const escapedPath = escapeHtml(book.path);
+        // We'll fetch metadata when displaying - for now show placeholder
+        return `
+                  <div class="lucid-dlc-card" data-path="${escapedPath}" data-name="${escapedName}">
+                      <div class="lucid-dlc-card-image">
+                          <div class="lucid-dlc-card-placeholder">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                  <polyline points="21 15 16 10 5 21"></polyline>
+                              </svg>
+                          </div>
+                      </div>
+                      <div class="lucid-dlc-card-info">
+                          <div class="lucid-dlc-card-title">${escapedName}</div>
+                          <div class="lucid-dlc-card-author">Loading...</div>
+                      </div>
+                  </div>
+              `;
+      })
+      .join("");
 
-    if (isLumiaDLC) {
-      // Card grid layout for Lumia DLCs
-      const cardsHtml = category.books
-        .map((book) => {
-          const escapedName = escapeHtml(book.prettyName);
-          const escapedPath = escapeHtml(book.path);
-          // We'll fetch metadata when displaying - for now show placeholder
-          return `
-                    <div class="lucid-dlc-card" data-path="${escapedPath}" data-name="${escapedName}">
-                        <div class="lucid-dlc-card-image">
-                            <div class="lucid-dlc-card-placeholder">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                                    <polyline points="21 15 16 10 5 21"></polyline>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="lucid-dlc-card-info">
-                            <div class="lucid-dlc-card-title">${escapedName}</div>
-                            <div class="lucid-dlc-card-author">Loading...</div>
-                        </div>
-                    </div>
-                `;
-        })
-        .join("");
+    $content.html(`<div class="lucid-dlc-grid">${cardsHtml}</div>`);
 
-      $content.html(`<div class="lucid-dlc-grid">${cardsHtml}</div>`);
-
-      // Fetch metadata for each card asynchronously
-      category.books.forEach((book) => {
-        fetchBookMetadata(book.path, $content);
-      });
-    } else {
-      // List layout for Loom items
-      const listHtml = category.books
-        .map((book) => {
-          const escapedName = escapeHtml(book.prettyName);
-          const escapedPath = escapeHtml(book.path);
-          return `
-                    <div class="lucid-loom-item" data-path="${escapedPath}" data-name="${escapedName}">
-                        <div class="lucid-loom-item-content">
-                            <span class="lucid-loom-item-name">${escapedName}</span>
-                            <span class="lucid-loom-item-author">Loading...</span>
-                        </div>
-                        <div class="lucid-loom-item-action">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                            </svg>
-                        </div>
-                    </div>
-                `;
-        })
-        .join("");
-
-      $content.html(`<div class="lucid-loom-list">${listHtml}</div>`);
-
-      // Fetch metadata for each item asynchronously
-      category.books.forEach((book) => {
-        fetchBookMetadata(book.path, $content);
-      });
-    }
+    // Fetch metadata for each card asynchronously
+    category.books.forEach((book) => {
+      fetchBookMetadata(book.path, $content);
+    });
 
     $content.show();
 
@@ -2383,7 +2367,7 @@ export async function showLucidCardsModal() {
           }
         }
         $card
-          .find(".lucid-dlc-card-author, .lucid-loom-item-author")
+          .find(".lucid-dlc-card-author")
           .text(authorName || "Unknown Author");
       }
     } catch (error) {
@@ -2395,7 +2379,7 @@ export async function showLucidCardsModal() {
       const $card = $content.find(`[data-path="${escapedPath}"]`);
       if ($card.length) {
         $card
-          .find(".lucid-dlc-card-author, .lucid-loom-item-author")
+          .find(".lucid-dlc-card-author")
           .text("Unknown Author");
       }
     }
@@ -2411,13 +2395,13 @@ export async function showLucidCardsModal() {
     renderContent();
   });
 
-  // Handle card/item selection
-  $modal.on("click", ".lucid-dlc-card, .lucid-loom-item", function () {
+  // Handle card selection (unified for all categories)
+  $modal.on("click", ".lucid-dlc-card", function () {
     const $this = $(this);
     const wasSelected = $this.hasClass("selected");
 
     // Deselect all
-    $modal.find(".lucid-dlc-card, .lucid-loom-item").removeClass("selected");
+    $modal.find(".lucid-dlc-card").removeClass("selected");
 
     if (wasSelected) {
       selectedBook = null;
@@ -2474,7 +2458,7 @@ export async function showLucidCardsModal() {
       toastr.success(`Successfully imported "${selectedBook.name}"!`);
 
       // Deselect after import
-      $modal.find(".lucid-dlc-card, .lucid-loom-item").removeClass("selected");
+      $modal.find(".lucid-dlc-card").removeClass("selected");
       selectedBook = null;
       $modal.find(".lucid-cards-selected-info, .lucid-cards-import-btn").hide();
     } catch (error) {
