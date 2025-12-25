@@ -7,6 +7,8 @@ import OOCSettings from './panels/OOCSettings';
 import PromptSettings from './panels/PromptSettings';
 import CouncilManager from './panels/CouncilManager';
 import SummaryEditor from './panels/SummaryEditor';
+import PackDetailModal from './modals/PackDetailModal';
+import LoomPackDetailModal from './modals/LoomPackDetailModal';
 import { useLumiverseStore } from '../store/LumiverseContext';
 
 // Get the store for direct access
@@ -41,19 +43,25 @@ function ViewportApp() {
     }
 
     return (
-        <ViewportPanel
-            isVisible={isPanelVisible}
-            onToggle={handleToggle}
-            onClose={handleClose}
-            defaultTab="profile"
-            ProfileContent={CharacterProfile}
-            PresetsContent={PresetManager}
-            BrowserContent={PackBrowser}
-            OOCContent={OOCSettings}
-            PromptContent={PromptSettings}
-            CouncilContent={CouncilManager}
-            SummaryContent={SummaryEditor}
-        />
+        <>
+            <ViewportPanel
+                isVisible={isPanelVisible}
+                onToggle={handleToggle}
+                onClose={handleClose}
+                defaultTab="profile"
+                ProfileContent={CharacterProfile}
+                PresetsContent={PresetManager}
+                BrowserContent={PackBrowser}
+                OOCContent={OOCSettings}
+                PromptContent={PromptSettings}
+                CouncilContent={CouncilManager}
+                SummaryContent={SummaryEditor}
+            />
+            {/* Pack detail modal - rendered when viewingPack is set */}
+            <PackDetailModal />
+            {/* Loom pack detail modal - rendered when viewingLoomPack is set */}
+            <LoomPackDetailModal />
+        </>
     );
 }
 

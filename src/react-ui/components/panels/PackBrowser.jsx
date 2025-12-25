@@ -5,7 +5,7 @@ import { useAdaptiveImagePosition } from '../../hooks/useAdaptiveImagePosition';
 import { CollapsibleContent } from '../Collapsible';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
-import { Search, X, Package, FileText, Zap, Heart, ChevronDown, Sparkles, Check } from 'lucide-react';
+import { Search, X, Package, FileText, Zap, Heart, ChevronDown, Sparkles, Check, Eye, Filter } from 'lucide-react';
 
 /**
  * Search input component
@@ -37,37 +37,51 @@ function SearchInput({ value, onChange, placeholder }) {
 }
 
 /**
- * Filter tabs component
+ * Filter tabs component - icon-only for compact display
  */
-function FilterTabs({ activeFilter, onFilterChange }) {
+function FilterTabs({ activeFilter, onFilterChange, showSelectedOnly, onToggleSelectedOnly, selectedCount }) {
     const filters = [
         { id: 'all', label: 'All', Icon: Package },
-        { id: 'definition', label: 'Defs', Icon: FileText },
+        { id: 'definition', label: 'Definitions', Icon: FileText },
         { id: 'behavior', label: 'Behaviors', Icon: Zap },
         { id: 'personality', label: 'Personalities', Icon: Heart },
     ];
 
     return (
-        <div className="lumiverse-pack-filters">
-            {filters.map(filter => {
-                const { Icon } = filter;
-                return (
-                    <button
-                        key={filter.id}
-                        className={clsx(
-                            'lumiverse-pack-filter',
-                            activeFilter === filter.id && 'lumiverse-pack-filter--active'
-                        )}
-                        onClick={() => onFilterChange(filter.id)}
-                        type="button"
-                    >
-                        <span className="lumiverse-pack-filter-icon">
-                            <Icon size={14} strokeWidth={1.5} />
-                        </span>
-                        <span className="lumiverse-pack-filter-label">{filter.label}</span>
-                    </button>
-                );
-            })}
+        <div className="lumiverse-pack-filters-container">
+            <div className="lumiverse-pack-filters">
+                {filters.map(filter => {
+                    const { Icon } = filter;
+                    return (
+                        <button
+                            key={filter.id}
+                            className={clsx(
+                                'lumiverse-pack-filter',
+                                activeFilter === filter.id && 'lumiverse-pack-filter--active'
+                            )}
+                            onClick={() => onFilterChange(filter.id)}
+                            title={filter.label}
+                            type="button"
+                        >
+                            <Icon size={16} strokeWidth={1.5} />
+                        </button>
+                    );
+                })}
+            </div>
+            <button
+                className={clsx(
+                    'lumiverse-pack-filter-selected-toggle',
+                    showSelectedOnly && 'lumiverse-pack-filter-selected-toggle--active'
+                )}
+                onClick={onToggleSelectedOnly}
+                title={showSelectedOnly ? 'Show all items' : 'Show selected only'}
+                type="button"
+            >
+                <Filter size={14} strokeWidth={1.5} />
+                {selectedCount > 0 && (
+                    <span className="lumiverse-pack-filter-selected-count">{selectedCount}</span>
+                )}
+            </button>
         </div>
     );
 }
@@ -76,9 +90,14 @@ function FilterTabs({ activeFilter, onFilterChange }) {
  * Pack header (collapsible)
  * OLD CODE: pack.name is the primary field, not pack.packName
  */
-function PackHeader({ pack, isExpanded, onToggle, itemCount }) {
+function PackHeader({ pack, isExpanded, onToggle, onViewPack, itemCount }) {
     // Old code uses pack.name, not pack.packName
     const packName = pack.name || pack.packName || 'Unknown Pack';
+
+    const handleViewClick = (e) => {
+        e.stopPropagation();
+        onViewPack?.(packName);
+    };
 
     return (
         <button
@@ -109,6 +128,16 @@ function PackHeader({ pack, isExpanded, onToggle, itemCount }) {
                     )}
                 </span>
             </div>
+            {/* View pack details button */}
+            <span
+                className="lumiverse-browser-pack-view-btn"
+                onClick={handleViewClick}
+                title="View pack contents"
+                role="button"
+                tabIndex={0}
+            >
+                <Eye size={16} strokeWidth={1.5} />
+            </span>
             <span className={clsx(
                 'lumiverse-browser-pack-chevron',
                 isExpanded && 'lumiverse-browser-pack-chevron--rotated'
@@ -289,7 +318,7 @@ function VirtualizedPackItems({ items, filter, onSelectItem, selections }) {
  * Each item has: lumiaDefName, lumiaDef, lumia_behavior, lumia_personality
  * NOT separate arrays like lumiaDefinitions, lumiaBehaviors, etc.
  */
-function PackSection({ pack, filter, searchQuery, onSelectItem, selections }) {
+function PackSection({ pack, filter, searchQuery, showSelectedOnly, onSelectItem, onViewPack, selections }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const packName = pack.name || pack.packName || 'Unknown Pack';
 
@@ -344,7 +373,7 @@ function PackSection({ pack, filter, searchQuery, onSelectItem, selections }) {
         return items;
     }, [pack, packName]);
 
-    // Filter items based on search and type filter
+    // Filter items based on search, type filter, and selection status
     const filteredItems = useMemo(() => {
         let items = allItems;
 
@@ -366,8 +395,13 @@ function PackSection({ pack, filter, searchQuery, onSelectItem, selections }) {
             });
         }
 
+        // Apply "show selected only" filter
+        if (showSelectedOnly) {
+            items = items.filter(item => isItemSelected(item, item.type, selections));
+        }
+
         return items;
-    }, [allItems, filter, searchQuery]);
+    }, [allItems, filter, searchQuery, showSelectedOnly, selections]);
 
     // Don't show packs with no matching items
     if (filteredItems.length === 0) {
@@ -380,6 +414,7 @@ function PackSection({ pack, filter, searchQuery, onSelectItem, selections }) {
                 pack={pack}
                 isExpanded={isExpanded}
                 onToggle={() => setIsExpanded(!isExpanded)}
+                onViewPack={onViewPack}
                 itemCount={filteredItems.length}
             />
             {/* Uses CSS grid for smooth, performant animation */}
@@ -430,19 +465,19 @@ function StatsBar({ packs, customPacks }) {
         <div className="lumiverse-browser-stats">
             <div className="lumiverse-browser-stat">
                 <span className="lumiverse-browser-stat-value">{stats.total}</span>
-                <span className="lumiverse-browser-stat-label">Packs</span>
+                <span className="lumiverse-browser-stat-label">PACKS</span>
             </div>
             <div className="lumiverse-browser-stat">
                 <span className="lumiverse-browser-stat-value">{stats.definitions}</span>
-                <span className="lumiverse-browser-stat-label">Defs</span>
+                <span className="lumiverse-browser-stat-label">DEFS</span>
             </div>
             <div className="lumiverse-browser-stat">
                 <span className="lumiverse-browser-stat-value">{stats.behaviors}</span>
-                <span className="lumiverse-browser-stat-label">Behaviors</span>
+                <span className="lumiverse-browser-stat-label">BEHAV</span>
             </div>
             <div className="lumiverse-browser-stat">
                 <span className="lumiverse-browser-stat-value">{stats.personalities}</span>
-                <span className="lumiverse-browser-stat-label">Personalities</span>
+                <span className="lumiverse-browser-stat-label">PERS</span>
             </div>
         </div>
     );
@@ -457,6 +492,16 @@ function PackBrowser() {
     const actions = useLumiverseActions();
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState('all');
+    const [showSelectedOnly, setShowSelectedOnly] = useState(false);
+
+    // Calculate total selected count
+    const selectedCount = useMemo(() => {
+        let count = 0;
+        if (selections.definition) count += 1;
+        count += (selections.behaviors || []).length;
+        count += (selections.personalities || []).length;
+        return count;
+    }, [selections]);
 
     // Mark custom packs
     const allPacks = useMemo(() => {
@@ -488,6 +533,10 @@ function PackBrowser() {
         saveToExtension();
     }, [actions]);
 
+    const handleViewPack = useCallback((packName) => {
+        actions.openPackDetail(packName);
+    }, [actions]);
+
     return (
         <div className="lumiverse-pack-browser">
             {/* Stats */}
@@ -504,6 +553,9 @@ function PackBrowser() {
             <FilterTabs
                 activeFilter={activeFilter}
                 onFilterChange={setActiveFilter}
+                showSelectedOnly={showSelectedOnly}
+                onToggleSelectedOnly={() => setShowSelectedOnly(!showSelectedOnly)}
+                selectedCount={selectedCount}
             />
 
             {/* Pack list */}
@@ -518,6 +570,16 @@ function PackBrowser() {
                             Add packs in the Settings panel
                         </span>
                     </div>
+                ) : showSelectedOnly && selectedCount === 0 ? (
+                    <div className="lumiverse-browser-empty">
+                        <span className="lumiverse-browser-empty-icon">
+                            <Filter size={32} strokeWidth={1.5} />
+                        </span>
+                        <p>No items selected</p>
+                        <span className="lumiverse-browser-empty-hint">
+                            Select items to see them here, or disable the filter
+                        </span>
+                    </div>
                 ) : (
                     allPacks.map((pack, index) => (
                         <PackSection
@@ -525,7 +587,9 @@ function PackBrowser() {
                             pack={pack}
                             filter={activeFilter}
                             searchQuery={searchQuery}
+                            showSelectedOnly={showSelectedOnly}
                             onSelectItem={handleSelectItem}
+                            onViewPack={handleViewPack}
                             selections={selections}
                         />
                     ))

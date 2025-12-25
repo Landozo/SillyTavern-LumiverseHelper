@@ -2,7 +2,7 @@ import React, { useMemo, forwardRef, useSyncExternalStore } from 'react';
 import { useSelections, useLoomSelections, usePacks, useLumiverseStore } from '../../store/LumiverseContext';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
-import { User, FileText, Zap, Heart, Sparkles, Star, X, Layers } from 'lucide-react';
+import { User, FileText, Zap, Heart, Sparkles, Star, X, Layers, Users, ArrowRight, Package } from 'lucide-react';
 
 // Get store for direct state access
 const store = useLumiverseStore;
@@ -130,6 +130,87 @@ function EmptySection({ message }) {
 }
 
 /**
+ * Get Lumia image URL from pack data
+ */
+function getLumiaImage(packs, packName, itemName) {
+    const packsArray = Array.isArray(packs) ? packs : Object.values(packs || {});
+    const pack = packsArray.find(p => p.name === packName);
+    if (!pack) return null;
+    const item = pack.items?.find(i => i.lumiaDefName === itemName);
+    return item?.lumia_img || null;
+}
+
+/**
+ * Council Mode Banner - replaces normal trait display when Council is active
+ */
+function CouncilBanner({ councilMembers, allPacks, onManageCouncil }) {
+    const memberCount = councilMembers.length;
+
+    // Get behavior and personality counts across all members
+    const totalBehaviors = councilMembers.reduce((sum, m) => sum + (m.behaviors?.length || 0), 0);
+    const totalPersonalities = councilMembers.reduce((sum, m) => sum + (m.personalities?.length || 0), 0);
+
+    // Get first few member avatars for preview
+    const previewMembers = councilMembers.slice(0, 4);
+    const moreCount = memberCount - 4;
+
+    return (
+        <div className="lumiverse-council-banner">
+            <div className="lumiverse-council-banner-icon">
+                <Users size={28} strokeWidth={1.5} />
+            </div>
+            <div className="lumiverse-council-banner-content">
+                <h4 className="lumiverse-council-banner-title">Council of Lumiae Active</h4>
+                <div className="lumiverse-council-banner-stats">
+                    <span className="lumiverse-council-banner-stat">
+                        <Users size={14} /> {memberCount} member{memberCount !== 1 ? 's' : ''}
+                    </span>
+                    <span className="lumiverse-council-banner-stat">
+                        <Zap size={14} /> {totalBehaviors} behavior{totalBehaviors !== 1 ? 's' : ''}
+                    </span>
+                    <span className="lumiverse-council-banner-stat">
+                        <Heart size={14} /> {totalPersonalities} personalit{totalPersonalities !== 1 ? 'ies' : 'y'}
+                    </span>
+                </div>
+                {previewMembers.length > 0 && (
+                    <div className="lumiverse-council-banner-avatars">
+                        {previewMembers.map((member, index) => {
+                            const img = getLumiaImage(allPacks, member.packName, member.itemName);
+                            return (
+                                <div
+                                    key={member.id}
+                                    className="lumiverse-council-banner-avatar"
+                                    style={{ zIndex: previewMembers.length - index }}
+                                    title={member.itemName}
+                                >
+                                    {img ? (
+                                        <img src={img} alt={member.itemName} />
+                                    ) : (
+                                        <Users size={14} />
+                                    )}
+                                </div>
+                            );
+                        })}
+                        {moreCount > 0 && (
+                            <div className="lumiverse-council-banner-more">+{moreCount}</div>
+                        )}
+                    </div>
+                )}
+            </div>
+            {onManageCouncil && (
+                <button
+                    className="lumiverse-council-banner-btn"
+                    onClick={onManageCouncil}
+                    type="button"
+                >
+                    Manage Council <ArrowRight size={16} />
+                </button>
+            )}
+        </div>
+    );
+}
+
+/**
  * Loom selections display - uses useLoomSelections hook for proper data separation
  */
 function LoomSection() {
@@ -183,8 +264,10 @@ function LoomSection() {
 /**
  * Character Lumia Profile component
  * Shows all Lumia traits assigned to the current character
+ * @param {Object} props
+ * @param {function} props.onTabChange - Callback to change tabs (e.g., to Council tab)
  */
-function CharacterProfile() {
+function CharacterProfile({ onTabChange }) {
     const character = useCurrentCharacter();
     const selections = useSelections();
     const { allPacks } = usePacks();
@@ -201,6 +284,21 @@ function CharacterProfile() {
         () => store.getState().selectedDefinitions || []
     );
 
+    // Subscribe to Council mode state
+    const councilMode = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().councilMode || false,
+        () => store.getState().councilMode || false
+    );
+    const councilMembers = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().councilMembers || [],
+        () => store.getState().councilMembers || []
+    );
+
+    // Check if council mode is active with members
+    const isCouncilActive = councilMode && councilMembers.length > 0;
+
     // Count stats
     const definitionCount = chimeraMode
         ? selectedDefinitions.length
@@ -213,6 +311,13 @@ function CharacterProfile() {
         definitionCount: definitionCount,
         totalPacks: allPacks.length,
     }), [selections, allPacks, definitionCount]);
+
+    // Handle navigate to council tab
+    const handleManageCouncil = () => {
+        if (onTabChange) {
+            onTabChange('council');
+        }
+    };
 
     return (
         <div className="lumiverse-character-profile">
@@ -230,104 +335,115 @@ function CharacterProfile() {
                 <div className="lumiverse-profile-info">
                     <h3 className="lumiverse-profile-name">{character.name}</h3>
                     <div className="lumiverse-profile-stats">
-                        <span className="lumiverse-stat">
+                        <span className="lumiverse-stat" title="Behaviors">
+                            <Zap size={14} strokeWidth={1.5} className="lumiverse-stat-icon" />
                             <span className="lumiverse-stat-value">{stats.behaviors}</span>
-                            <span className="lumiverse-stat-label">Behaviors</span>
                         </span>
-                        <span className="lumiverse-stat">
+                        <span className="lumiverse-stat" title="Personalities">
+                            <Heart size={14} strokeWidth={1.5} className="lumiverse-stat-icon" />
                             <span className="lumiverse-stat-value">{stats.personalities}</span>
-                            <span className="lumiverse-stat-label">Personalities</span>
                         </span>
-                        <span className="lumiverse-stat">
+                        <span className="lumiverse-stat" title="Packs">
+                            <Package size={14} strokeWidth={1.5} className="lumiverse-stat-icon" />
                             <span className="lumiverse-stat-value">{stats.totalPacks}</span>
-                            <span className="lumiverse-stat-label">Packs</span>
                         </span>
                     </div>
                 </div>
             </div>
 
-            {/* Definition Section */}
-            <div className="lumiverse-profile-section">
-                <SectionHeader
-                    Icon={chimeraMode ? Layers : FileText}
-                    title={chimeraMode ? "Chimera Definitions" : "Definition"}
-                    count={stats.definitionCount}
+            {/* Council Mode Banner - replaces trait sections when active */}
+            {isCouncilActive ? (
+                <CouncilBanner
+                    councilMembers={councilMembers}
+                    allPacks={allPacks}
+                    onManageCouncil={handleManageCouncil}
                 />
-                {/* Removed mode="popLayout" for better ARM performance */}
-                <div className="lumiverse-traits-list">
-                    <AnimatePresence initial={false}>
-                        {chimeraMode ? (
-                            // Chimera mode: show multiple definitions
-                            selectedDefinitions.length > 0 ? (
-                                selectedDefinitions.map((def, index) => (
-                                    <TraitCard
-                                        key={getTraitId(def) || `def-${index}`}
-                                        trait={def}
-                                        type="definition"
-                                    />
-                                ))
-                            ) : (
-                                <EmptySection message="No Chimera forms selected" />
-                            )
-                        ) : (
-                            // Normal mode: single definition
-                            selections.definition ? (
-                                <TraitCard
-                                    key={getTraitId(selections.definition) || 'def'}
-                                    trait={selections.definition}
-                                    type="definition"
-                                />
-                            ) : (
-                                <EmptySection message="No definition selected" />
-                            )
-                        )}
-                    </AnimatePresence>
-                </div>
-            </div>
+            ) : (
+                <>
+                    {/* Definition Section */}
+                    <div className="lumiverse-profile-section">
+                        <SectionHeader
+                            Icon={chimeraMode ? Layers : FileText}
+                            title={chimeraMode ? "Chimera Definitions" : "Definition"}
+                            count={stats.definitionCount}
+                        />
+                        {/* Removed mode="popLayout" for better ARM performance */}
+                        <div className="lumiverse-traits-list">
+                            <AnimatePresence initial={false}>
+                                {chimeraMode ? (
+                                    // Chimera mode: show multiple definitions
+                                    selectedDefinitions.length > 0 ? (
+                                        selectedDefinitions.map((def, index) => (
+                                            <TraitCard
+                                                key={getTraitId(def) || `def-${index}`}
+                                                trait={def}
+                                                type="definition"
+                                            />
+                                        ))
+                                    ) : (
+                                        <EmptySection message="No Chimera forms selected" />
+                                    )
+                                ) : (
+                                    // Normal mode: single definition
+                                    selections.definition ? (
+                                        <TraitCard
+                                            key={getTraitId(selections.definition) || 'def'}
+                                            trait={selections.definition}
+                                            type="definition"
+                                        />
+                                    ) : (
+                                        <EmptySection message="No definition selected" />
+                                    )
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </div>
 
-            {/* Behaviors Section */}
-            <div className="lumiverse-profile-section">
-                <SectionHeader Icon={Zap} title="Behaviors" count={stats.behaviors} />
-                <div className="lumiverse-traits-list">
-                    {/* Removed mode="popLayout" for better ARM performance */}
-                    <AnimatePresence initial={false}>
-                        {selections.behaviors?.length > 0 ? (
-                            selections.behaviors.map(behavior => (
-                                <TraitCard
-                                    key={getTraitId(behavior)}
-                                    trait={behavior}
-                                    type="behavior"
-                                    isDominant={traitsMatch(selections.dominantBehavior, behavior)}
-                                />
-                            ))
-                        ) : (
-                            <EmptySection message="No behaviors selected" />
-                        )}
-                    </AnimatePresence>
-                </div>
-            </div>
+                    {/* Behaviors Section */}
+                    <div className="lumiverse-profile-section">
+                        <SectionHeader Icon={Zap} title="Behaviors" count={stats.behaviors} />
+                        <div className="lumiverse-traits-list">
+                            {/* Removed mode="popLayout" for better ARM performance */}
+                            <AnimatePresence initial={false}>
+                                {selections.behaviors?.length > 0 ? (
+                                    selections.behaviors.map(behavior => (
+                                        <TraitCard
+                                            key={getTraitId(behavior)}
+                                            trait={behavior}
+                                            type="behavior"
+                                            isDominant={traitsMatch(selections.dominantBehavior, behavior)}
+                                        />
+                                    ))
+                                ) : (
+                                    <EmptySection message="No behaviors selected" />
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </div>
 
-            {/* Personalities Section */}
-            <div className="lumiverse-profile-section">
-                <SectionHeader Icon={Heart} title="Personalities" count={stats.personalities} />
-                <div className="lumiverse-traits-list">
-                    {/* Removed mode="popLayout" for better ARM performance */}
-                    <AnimatePresence initial={false}>
-                        {selections.personalities?.length > 0 ? (
-                            selections.personalities.map(personality => (
-                                <TraitCard
-                                    key={getTraitId(personality)}
-                                    trait={personality}
-                                    type="personality"
-                                    isDominant={traitsMatch(selections.dominantPersonality, personality)}
-                                />
-                            ))
-                        ) : (
-                            <EmptySection message="No personalities selected" />
-                        )}
-                    </AnimatePresence>
-                </div>
-            </div>
+                    {/* Personalities Section */}
+                    <div className="lumiverse-profile-section">
+                        <SectionHeader Icon={Heart} title="Personalities" count={stats.personalities} />
+                        <div className="lumiverse-traits-list">
+                            {/* Removed mode="popLayout" for better ARM performance */}
+                            <AnimatePresence initial={false}>
+                                {selections.personalities?.length > 0 ? (
+                                    selections.personalities.map(personality => (
+                                        <TraitCard
+                                            key={getTraitId(personality)}
+                                            trait={personality}
+                                            type="personality"
+                                            isDominant={traitsMatch(selections.dominantPersonality, personality)}
+                                        />
+                                    ))
+                                ) : (
+                                    <EmptySection message="No personalities selected" />
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </div>
+                </>
+            )}
 
             {/* Loom Section */}
             <LoomSection />

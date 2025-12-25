@@ -2,6 +2,12 @@
  * OOC Comments Module
  * Handles out-of-character comment rendering, streaming support, and DOM observation
  * Uses RAF batch rendering for optimized DOM updates
+ *
+ * Detection Strategy:
+ * 1. Parse raw message content for <lumia_ooc> tags (ST strips custom tags from DOM)
+ * 2. Use findAndReplaceDOMText to locate text content in the rendered DOM
+ * 3. Replace matched text with styled OOC comment box
+ * 4. Fall back to <font> element detection for backwards compatibility
  */
 
 import { getContext } from "../stContext.js";
@@ -47,18 +53,23 @@ export function getIsGenerating() {
 }
 
 /**
- * Clean OOC content by removing lumia_ooc tags and trimming whitespace
+ * Clean OOC content by removing lumia_ooc tags, font tags, and trimming whitespace
+ * Preserves inner content of removed tags (like <em>, <strong>, etc.)
  * @param {string} html - The raw innerHTML content
  * @returns {string} Cleaned content with tags stripped and whitespace trimmed
  */
 function cleanOOCContent(html) {
   if (!html) return "";
 
-  // Remove <lumia_ooc> and </lumia_ooc> tags (case insensitive)
-  let cleaned = html.replace(/<\/?lumia_ooc\s*>/gi, "");
+  // Remove <lumia_ooc> and </lumia_ooc> tags (case insensitive), keeping inner content
+  let cleaned = html.replace(/<\/?lumia_ooc(?:\s+[^>]*)?>/gi, "");
 
   // Remove any other custom Lumia tags that might slip through
-  cleaned = cleaned.replace(/<\/?lumia_[a-z_]+\s*>/gi, "");
+  cleaned = cleaned.replace(/<\/?lumia_[a-z_]+(?:\s+[^>]*)?>/gi, "");
+
+  // Remove <font> tags but keep their inner content
+  // This strips the legacy OOC detection method (purple font color)
+  cleaned = cleaned.replace(/<\/?font(?:\s+[^>]*)?>/gi, "");
 
   // Collapse multiple newlines/breaks into single ones
   cleaned = cleaned.replace(/(<br\s*\/?>\s*){2,}/gi, "<br>");
@@ -105,42 +116,220 @@ export function getLumiaAvatarImg() {
 }
 
 /**
+ * Extract OOC comments from raw message text using <lumia_ooc> tags
+ * Supports both normal and council mode formats
+ * @param {string} rawText - The raw message text
+ * @returns {Array<{name: string|null, content: string, fullMatch: string}>} Array of OOC matches
+ */
+function extractOOCFromRawMessage(rawText) {
+  if (!rawText) return [];
+
+  // Match <lumia_ooc> or <lumia_ooc name="..."> with content
+  const oocRegex = /<lumia_ooc(?:\s+name="([^"]*)")?>([\s\S]*?)<\/lumia_ooc>/gi;
+  const matches = [];
+  let match;
+
+  while ((match = oocRegex.exec(rawText)) !== null) {
+    matches.push({
+      name: match[1] || null, // Council member name or null for normal mode
+      content: match[2].trim(),
+      fullMatch: match[0],
+    });
+  }
+
+  return matches;
+}
+
+/**
+ * Strip HTML tags and convert to plain text for matching
+ * Preserves meaningful whitespace but normalizes multiple spaces
+ * @param {string} html - HTML content
+ * @returns {string} Plain text content
+ */
+function htmlToPlainText(html) {
+  if (!html) return "";
+
+  // Create a temporary element to parse HTML
+  const temp = document.createElement("div");
+  temp.innerHTML = html;
+
+  // Get text content (browser handles entity decoding)
+  let text = temp.textContent || temp.innerText || "";
+
+  // Normalize whitespace: collapse multiple spaces/newlines to single space
+  text = text.replace(/\s+/g, " ").trim();
+
+  return text;
+}
+
+/**
+ * Find text in a container and return the matching element's formatted content
+ * Simple and direct approach - walks text nodes to find matches
+ * @param {HTMLElement} container - Container element to search within
+ * @param {string} searchText - Text to find (will be normalized)
+ * @returns {{element: HTMLElement, innerHTML: string}|null} Matched element and its innerHTML, or null
+ */
+function findMatchingElement(container, searchText) {
+  if (!container || !searchText) return null;
+
+  // Normalize search text - collapse whitespace
+  const normalizedSearch = searchText.replace(/\s+/g, " ").trim().toLowerCase();
+  if (!normalizedSearch) return null;
+
+  // First, check all <p> tags - ST wraps content in paragraphs
+  const paragraphs = queryAll("p", container);
+
+  for (let pIdx = 0; pIdx < paragraphs.length; pIdx++) {
+    const p = paragraphs[pIdx];
+    const pText = (p.textContent || "").replace(/\s+/g, " ").trim();
+    const pTextLower = pText.toLowerCase();
+
+    // Check if this paragraph contains our search text (first 30 chars)
+    if (!pTextLower.includes(normalizedSearch.substring(0, 30))) {
+      continue;
+    }
+
+    // Found a match - return the element and its formatted innerHTML
+    return {
+      element: p,
+      innerHTML: p.innerHTML,
+    };
+  }
+
+  // Fallback: If not in <p> tags, try direct text node search
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+  let node;
+
+  while ((node = walker.nextNode())) {
+    const nodeText = node.nodeValue || "";
+    const nodeTextLower = nodeText.toLowerCase();
+
+    if (nodeTextLower.includes(normalizedSearch.substring(0, 30))) {
+      // Find the parent element
+      let target = node.parentElement;
+      while (target && target !== container && target.tagName !== "P" && target.tagName !== "DIV") {
+        target = target.parentElement;
+      }
+
+      if (target && target !== container) {
+        return {
+          element: target,
+          innerHTML: target.innerHTML,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Track which text has been replaced to avoid duplicate replacements
+ * Keyed by message ID
+ * @type {Map<number, Set<string>>}
+ */
+const processedOOCTexts = new Map();
+
+/**
+ * Clear processed texts for a message (used when reprocessing)
+ * @param {number} mesId - Message ID
+ */
+function clearProcessedTexts(mesId) {
+  processedOOCTexts.delete(mesId);
+}
+
+/**
+ * Check if text has already been processed for a message
+ * @param {number} mesId - Message ID
+ * @param {string} text - Text to check
+ * @returns {boolean} True if already processed
+ */
+function isTextProcessed(mesId, text) {
+  const normalizedText = text.toLowerCase().trim();
+  const processed = processedOOCTexts.get(mesId);
+  return processed?.has(normalizedText) || false;
+}
+
+/**
+ * Mark text as processed for a message
+ * @param {number} mesId - Message ID
+ * @param {string} text - Text to mark
+ */
+function markTextProcessed(mesId, text) {
+  const normalizedText = text.toLowerCase().trim();
+  if (!processedOOCTexts.has(mesId)) {
+    processedOOCTexts.set(mesId, new Set());
+  }
+  processedOOCTexts.get(mesId).add(normalizedText);
+}
+
+/**
+ * Get avatar image URL for a council member by name
+ * @param {string} memberName - The council member's name (itemName)
+ * @returns {string|null} Avatar image URL or null
+ */
+function getCouncilMemberAvatar(memberName) {
+  if (!memberName) return null;
+
+  const settings = getSettings();
+  if (!settings.councilMode || !settings.councilMembers?.length) return null;
+
+  // Find council member by itemName (case-insensitive)
+  const member = settings.councilMembers.find(
+    (m) => m.itemName.toLowerCase() === memberName.toLowerCase()
+  );
+  if (!member) return null;
+
+  // Look up pack item to get avatar
+  const item = getItemFromLibrary(member.packName, member.itemName);
+  return item?.lumia_img || null;
+}
+
+/**
  * Create the styled OOC comment box element
  * Supports multiple styles: 'social', 'margin', 'whisper'
  * @param {string} content - The text content for the OOC box
  * @param {string|null} avatarImg - URL to avatar image, or null for placeholder
  * @param {number} index - Index of this OOC in the message (for alternating styles)
+ * @param {string|null} memberName - Council member name (for council mode), or null for normal mode
  * @returns {HTMLElement} The created OOC comment box element
  */
-export function createOOCCommentBox(content, avatarImg, index = 0) {
+export function createOOCCommentBox(content, avatarImg, index = 0, memberName = null) {
   const settings = getSettings();
   const style = settings.lumiaOOCStyle || "social";
   const isAlt = index % 2 === 1; // Alternate on odd indices
 
   switch (style) {
     case "margin":
-      return createOOCMarginNote(content, avatarImg, isAlt);
+      return createOOCMarginNote(content, avatarImg, isAlt, memberName);
     case "whisper":
-      return createOOCWhisperBubble(content, avatarImg, isAlt);
+      return createOOCWhisperBubble(content, avatarImg, isAlt, memberName);
     case "social":
     default:
-      return createOOCSocialCard(content, avatarImg);
+      return createOOCSocialCard(content, avatarImg, memberName);
   }
 }
 
 /**
  * Create Social Card style OOC box (original design)
  * Full card with avatar, name, thread indicator, and ethereal animations
+ * @param {string} content - The OOC message content
+ * @param {string|null} avatarImg - Avatar image URL
+ * @param {string|null} memberName - Council member name, or null for default "Lumia"
  */
-function createOOCSocialCard(content, avatarImg) {
+function createOOCSocialCard(content, avatarImg, memberName = null) {
+  const displayName = memberName || "Lumia";
+  const threadText = memberName ? "speaks from the Council" : "weaving through the Loom";
+  const placeholderLetter = memberName ? memberName.charAt(0).toUpperCase() : "L";
+
   // Create avatar container with ethereal glow ring
   const avatarElement = avatarImg
     ? createElement("img", {
-        attrs: { src: avatarImg, alt: "Lumia", class: "lumia-ooc-avatar" },
+        attrs: { src: avatarImg, alt: displayName, class: "lumia-ooc-avatar" },
       })
     : createElement("div", {
         attrs: { class: "lumia-ooc-avatar lumia-ooc-avatar-placeholder" },
-        text: "L",
+        text: placeholderLetter,
       });
 
   // Wrap avatar in a glow container for the ethereal effect
@@ -152,13 +341,13 @@ function createOOCSocialCard(content, avatarImg) {
   // Create the name/handle area (like a social media username)
   const nameElement = createElement("span", {
     attrs: { class: "lumia-ooc-name" },
-    text: "Lumia",
+    text: displayName,
   });
 
   // Create the "thread" indicator - weaving motif
   const threadIndicator = createElement("span", {
     attrs: { class: "lumia-ooc-thread" },
-    text: "weaving through the Loom",
+    text: threadText,
   });
 
   // Create header row with name and thread indicator
@@ -191,21 +380,27 @@ function createOOCSocialCard(content, avatarImg) {
 /**
  * Create Margin Note style OOC box
  * Apple-esque minimal hanging tag design
+ * @param {string} content - The OOC message content
+ * @param {string|null} avatarImg - Avatar image URL
  * @param {boolean} isAlt - Whether to use alternate (right-aligned) orientation
+ * @param {string|null} memberName - Council member name, or null for default "Lumia"
  */
-function createOOCMarginNote(content, avatarImg, isAlt = false) {
+function createOOCMarginNote(content, avatarImg, isAlt = false, memberName = null) {
+  const displayName = memberName || "Lumia";
+  const placeholderLetter = memberName ? memberName.charAt(0).toUpperCase() : "L";
+
   // Create the hanging tag with avatar or letter
   const tagContent = avatarImg
     ? createElement("img", {
         attrs: {
           src: avatarImg,
-          alt: "L",
+          alt: placeholderLetter,
           class: "lumia-ooc-margin-tag-avatar",
         },
       })
     : createElement("span", {
         attrs: { class: "lumia-ooc-margin-tag-letter" },
-        text: "L",
+        text: placeholderLetter,
       });
 
   const tag = createElement("div", {
@@ -216,7 +411,7 @@ function createOOCMarginNote(content, avatarImg, isAlt = false) {
   // Create the subtle label
   const label = createElement("div", {
     attrs: { class: "lumia-ooc-margin-label" },
-    text: "Lumia",
+    text: displayName,
   });
 
   // Create the content text
@@ -246,21 +441,28 @@ function createOOCMarginNote(content, avatarImg, isAlt = false) {
 /**
  * Create Whisper Bubble style OOC box
  * Soft ethereal thought bubble design with prominent avatar
+ * @param {string} content - The OOC message content
+ * @param {string|null} avatarImg - Avatar image URL
  * @param {boolean} isAlt - Whether to use alternate (right-aligned) orientation
+ * @param {string|null} memberName - Council member name, or null for default "Lumia"
  */
-function createOOCWhisperBubble(content, avatarImg, isAlt = false) {
+function createOOCWhisperBubble(content, avatarImg, isAlt = false, memberName = null) {
+  const displayName = memberName || "Lumia";
+  const whisperText = `${displayName} whispers...`;
+  const placeholderLetter = memberName ? memberName.charAt(0).toUpperCase() : "L";
+
   // Create the avatar element (outside the bubble, prominent)
   const avatar = avatarImg
     ? createElement("img", {
         attrs: {
           src: avatarImg,
-          alt: "Lumia",
+          alt: displayName,
           class: "lumia-ooc-whisper-avatar",
         },
       })
     : createElement("div", {
         attrs: { class: "lumia-ooc-whisper-avatar-placeholder" },
-        text: "L",
+        text: placeholderLetter,
       });
 
   // Wrap avatar in container
@@ -272,7 +474,7 @@ function createOOCWhisperBubble(content, avatarImg, isAlt = false) {
   // Create the name
   const name = createElement("span", {
     attrs: { class: "lumia-ooc-whisper-name" },
-    text: "Lumia whispers...",
+    text: whisperText,
   });
 
   // Create header
@@ -308,6 +510,13 @@ function createOOCWhisperBubble(content, avatarImg, isAlt = false) {
 /**
  * Internal: Perform the actual DOM updates for OOC comments in a message
  * Called by the RAF batch renderer - does not handle scroll preservation
+ *
+ * HYBRID APPROACH:
+ * 1. Parse raw message content for <lumia_ooc> tags (ST strips custom tags from DOM)
+ * 2. Use findAndReplaceDOMText to locate text content in the rendered DOM
+ * 3. Replace matched text with styled OOC comment box
+ * 4. Fall back to <font> element detection for backwards compatibility
+ *
  * @param {number} mesId - The message ID to process
  * @param {boolean} force - Force reprocessing even if OOC boxes exist
  */
@@ -320,80 +529,177 @@ function performOOCProcessing(mesId, force = false) {
       return; // Silent return - element may not be rendered yet
     }
 
-    // Find all <font> elements with the Lumia OOC color
-    const fontElements = queryAll("font", messageElement);
-    const oocFonts = fontElements.filter(isLumiaOOCFont);
-
-    if (oocFonts.length === 0) {
-      return; // No Lumia OOC fonts found
+    // Check if already processed (unless force is true)
+    const existingBoxes = queryAll("[data-lumia-ooc]", messageElement);
+    if (existingBoxes.length > 0 && !force) {
+      return; // Already processed
     }
 
-    console.log(
-      `[${MODULE_NAME}] Found ${oocFonts.length} Lumia OOC comment(s) in message ${mesId}`,
-    );
+    // Clear tracking for this message if forcing reprocess
+    if (force) {
+      clearProcessedTexts(mesId);
+    }
 
-    // Get avatar image
-    const avatarImg = getLumiaAvatarImg();
+    let processedCount = 0;
 
-    // Process each OOC font element - insert comment box exactly where the OOC was located
-    oocFonts.forEach((fontElement, index) => {
-      // Get the content from the font element and clean it
-      const rawContent = fontElement.innerHTML;
-      const content = cleanOOCContent(rawContent);
+    // Get raw message content for tag-based detection
+    const context = getContext();
+    const chatMessage = context?.chat?.[mesId];
+    const rawContent = chatMessage?.mes || chatMessage?.content || "";
 
-      // Skip if content is empty after cleaning
-      if (!content) {
-        console.log(
-          `[${MODULE_NAME}] Skipping OOC #${index + 1}: empty after cleaning`,
-        );
-        return;
-      }
+    // STEP 1: Parse raw content for <lumia_ooc> tags
+    // ST strips custom tags from DOM, so we must extract content from raw message
+    const oocMatches = extractOOCFromRawMessage(rawContent);
 
+    if (oocMatches.length > 0) {
       console.log(
-        `[${MODULE_NAME}] Processing OOC #${index + 1}: "${content.substring(0, 50)}${content.length > 50 ? "..." : ""}"`,
+        `[${MODULE_NAME}] Found ${oocMatches.length} <lumia_ooc> tag(s) in raw content for message ${mesId}`,
       );
 
-      // Create the styled comment box (pass index for alternating orientation)
-      const commentBox = createOOCCommentBox(content, avatarImg, index);
+      oocMatches.forEach((ooc, index) => {
+        // Get plain text version for matching in DOM
+        const plainText = htmlToPlainText(ooc.content);
 
-      // Find the outermost OOC-related element to replace
-      let elementToReplace = fontElement;
-      let current = fontElement.parentElement;
-
-      // Walk up to find the lumia_ooc tag (might be nested in <p> or other formatting tags)
-      while (current && current !== messageElement) {
-        const tagName = current.tagName?.toLowerCase();
-        if (tagName === "lumia_ooc") {
-          elementToReplace = current;
-          break;
+        if (!plainText) {
+          console.log(
+            `[${MODULE_NAME}] Skipping OOC #${index + 1}: empty after text extraction`,
+          );
+          return;
         }
-        // Stop if we hit a block-level element that contains other content
-        if (tagName === "p" || tagName === "div") {
-          const textContent = current.textContent?.trim();
-          const fontContent = fontElement.textContent?.trim();
-          if (textContent === fontContent) {
-            elementToReplace = current;
-          }
-          break;
-        }
-        current = current.parentElement;
-      }
 
-      // Perform in-place replacement
-      if (elementToReplace.parentNode) {
-        elementToReplace.parentNode.replaceChild(commentBox, elementToReplace);
+        // Check if this text was already processed
+        if (isTextProcessed(mesId, plainText)) {
+          console.log(
+            `[${MODULE_NAME}] Skipping OOC #${index + 1}: already processed`,
+          );
+          return;
+        }
+
         console.log(
-          `[${MODULE_NAME}] Inserted OOC #${index + 1} in-place (replaced ${elementToReplace.tagName || "text"})`,
+          `[${MODULE_NAME}] Processing OOC #${index + 1}${ooc.name ? ` (${ooc.name})` : ""}: "${plainText.substring(0, 60)}..."`,
         );
-      }
-    });
 
-    // Force reflow to ensure styles are applied (single reflow per message)
-    messageElement.offsetHeight;
+        // Find the matching element in the DOM - this gives us the formatted content
+        const match = findMatchingElement(messageElement, plainText);
 
-    console.log(
-      `[${MODULE_NAME}] Finished processing OOC comments in message ${mesId}`,
-    );
+        if (!match) {
+          console.log(
+            `[${MODULE_NAME}] Could not find OOC #${index + 1} text in DOM`,
+          );
+          return;
+        }
+
+        // Get avatar: council member avatar or default Lumia avatar
+        const avatarImg = ooc.name
+          ? getCouncilMemberAvatar(ooc.name)
+          : getLumiaAvatarImg();
+
+        // Use the DOM's innerHTML (preserves ST's formatting like <em>, <strong>, etc.)
+        // but clean out any lumia-specific tags
+        const formattedContent = cleanOOCContent(match.innerHTML);
+        if (!formattedContent) return;
+
+        // Create styled box with member name and formatted content
+        const commentBox = createOOCCommentBox(formattedContent, avatarImg, processedCount, ooc.name);
+
+        // Replace the matched element with our styled box
+        if (match.element.parentNode) {
+          match.element.parentNode.replaceChild(commentBox, match.element);
+          markTextProcessed(mesId, plainText);
+          processedCount++;
+          console.log(
+            `[${MODULE_NAME}] Replaced OOC #${index + 1} with styled box (preserved formatting)`,
+          );
+        }
+      });
+    }
+
+    // STEP 2: Process <font> elements with OOC color
+    // This is a fallback for messages that don't use <lumia_ooc> tags
+    const fontElements = queryAll("font", messageElement).filter(isLumiaOOCFont);
+
+    if (fontElements.length > 0) {
+      console.log(
+        `[${MODULE_NAME}] Found ${fontElements.length} OOC font element(s) in DOM for message ${mesId}`,
+      );
+
+      fontElements.forEach((fontElement, index) => {
+        // Skip if inside an already-processed OOC box
+        if (fontElement.closest("[data-lumia-ooc]")) {
+          console.log(`[${MODULE_NAME}] Skipping font #${index + 1}: already inside processed box`);
+          return;
+        }
+
+        // Get content from font element
+        const rawFontContent = fontElement.innerHTML;
+        const cleanContent = cleanOOCContent(rawFontContent);
+
+        if (!cleanContent) {
+          console.log(
+            `[${MODULE_NAME}] Skipping font #${index + 1}: empty after cleaning`,
+          );
+          return;
+        }
+
+        // Check if this text was already processed (by tag-based detection)
+        const plainText = htmlToPlainText(rawFontContent);
+        if (isTextProcessed(mesId, plainText)) {
+          console.log(`[${MODULE_NAME}] Skipping font #${index + 1}: already processed by tag detection`);
+          return;
+        }
+
+        console.log(
+          `[${MODULE_NAME}] Processing font #${index + 1}: "${cleanContent.substring(0, 50)}${cleanContent.length > 50 ? "..." : ""}"`,
+        );
+
+        // Mark as processed
+        markTextProcessed(mesId, plainText);
+
+        // Get default Lumia avatar (no member name available from font-only format)
+        const avatarImg = getLumiaAvatarImg();
+
+        // Create styled box
+        const commentBox = createOOCCommentBox(cleanContent, avatarImg, processedCount);
+
+        // Find the outermost element to replace
+        // Walk up to find any containing block element that only contains this OOC
+        let elementToReplace = fontElement;
+        let current = fontElement.parentElement;
+
+        while (current && current !== messageElement) {
+          const tagName = current.tagName?.toLowerCase();
+
+          // Stop at block-level elements
+          if (tagName === "p" || tagName === "div") {
+            // Only replace the block if it contains just this OOC content
+            const blockText = current.textContent?.trim();
+            const fontText = fontElement.textContent?.trim();
+            if (blockText === fontText) {
+              elementToReplace = current;
+            }
+            break;
+          }
+          current = current.parentElement;
+        }
+
+        // Replace the element
+        if (elementToReplace.parentNode) {
+          elementToReplace.parentNode.replaceChild(commentBox, elementToReplace);
+          console.log(
+            `[${MODULE_NAME}] Replaced font #${index + 1} (${elementToReplace.tagName}) with styled box`,
+          );
+          processedCount++;
+        }
+      });
+    }
+
+    if (processedCount > 0) {
+      // Force reflow to ensure styles are applied
+      messageElement.offsetHeight;
+      console.log(
+        `[${MODULE_NAME}] Finished processing ${processedCount} OOC comment(s) in message ${mesId}`,
+      );
+    }
   } catch (error) {
     console.error(`[${MODULE_NAME}] Error processing OOC comments:`, error);
   }
@@ -611,6 +917,8 @@ export function setupLumiaOOCObserver() {
           messageElements = Array.from(node.querySelectorAll(".mes_text"));
         }
 
+        // Check for OOC font elements (fallback method - fonts remain visible in DOM)
+        // Tag-based detection via raw content is handled by CHARACTER_MESSAGE_RENDERED
         if (node.tagName === "FONT" && isLumiaOOCFont(node)) {
           const mesText = node.closest(".mes_text");
           if (mesText && !messageElements.includes(mesText)) {
@@ -642,18 +950,27 @@ export function setupLumiaOOCObserver() {
             return;
           }
 
+          const mesBlock = messageElement.closest("div[mesid]");
+          if (!mesBlock) return;
+
+          const mesId = parseInt(mesBlock.getAttribute("mesid"), 10);
+
+          // Check for OOC content: tags in raw content, or font elements in DOM (fallback)
+          // DOM-based tag detection is unreliable as ST hides custom tags by default
+          const context = getContext();
+          const chatMessage = context?.chat?.[mesId];
+          const rawContent = chatMessage?.mes || chatMessage?.content || "";
+
+          const hasOOCTags = /<lumia_ooc(?:\s+name="[^"]*")?>/i.test(rawContent);
           const oocFonts = queryAll("font", messageElement).filter(
             isLumiaOOCFont,
           );
-          if (oocFonts.length > 0) {
-            const mesBlock = messageElement.closest("div[mesid]");
-            if (mesBlock) {
-              const mesId = parseInt(mesBlock.getAttribute("mesid"), 10);
-              console.log(
-                `[${MODULE_NAME}] Observer: Processing OOC in message ${mesId}`,
-              );
-              processLumiaOOCComments(mesId);
-            }
+
+          if (hasOOCTags || oocFonts.length > 0) {
+            console.log(
+              `[${MODULE_NAME}] Observer: Processing OOC in message ${mesId} (tags in raw: ${hasOOCTags}, fonts in DOM: ${oocFonts.length})`,
+            );
+            processLumiaOOCComments(mesId);
           }
         });
       });

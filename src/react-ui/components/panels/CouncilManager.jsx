@@ -190,8 +190,8 @@ function CouncilMemberCard({ member, packs, onUpdate, onRemove }) {
                     </div>
 
                     <p className="lumiverse-council-help-text">
-                        Trait configuration for council members coming soon.
-                        Each member will have independent behaviors and personalities.
+                        Each member's inherent traits are auto-attached when added.
+                        Additional trait configuration coming soon.
                     </p>
                 </div>
             )}

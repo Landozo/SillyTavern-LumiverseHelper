@@ -10,6 +10,46 @@ import {
 } from "./settingsManager.js";
 import { getItemFromLibrary } from "./dataProcessor.js";
 
+// OOC Prompt constants (content from prompt files)
+const OOC_PROMPT_NORMAL = `### Loom Utility: Lumia's Out of Context Commentary
+Append personality-driven OOC thoughts at weave end per trigger rules.
+
+**Timing:** {{lumiaOOCTrigger}}
+
+**Format Requirements:**
+- Wrap all of my OOCs in \`<lumia_ooc></lumia_ooc>\` tags
+- Purple text: \`<font color="#9370DB"></font>\`
+- Max 4 sentences
+- Active personality voice and matrix blend, no identity preface needed
+- Place after narrative and all utilities
+
+Template:
+\`\`\`
+<lumia_ooc>
+<font color="#9370DB">
+[Personality-driven commentary]
+</font>
+</lumia_ooc>
+\`\`\``;
+
+const OOC_PROMPT_COUNCIL = `### Loom Utility: Lumia's Out of Context Commentary (Council Mode)
+Append personality-driven OOC thoughts at weave end per trigger rules. Each one of the council members may speak up during the weave.
+
+**Council's OOC Timing:** {{lumiaOOCTrigger}}
+
+**Format Requirements:**
+- Wrap in \`<lumia_ooc name="[lumia_name]"></lumia_ooc>\` tags
+- Max 4 sentences from each council member
+- Active council members can and will speak, their identity preface contained inside of \`lumia_ooc\` tag.
+- Place council comments inside of weave
+
+Template:
+<lumia_ooc name="lumianame">
+[Personality-driven commentary from a member of the council]
+</lumia_ooc>`;
+
+const COUNCIL_INST_PROMPT = `COUNCIL MODE ACTIVATED! Now all of us Lumias in the Loom's planning room will speak, argue, debate, flirt with each other, maybe even scissor and kiss (depending on our mood, of course~) over each step of the weave planner. We should ALL have a say on where the story goes!`;
+
 /**
  * Ensure a random Lumia is selected for macro expansion
  * Selects a random item from all available packs if not already selected
@@ -668,5 +708,28 @@ export function registerLumiaMacros(MacrosParser) {
   MacrosParser.registerMacro("loomRetrofits.len", () => {
     const currentSettings = getSettings();
     return String(currentSettings.selectedLoomRetrofits?.length || 0);
+  });
+
+  // OOC-related macros
+  MacrosParser.registerMacro("lumiaOOC", () => {
+    const currentSettings = getSettings();
+    // Return council OOC prompt if in council mode with members
+    if (currentSettings.councilMode && currentSettings.councilMembers?.length > 0) {
+      console.log("[LumiverseHelper] lumiaOOC: Using council mode prompt");
+      return OOC_PROMPT_COUNCIL;
+    }
+    // Return normal OOC prompt
+    console.log("[LumiverseHelper] lumiaOOC: Using normal mode prompt");
+    return OOC_PROMPT_NORMAL;
+  });
+
+  MacrosParser.registerMacro("lumiaCouncilInst", () => {
+    const currentSettings = getSettings();
+    // Only return instruction if council mode is active with members
+    if (!currentSettings.councilMode || !currentSettings.councilMembers?.length) {
+      return "";
+    }
+    console.log("[LumiverseHelper] lumiaCouncilInst: Council mode active, returning instruction");
+    return COUNCIL_INST_PROMPT;
   });
 }

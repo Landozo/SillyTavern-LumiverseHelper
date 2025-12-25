@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useSyncExternalStore, useCallback } from 'react';
 import clsx from 'clsx';
-import { Bookmark, Trash2, RefreshCw, Plus, Check, X, Clock } from 'lucide-react';
+import { Bookmark, Trash2, RefreshCw, Plus, Check, X, Clock, FileText, Zap, Heart, Users } from 'lucide-react';
 import { useLumiverseStore, useLumiverseActions, saveToExtension } from '../../store/LumiverseContext';
 
 /**
@@ -36,10 +36,36 @@ function PresetCard({ preset, isActive, onLoad, onUpdate, onDelete }) {
         }
     };
 
-    const traitCount =
-        (preset.selectedDefinition ? 1 : 0) +
-        (preset.selectedBehaviors?.length || 0) +
-        (preset.selectedPersonalities?.length || 0);
+    // Calculate separate counts based on mode
+    const counts = useMemo(() => {
+        if (preset.councilMode && preset.councilMembers?.length > 0) {
+            // Council mode: show member count and aggregate traits
+            const memberCount = preset.councilMembers.length;
+            const totalBehaviors = preset.councilMembers.reduce((sum, m) => sum + (m.behaviors?.length || 0), 0);
+            const totalPersonalities = preset.councilMembers.reduce((sum, m) => sum + (m.personalities?.length || 0), 0);
+            return {
+                isCouncil: true,
+                members: memberCount,
+                behaviors: totalBehaviors,
+                personalities: totalPersonalities,
+            };
+        } else if (preset.chimeraMode && preset.selectedDefinitions?.length > 0) {
+            // Chimera mode: show fused definition count
+            return {
+                isChimera: true,
+                definitions: preset.selectedDefinitions.length,
+                behaviors: preset.selectedBehaviors?.length || 0,
+                personalities: preset.selectedPersonalities?.length || 0,
+            };
+        } else {
+            // Normal mode
+            return {
+                definitions: preset.selectedDefinition ? 1 : 0,
+                behaviors: preset.selectedBehaviors?.length || 0,
+                personalities: preset.selectedPersonalities?.length || 0,
+            };
+        }
+    }, [preset]);
 
     return (
         <div className={clsx('lumiverse-preset-card', isActive && 'lumiverse-preset-card--active')}>
@@ -56,9 +82,36 @@ function PresetCard({ preset, isActive, onLoad, onUpdate, onDelete }) {
             </div>
 
             <div className="lumiverse-preset-card-meta">
-                <span className="lumiverse-preset-card-traits">
-                    {traitCount} trait{traitCount !== 1 ? 's' : ''}
-                </span>
+                {/* Separate trait counts with icons */}
+                <div className="lumiverse-preset-stats">
+                    {counts.isCouncil ? (
+                        // Council mode stats
+                        <>
+                            <span className="lumiverse-preset-stat lumiverse-preset-stat--council">
+                                <Users size={12} strokeWidth={1.5} /> {counts.members}
+                            </span>
+                            <span className="lumiverse-preset-stat">
+                                <Zap size={12} strokeWidth={1.5} /> {counts.behaviors}
+                            </span>
+                            <span className="lumiverse-preset-stat">
+                                <Heart size={12} strokeWidth={1.5} /> {counts.personalities}
+                            </span>
+                        </>
+                    ) : (
+                        // Normal or Chimera mode stats
+                        <>
+                            <span className={clsx('lumiverse-preset-stat', counts.isChimera && 'lumiverse-preset-stat--chimera')}>
+                                <FileText size={12} strokeWidth={1.5} /> {counts.definitions}
+                            </span>
+                            <span className="lumiverse-preset-stat">
+                                <Zap size={12} strokeWidth={1.5} /> {counts.behaviors}
+                            </span>
+                            <span className="lumiverse-preset-stat">
+                                <Heart size={12} strokeWidth={1.5} /> {counts.personalities}
+                            </span>
+                        </>
+                    )}
+                </div>
                 {preset.chimeraMode && (
                     <span className="lumiverse-preset-card-mode">Chimera</span>
                 )}

@@ -459,11 +459,22 @@ jQuery(async () => {
         hideLoomSumBlocks(messageElement);
         unhideAndProcessOOCMarkers(messageElement);
 
+        // Check for OOC content using multiple methods:
+        // 1. <lumia_ooc> elements in DOM (primary - ST may render these as custom elements)
+        // 2. <lumia_ooc> tags in raw content (backup - in case DOM doesn't have them yet)
+        // 3. <font> elements with OOC color in DOM (fallback for old format)
+        const lumiaOocElements = queryAll("lumia_ooc", messageElement);
         const fontElements = queryAll("font", messageElement);
         const oocFonts = fontElements.filter(isLumiaOOCFont);
 
-        if (oocFonts.length > 0) {
-          console.log(`[${MODULE_NAME}] Found ${oocFonts.length} OOC font(s), scheduling OOC processing for message ${mesId}`);
+        // Also check raw content as backup
+        const context = getContext();
+        const chatMessage = context?.chat?.[mesId];
+        const rawContent = chatMessage?.mes || chatMessage?.content || "";
+        const hasOOCTagsInRaw = /<lumia_ooc(?:\s+name="[^"]*")?>/i.test(rawContent);
+
+        if (lumiaOocElements.length > 0 || oocFonts.length > 0 || hasOOCTagsInRaw) {
+          console.log(`[${MODULE_NAME}] Found OOC content (lumia_ooc elements: ${lumiaOocElements.length}, fonts: ${oocFonts.length}, tags in raw: ${hasOOCTagsInRaw}), scheduling OOC processing for message ${mesId}`);
           processLumiaOOCComments(mesId);
         }
       }

@@ -202,15 +202,16 @@ function ViewportPanel({
     const activeTabConfig = PANEL_TABS.find(tab => tab.id === activeTab);
 
     // Memoize tab content components to prevent unnecessary re-renders
+    // Pass handleTabClick to ProfileContent so it can navigate to other tabs (e.g., Council)
     const tabPanels = useMemo(() => ({
-        profile: ProfileContent ? <ProfileContent /> : <PlaceholderContent tab="profile" />,
+        profile: ProfileContent ? <ProfileContent onTabChange={handleTabClick} /> : <PlaceholderContent tab="profile" />,
         presets: PresetsContent ? <PresetsContent /> : <PlaceholderContent tab="presets" />,
         browser: BrowserContent ? <BrowserContent /> : <PlaceholderContent tab="browser" />,
         ooc: OOCContent ? <OOCContent /> : <PlaceholderContent tab="ooc" />,
         prompt: PromptContent ? <PromptContent /> : <PlaceholderContent tab="prompt" />,
         council: CouncilContent ? <CouncilContent /> : <PlaceholderContent tab="council" />,
         summary: SummaryContent ? <SummaryContent /> : <PlaceholderContent tab="summary" />,
-    }), [ProfileContent, PresetsContent, BrowserContent, OOCContent, PromptContent, CouncilContent, SummaryContent]);
+    }), [ProfileContent, PresetsContent, BrowserContent, OOCContent, PromptContent, CouncilContent, SummaryContent, handleTabClick]);
 
     // Use transform for smooth GPU-accelerated animation
     return (

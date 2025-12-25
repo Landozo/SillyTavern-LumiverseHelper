@@ -5,6 +5,7 @@ import { exportPackAsWorldBook } from './modals/PackEditorModal';
 import { CollapsibleContent } from './Collapsible';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
+import { Eye, Sparkles, Wrench, Layers } from 'lucide-react';
 
 /* global LumiverseBridge, toastr */
 
@@ -785,6 +786,127 @@ function SettingsPanel() {
                     </div>
                 </Panel>
             )}
+
+            {/* Downloaded Packs Section (non-custom packs) */}
+            {packs.length > 0 && (
+                <Panel title="Downloaded Packs" icon={Icons.box}>
+                    <div className="lumia-downloaded-packs">
+                        {packs.map((pack) => {
+                            const packName = pack.name || pack.packName || 'Unknown Pack';
+                            const lumiaItems = pack.items?.filter(item => item.lumiaDefName && item.lumiaDef) || [];
+
+                            return (
+                                <div key={packName} className="lumia-downloaded-pack-item">
+                                    {pack.packCover ? (
+                                        <img
+                                            src={pack.packCover}
+                                            alt={packName}
+                                            className="lumia-downloaded-pack-cover"
+                                        />
+                                    ) : (
+                                        <div className="lumia-downloaded-pack-cover-placeholder">
+                                            {Icons.package}
+                                        </div>
+                                    )}
+                                    <div className="lumia-downloaded-pack-info">
+                                        <span className="lumia-downloaded-pack-name">{packName}</span>
+                                        <span className="lumia-downloaded-pack-count">
+                                            {lumiaItems.length} Lumia{lumiaItems.length !== 1 ? 's' : ''}
+                                        </span>
+                                    </div>
+                                    <button
+                                        className="lumia-btn lumia-btn-icon"
+                                        onClick={() => actions.openPackDetail(packName)}
+                                        title="View pack contents"
+                                        type="button"
+                                    >
+                                        <Eye size={16} strokeWidth={1.5} />
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </Panel>
+            )}
+
+            {/* Loom Packs Section (packs with Loom items) */}
+            {(() => {
+                // Filter packs that have Loom items
+                const loomPacks = packs.filter(pack => {
+                    // Check legacy structure
+                    if (pack.loomStyles?.length > 0) return true;
+                    if (pack.loomUtils?.length > 0) return true;
+                    if (pack.loomRetrofits?.length > 0) return true;
+                    // Check items array with loomCategory
+                    if (pack.items?.some(item => item.loomCategory)) return true;
+                    return false;
+                });
+
+                if (loomPacks.length === 0) return null;
+
+                return (
+                    <Panel title="Loom Packs" icon={Icons.layers}>
+                        <div className="lumia-loom-packs">
+                            {loomPacks.map((pack) => {
+                                const packName = pack.name || pack.packName || 'Unknown Pack';
+
+                                // Count loom items by category
+                                let styles = pack.loomStyles?.length || 0;
+                                let utilities = pack.loomUtils?.length || 0;
+                                let retrofits = pack.loomRetrofits?.length || 0;
+
+                                // Also check items array
+                                if (pack.items) {
+                                    pack.items.forEach(item => {
+                                        const cat = item.loomCategory || item.category;
+                                        if (cat === 'Narrative Style' || cat === 'loomStyles') styles++;
+                                        else if (cat === 'Loom Utilities' || cat === 'loomUtils') utilities++;
+                                        else if (cat === 'Retrofits' || cat === 'loomRetrofits') retrofits++;
+                                    });
+                                }
+
+                                return (
+                                    <div key={packName} className="lumia-loom-pack-item">
+                                        {pack.packCover ? (
+                                            <img
+                                                src={pack.packCover}
+                                                alt={packName}
+                                                className="lumia-loom-pack-cover"
+                                            />
+                                        ) : (
+                                            <div className="lumia-loom-pack-cover-placeholder">
+                                                {Icons.layers}
+                                            </div>
+                                        )}
+                                        <div className="lumia-loom-pack-info">
+                                            <span className="lumia-loom-pack-name">{packName}</span>
+                                            <div className="lumia-loom-pack-stats">
+                                                {styles > 0 && (
+                                                    <span><Sparkles size={10} /> {styles}</span>
+                                                )}
+                                                {utilities > 0 && (
+                                                    <span><Wrench size={10} /> {utilities}</span>
+                                                )}
+                                                {retrofits > 0 && (
+                                                    <span><Layers size={10} /> {retrofits}</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <button
+                                            className="lumia-btn lumia-btn-icon"
+                                            onClick={() => actions.openLoomPackDetail(packName)}
+                                            title="View loom contents"
+                                            type="button"
+                                        >
+                                            <Eye size={16} strokeWidth={1.5} />
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </Panel>
+                );
+            })()}
         </div>
     );
 }

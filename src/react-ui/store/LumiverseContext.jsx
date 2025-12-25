@@ -99,6 +99,8 @@ const initialState = {
         activeModal: null,
         isLoading: false,
         error: null,
+        viewingPack: null,      // Pack name currently being viewed in detail modal
+        viewingLoomPack: null,  // Pack name currently being viewed in loom detail modal
     },
 };
 
@@ -631,10 +633,29 @@ const actions = {
 
     /**
      * Add a new council member
+     * Auto-attaches the Lumia's inherent behavior and personality traits
      * @param {Object} member - { packName, itemName } of the Lumia to add
      */
     addCouncilMember: (member) => {
         const state = store.getState();
+
+        // Look up the Lumia item to get its inherent traits
+        const pack = state.packs[member.packName];
+        const item = pack?.items?.find(i => i.lumiaDefName === member.itemName);
+
+        const behaviors = [];
+        const personalities = [];
+
+        // Auto-attach inherent behavior if exists
+        if (item?.lumia_behavior) {
+            behaviors.push({ packName: member.packName, itemName: member.itemName });
+        }
+
+        // Auto-attach inherent personality if exists
+        if (item?.lumia_personality) {
+            personalities.push({ packName: member.packName, itemName: member.itemName });
+        }
+
         store.setState({
             councilMembers: [
                 ...state.councilMembers,
@@ -642,8 +663,8 @@ const actions = {
                     id: crypto.randomUUID(),
                     packName: member.packName,
                     itemName: member.itemName,
-                    behaviors: [],
-                    personalities: [],
+                    behaviors,
+                    personalities,
                     dominantBehavior: null,
                     dominantPersonality: null,
                     role: '',
@@ -712,6 +733,32 @@ const actions = {
     clearError: () => {
         store.setState({
             ui: { ...store.getState().ui, error: null },
+        });
+    },
+
+    // Pack detail modal actions
+    openPackDetail: (packName) => {
+        store.setState({
+            ui: { ...store.getState().ui, viewingPack: packName },
+        });
+    },
+
+    closePackDetail: () => {
+        store.setState({
+            ui: { ...store.getState().ui, viewingPack: null },
+        });
+    },
+
+    // Loom pack detail modal actions
+    openLoomPackDetail: (packName) => {
+        store.setState({
+            ui: { ...store.getState().ui, viewingLoomPack: packName },
+        });
+    },
+
+    closeLoomPackDetail: () => {
+        store.setState({
+            ui: { ...store.getState().ui, viewingLoomPack: null },
         });
     },
 };
