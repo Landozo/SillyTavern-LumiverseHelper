@@ -230,13 +230,17 @@ function ViewportPanel({
     // Calculate custom button position styles
     const getButtonPositionStyle = () => {
         if (useCustomPosition) {
-            // Custom position: use CSS variables for positioning (allows !important override in CSS)
+            // Custom position: fully inline styles, no CSS class involvement
+            // Using all properties to completely override any CSS
             return {
-                '--lumia-btn-top': `${buttonPosition.yPercent}%`,
-                '--lumia-btn-right': `${buttonPosition.xPercent}%`,
+                position: 'fixed',
+                top: `${buttonPosition.yPercent}%`,
+                right: `${buttonPosition.xPercent}%`,
+                bottom: 'auto',
+                left: 'auto',
+                margin: 0,
                 zIndex: 9999,
                 pointerEvents: 'auto',
-                // No transition - static position
                 display: isMobile && isVisible ? 'none' : 'block',
             };
         }

@@ -3649,12 +3649,13 @@ details.lumia-panel[open] .lumia-panel-chevron {
     pointer-events: auto;
 }
 
-/* Custom position modifier - uses CSS variables for positioning */
+/* Custom position modifier - disables default positioning, uses inline styles */
 .lumiverse-toggle-container--custom {
-    position: fixed !important;
-    top: var(--lumia-btn-top) !important;
-    right: var(--lumia-btn-right) !important;
-    margin-right: 0 !important;
+    /* Reset all positioning to allow inline styles to take effect */
+    position: fixed;
+    top: auto;
+    right: auto;
+    margin: 0;
 }
 
 .lumiverse-viewport-panel {
@@ -6886,11 +6887,10 @@ details.lumia-panel[open] .lumia-panel-chevron {
     }
 
     /* Toggle button - shift down to avoid SillyTavern's top bar */
-    .lumiverse-toggle-container {
+    /* Only apply to default positioning, not custom */
+    .lumiverse-toggle-container:not(.lumiverse-toggle-container--custom) {
         top: 44px !important;
     }
-
-    /* Custom position uses CSS variables - no override needed */
 
     /* Summary textarea - ensure proper height on mobile */
     .lumiverse-vp-summary-editor {
