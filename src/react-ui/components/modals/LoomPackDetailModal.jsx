@@ -306,7 +306,7 @@ function LoomPackDetailModal() {
     if (!viewingLoomPack || !pack) return null;
 
     // Use createPortal to render at document.body level
-    // Use lumia-modal-backdrop for consistent centering with other modals
+    // Use lumia-modal-backdrop + lumia-modal for consistent centering with other modals
     return createPortal(
         <div
             className="lumia-modal-backdrop"
@@ -315,7 +315,7 @@ function LoomPackDetailModal() {
             onMouseUp={handleModalClick}
         >
             <div
-                className="lumiverse-pack-detail-modal lumiverse-loom-detail-modal"
+                className="lumia-modal lumiverse-pack-detail-modal lumiverse-loom-detail-modal"
                 onClick={handleModalClick}
                 role="dialog"
                 aria-modal="true"

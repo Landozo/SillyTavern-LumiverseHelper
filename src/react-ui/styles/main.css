@@ -8333,23 +8333,15 @@ details.lumia-panel[open] .lumia-panel-chevron {
     to { opacity: 1; }
 }
 
-/* Modal container - matches lumia-modal centering behavior */
+/* Pack detail modal - extends lumia-modal base class */
 .lumiverse-pack-detail-modal {
-    background: var(--lumiverse-bg);
-    border: 1px solid var(--lumiverse-border);
-    border-radius: var(--lumiverse-radius-xl);
-    box-shadow: var(--lumiverse-shadow-lg);
+    /* Override base modal width for pack details */
     max-width: 650px;
-    width: 90vw;
-    max-height: 85vh;
-    max-height: 85dvh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    /* Use Lumiverse theme colors */
+    background: var(--lumiverse-bg);
+    border-color: var(--lumiverse-border);
+    /* Custom animation */
     animation: slideUp 0.2s ease-out;
-    /* Ensure proper centering in flex container */
-    margin: auto;
-    flex-shrink: 0;
 }
 
 @keyframes slideUp {
@@ -9053,12 +9045,8 @@ details.lumia-panel[open] .lumia-panel-chevron {
 /* Mobile responsive */
 @media (max-width: 600px) {
     .lumiverse-pack-detail-modal {
-        width: 94vw;
+        /* Override max-width for mobile */
         max-width: 94vw;
-        max-height: 90vh;
-        max-height: 90dvh;
-        border-radius: var(--lumiverse-radius-lg);
-        margin: auto;
     }
 
     .lumiverse-pack-detail-header {
