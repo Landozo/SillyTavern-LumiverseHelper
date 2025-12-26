@@ -1,6 +1,10 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import clsx from 'clsx';
 import { User, Package, MessageSquare, Sliders, FileText, ChevronRight, X, Sparkles, Bookmark, Users } from 'lucide-react';
+import { useLumiverseStore } from '../store/LumiverseContext';
+
+// Get store for direct access
+const store = useLumiverseStore;
 
 // Panel dimensions
 const DESKTOP_PANEL_WIDTH = 376; // 56px tabs + 320px content
@@ -184,6 +188,16 @@ function ViewportPanel({
     const [isCollapsed, setIsCollapsed] = useState(false);
     const isMobile = useIsMobile();
 
+    // Subscribe to button position settings
+    const buttonPosition = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().lumiaButtonPosition ?? { useDefault: true, xPercent: 1, yPercent: 1 },
+        () => store.getState().lumiaButtonPosition ?? { useDefault: true, xPercent: 1, yPercent: 1 }
+    );
+
+    // Determine if using custom position (disables slide-out animation)
+    const useCustomPosition = !buttonPosition.useDefault;
+
     // Calculate panel width based on viewport
     const panelWidth = isMobile ? window.innerWidth : DESKTOP_PANEL_WIDTH;
     const mainContentWidth = isMobile ? window.innerWidth - 56 : 320;
@@ -213,24 +227,43 @@ function ViewportPanel({
         summary: SummaryContent ? <SummaryContent /> : <PlaceholderContent tab="summary" />,
     }), [ProfileContent, PresetsContent, BrowserContent, OOCContent, PromptContent, CouncilContent, SummaryContent, handleTabClick]);
 
+    // Calculate custom button position styles
+    const getButtonPositionStyle = () => {
+        if (useCustomPosition) {
+            // Custom position: use percentage from edges, no animation
+            return {
+                position: 'fixed',
+                top: `${buttonPosition.yPercent}%`,
+                right: `${buttonPosition.xPercent}%`,
+                zIndex: 9999,
+                pointerEvents: 'auto',
+                // No transition - static position
+                display: isMobile && isVisible ? 'none' : 'block',
+            };
+        }
+
+        // Default position: animates with panel
+        return {
+            position: 'fixed',
+            top: 12,
+            right: isVisible
+                ? (isCollapsed ? TAB_BAR_WIDTH + 12 : panelWidth + 12)
+                : 12,
+            zIndex: 9999,
+            pointerEvents: 'auto',
+            transition: 'right 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+            display: isMobile && isVisible ? 'none' : 'block',
+        };
+    };
+
     // Use transform for smooth GPU-accelerated animation
     return (
         <>
-            {/* Toggle button - animates alongside the panel */}
+            {/* Toggle button - animates alongside panel when default position, static when custom */}
             {/* Hide toggle when panel is visible on mobile - use close button instead */}
             <div
                 className="lumiverse-toggle-container"
-                style={{
-                    position: 'fixed',
-                    top: 12,
-                    right: isVisible
-                        ? (isCollapsed ? TAB_BAR_WIDTH + 12 : panelWidth + 12)
-                        : 12,
-                    zIndex: 9999,
-                    pointerEvents: 'auto',
-                    transition: 'right 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                    display: isMobile && isVisible ? 'none' : 'block',
-                }}
+                style={getButtonPositionStyle()}
             >
                 <ToggleButton isVisible={isVisible} onClick={onToggle} />
             </div>

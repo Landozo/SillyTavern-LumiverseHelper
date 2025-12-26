@@ -74,6 +74,12 @@ const DEFAULT_SETTINGS = {
   lumiaConfigVersion: 1,
   lastLumiaChangeTimestamp: null,
   disableAnthropicCache: false,
+  // Lumia button position (percentage from edges)
+  lumiaButtonPosition: {
+    useDefault: true, // When true, use default positioning (top-right, animates with panel)
+    xPercent: 1,      // Percentage from right edge (0-100)
+    yPercent: 1,      // Percentage from top edge (0-100)
+  },
 };
 
 // Settings state - module-level singleton

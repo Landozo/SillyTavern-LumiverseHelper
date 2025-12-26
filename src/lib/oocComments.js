@@ -307,6 +307,8 @@ export function createOOCCommentBox(content, avatarImg, index = 0, memberName = 
   const isAlt = index % 2 === 1; // Alternate on odd indices
 
   switch (style) {
+    case "none":
+      return createOOCRawText(content, memberName);
     case "margin":
       return createOOCMarginNote(content, avatarImg, isAlt, memberName);
     case "whisper":
@@ -315,6 +317,28 @@ export function createOOCCommentBox(content, avatarImg, index = 0, memberName = 
     default:
       return createOOCSocialCard(content, avatarImg, memberName);
   }
+}
+
+/**
+ * Create raw text OOC display (no special formatting)
+ * Simple inline text without any wrapper styling
+ * @param {string} content - The OOC message content
+ * @param {string|null} memberName - Council member name, or null for default "Lumia"
+ */
+function createOOCRawText(content, memberName = null) {
+  const displayName = memberName || "Lumia";
+
+  // Create a simple span wrapper for the raw text
+  const container = createElement("span", {
+    attrs: {
+      class: "lumia-ooc-raw",
+      "data-lumia-ooc": "true",
+      "data-lumia-speaker": displayName,
+    },
+    html: content,
+  });
+
+  return container;
 }
 
 /**

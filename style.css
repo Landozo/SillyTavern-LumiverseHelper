@@ -2791,6 +2791,27 @@ details.lumia-panel[open] .lumia-panel-chevron {
   font-weight: 600;
 }
 
+/* ============================================
+   OOC Style 4: Raw Text (No Formatting)
+   ============================================ */
+.lumia-ooc-raw {
+  /* Minimal styling - just inherit from parent message */
+  display: inline;
+  font-style: italic;
+  color: rgba(147, 112, 219, 0.9);
+}
+
+.lumia-ooc-raw em,
+.lumia-ooc-raw i {
+  color: rgba(186, 135, 255, 0.95);
+}
+
+.lumia-ooc-raw strong,
+.lumia-ooc-raw b {
+  color: rgba(147, 112, 219, 1);
+  font-weight: 600;
+}
+
 /* Summarization Modal Styling */
 .lumia-misc-section {
   border: 1px solid rgba(128, 128, 128, 0.3);

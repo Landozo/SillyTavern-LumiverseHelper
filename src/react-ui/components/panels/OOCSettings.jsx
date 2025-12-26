@@ -1,6 +1,6 @@
 import React, { useCallback, useSyncExternalStore } from 'react';
 import clsx from 'clsx';
-import { Clock, LayoutGrid, MessageCircle, FileText, Quote } from 'lucide-react';
+import { Clock, LayoutGrid, MessageCircle, FileText, Quote, Type } from 'lucide-react';
 import { useLumiverseActions, saveToExtensionImmediate, useLumiverseStore } from '../../store/LumiverseContext';
 
 /* global LumiverseBridge */
@@ -126,6 +126,12 @@ function OOCSettings() {
     }, []);
 
     const styleOptions = [
+        {
+            id: 'none',
+            Icon: Type,
+            title: 'None',
+            description: 'Raw text with no formatting',
+        },
         {
             id: 'social',
             Icon: LayoutGrid,

@@ -93,6 +93,11 @@ const initialState = {
 
     // UI preferences
     showLumiverseDrawer: true,  // Whether to show the viewport drawer
+    lumiaButtonPosition: {
+        useDefault: true, // When true, use default positioning (top-right, animates with panel)
+        xPercent: 1,      // Percentage from right edge (0-100)
+        yPercent: 1,      // Percentage from top edge (0-100)
+    },
 
     // Chat change tracking (React-only, incremented on syncFromExtension)
     // Components can subscribe to this to reload when chat changes

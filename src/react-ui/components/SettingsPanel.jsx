@@ -726,9 +726,51 @@ function SettingsPanel() {
         () => store.getState().showLumiverseDrawer ?? true
     );
 
+    // Get button position settings from store
+    const buttonPosition = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().lumiaButtonPosition ?? { useDefault: true, xPercent: 1, yPercent: 1 },
+        () => store.getState().lumiaButtonPosition ?? { useDefault: true, xPercent: 1, yPercent: 1 }
+    );
+
     // Handle drawer toggle
     const handleDrawerToggle = useCallback((enabled) => {
         store.setState({ showLumiverseDrawer: enabled });
+        saveToExtension();
+    }, []);
+
+    // Handle button position toggle
+    const handleButtonPositionToggle = useCallback((useDefault) => {
+        store.setState({
+            lumiaButtonPosition: {
+                ...store.getState().lumiaButtonPosition,
+                useDefault,
+            }
+        });
+        saveToExtension();
+    }, []);
+
+    // Handle X position change
+    const handleXPositionChange = useCallback((value) => {
+        const xPercent = Math.max(0, Math.min(100, parseInt(value, 10) || 0));
+        store.setState({
+            lumiaButtonPosition: {
+                ...store.getState().lumiaButtonPosition,
+                xPercent,
+            }
+        });
+        saveToExtension();
+    }, []);
+
+    // Handle Y position change
+    const handleYPositionChange = useCallback((value) => {
+        const yPercent = Math.max(0, Math.min(100, parseInt(value, 10) || 0));
+        store.setState({
+            lumiaButtonPosition: {
+                ...store.getState().lumiaButtonPosition,
+                yPercent,
+            }
+        });
         saveToExtension();
     }, []);
 
@@ -754,6 +796,62 @@ function SettingsPanel() {
                     </div>
                 </label>
             </div>
+
+            {/* Button Position Settings - only show when drawer is enabled */}
+            {showDrawer && (
+                <div className="lumia-button-position-container">
+                    <label className="lumiverse-toggle-wrapper">
+                        <div className="lumiverse-toggle-text">
+                            <span className="lumiverse-toggle-label">Custom Button Position</span>
+                            <span className="lumiverse-toggle-description">
+                                Position the Lumia button anywhere on screen
+                            </span>
+                        </div>
+                        <div className={clsx('lumiverse-toggle', !buttonPosition.useDefault && 'lumiverse-toggle--on')}>
+                            <input
+                                type="checkbox"
+                                className="lumiverse-toggle-input"
+                                checked={!buttonPosition.useDefault}
+                                onChange={(e) => handleButtonPositionToggle(!e.target.checked)}
+                            />
+                            <span className="lumiverse-toggle-slider"></span>
+                        </div>
+                    </label>
+
+                    {/* Position inputs - only show when custom position is enabled */}
+                    {!buttonPosition.useDefault && (
+                        <div className="lumia-button-position-inputs">
+                            <div className="lumia-position-field">
+                                <label htmlFor="lumia-btn-x">X (% from right)</label>
+                                <input
+                                    type="number"
+                                    id="lumia-btn-x"
+                                    className="lumia-input lumia-input-sm"
+                                    value={buttonPosition.xPercent}
+                                    onChange={(e) => handleXPositionChange(e.target.value)}
+                                    min="0"
+                                    max="100"
+                                />
+                            </div>
+                            <div className="lumia-position-field">
+                                <label htmlFor="lumia-btn-y">Y (% from top)</label>
+                                <input
+                                    type="number"
+                                    id="lumia-btn-y"
+                                    className="lumia-input lumia-input-sm"
+                                    value={buttonPosition.yPercent}
+                                    onChange={(e) => handleYPositionChange(e.target.value)}
+                                    min="0"
+                                    max="100"
+                                />
+                            </div>
+                            <span className="lumia-position-hint">
+                                Slide-out animation is disabled with custom positioning
+                            </span>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* World Book Source Section */}
             <Panel title="World Book Source" icon={Icons.book}>
