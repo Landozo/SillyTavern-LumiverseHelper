@@ -6,6 +6,25 @@ import App from './App';
 import ViewportApp from './components/ViewportApp';
 import './styles/main.css';
 
+// Check for React conflicts early (helps debug Error #158)
+function checkReactConflicts() {
+    if (typeof window !== 'undefined' && window.React && window.React !== React) {
+        console.warn(
+            '[LumiverseUI] Warning: Multiple React instances detected. ' +
+            'This may cause "Invalid hook call" errors (Error #158). ' +
+            'The extension bundles its own React to ensure compatibility.'
+        );
+        return true;
+    }
+    return false;
+}
+
+// Run conflict check immediately
+const hasReactConflict = checkReactConflicts();
+
+// Determine if we're in development mode for StrictMode wrapper
+const isDev = process.env.NODE_ENV === 'development';
+
 // Store references to mounted React roots for cleanup
 const mountedRoots = new Map();
 
@@ -70,12 +89,14 @@ function mountSettingsPanel(containerId = 'lumiverse-settings-root', settings = 
     container.appendChild(drawerWrapper);
 
     const root = ReactDOM.createRoot(rootElement);
+    // Use StrictMode only in development to avoid double-rendering issues in production
+    const Wrapper = isDev ? React.StrictMode : React.Fragment;
     root.render(
-        <React.StrictMode>
+        <Wrapper>
             <LumiverseProvider initialSettings={initialExtensionSettings}>
                 <App />
             </LumiverseProvider>
-        </React.StrictMode>
+        </Wrapper>
     );
 
     // Store reference to the outer wrapper for cleanup
@@ -107,12 +128,14 @@ function mountComponent(Component, container, props = {}, id = null) {
     container.appendChild(rootElement);
 
     const root = ReactDOM.createRoot(rootElement);
+    // Use StrictMode only in development to avoid double-rendering issues in production
+    const Wrapper = isDev ? React.StrictMode : React.Fragment;
     root.render(
-        <React.StrictMode>
+        <Wrapper>
             <LumiverseProvider>
                 <Component {...props} />
             </LumiverseProvider>
-        </React.StrictMode>
+        </Wrapper>
     );
 
     mountedRoots.set(mountId, { root, element: rootElement });
@@ -245,12 +268,14 @@ function mountViewportPanel(settings = null) {
     document.body.appendChild(rootElement);
 
     const root = ReactDOM.createRoot(rootElement);
+    // Use StrictMode only in development to avoid double-rendering issues in production
+    const Wrapper = isDev ? React.StrictMode : React.Fragment;
     root.render(
-        <React.StrictMode>
+        <Wrapper>
             <LumiverseProvider initialSettings={settings}>
                 <ViewportApp />
             </LumiverseProvider>
-        </React.StrictMode>
+        </Wrapper>
     );
 
     mountedRoots.set(mountId, { root, element: rootElement });
