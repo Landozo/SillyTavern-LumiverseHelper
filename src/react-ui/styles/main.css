@@ -5620,6 +5620,8 @@ details.lumia-panel[open] .lumia-panel-chevron {
 .lumiverse-vp-summary-textarea-wrapper {
     flex: 1;
     min-height: 200px;
+    margin-bottom: 4px;
+    overflow: hidden;
 }
 
 .lumiverse-vp-summary-textarea {
@@ -5656,6 +5658,8 @@ details.lumia-panel[open] .lumia-panel-chevron {
     display: flex;
     gap: 10px;
     justify-content: center;
+    margin-top: 12px;
+    padding-top: 4px;
 }
 
 .lumiverse-vp-action-btn {
@@ -5664,6 +5668,7 @@ details.lumia-panel[open] .lumia-panel-chevron {
     justify-content: center;
     gap: 6px;
     padding: 8px 12px;
+    min-height: 36px;
     border: none;
     border-radius: 6px;
     font-size: 12px;
