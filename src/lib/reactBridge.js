@@ -42,6 +42,9 @@ const extensionCallbacks = {
 
   // OOC comment processing
   refreshOOCComments: null,
+
+  // Summary generation
+  generateSummary: null,
 };
 
 /**

@@ -485,6 +485,200 @@ details.lumia-panel[open] .lumia-panel-chevron {
     color: white;
 }
 
+/* ----------------------------------------
+   Quick Actions Section
+   ---------------------------------------- */
+.lumia-quick-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.lumia-quick-action-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.lumia-quick-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(30, 30, 46, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    color: var(--lumiverse-text-secondary);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    font-family: inherit;
+}
+
+.lumia-quick-action-btn:hover:not(:disabled) {
+    background: rgba(30, 30, 46, 0.8);
+    border-color: rgba(147, 112, 219, 0.3);
+    color: var(--lumiverse-text-primary);
+}
+
+.lumia-quick-action-btn--council {
+    flex-shrink: 0;
+}
+
+.lumia-quick-action-btn--disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.lumia-quick-action-btn--primary {
+    background: rgba(147, 112, 219, 0.15);
+    border-color: rgba(147, 112, 219, 0.3);
+    color: var(--lumiverse-primary);
+    padding: 8px 10px;
+}
+
+.lumia-quick-action-btn--primary:hover:not(:disabled) {
+    background: rgba(147, 112, 219, 0.25);
+    border-color: rgba(147, 112, 219, 0.5);
+}
+
+.lumia-quick-action-btn--active {
+    background: rgba(147, 112, 219, 0.1);
+    border-color: rgba(147, 112, 219, 0.3);
+    color: var(--lumiverse-primary);
+}
+
+.lumia-quick-action-text {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lumia-quick-action-chevron {
+    transition: transform 0.15s ease;
+    flex-shrink: 0;
+}
+
+.lumia-quick-action-chevron--open {
+    transform: rotate(180deg);
+}
+
+/* Dropdown */
+.lumia-quick-action-dropdown-wrapper {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+.lumia-quick-action-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    min-width: 140px;
+    background: rgba(25, 25, 35, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    z-index: 100;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.lumia-quick-action-dropdown-empty {
+    padding: 12px;
+    text-align: center;
+    color: var(--lumiverse-text-muted);
+    font-size: 11px;
+}
+
+.lumia-quick-action-dropdown-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 12px;
+    background: transparent;
+    border: none;
+    color: var(--lumiverse-text-secondary);
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.1s ease;
+    font-family: inherit;
+}
+
+.lumia-quick-action-dropdown-item:hover {
+    background: rgba(147, 112, 219, 0.1);
+    color: var(--lumiverse-text-primary);
+}
+
+.lumia-quick-action-dropdown-item--active {
+    background: rgba(147, 112, 219, 0.15);
+    color: var(--lumiverse-primary);
+}
+
+.lumia-quick-action-dropdown-item svg {
+    flex-shrink: 0;
+}
+
+/* Form */
+.lumia-quick-action-form {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.lumia-quick-action-input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 10px;
+    background: rgba(30, 30, 46, 0.8);
+    border: 1px solid rgba(147, 112, 219, 0.3);
+    border-radius: 6px;
+    color: var(--lumiverse-text-primary);
+    font-size: 12px;
+    font-family: inherit;
+}
+
+.lumia-quick-action-input:focus {
+    outline: none;
+    border-color: rgba(147, 112, 219, 0.6);
+}
+
+.lumia-quick-action-input::placeholder {
+    color: var(--lumiverse-text-muted);
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+    .lumia-quick-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .lumia-quick-action-btn--council {
+        width: 100%;
+    }
+
+    .lumia-quick-action-group {
+        width: 100%;
+    }
+
+    .lumia-quick-action-text {
+        max-width: none;
+    }
+}
+
 /* Clear All Button */
 .lumia-clear-all-btn {
     display: inline-flex;
@@ -4464,6 +4658,9 @@ details.lumia-panel[open] .lumia-panel-chevron {
     display: flex;
     align-items: center;
     gap: 6px;
+    min-width: 0;
+    flex: 1;
+    max-width: 220px;
 }
 
 .lumiverse-preset-input {
@@ -4474,7 +4671,26 @@ details.lumia-panel[open] .lumia-panel-chevron {
     border-radius: 6px;
     color: var(--lumiverse-text-primary);
     font-size: 12px;
-    min-width: 120px;
+    min-width: 0;
+    width: 100%;
+}
+
+/* Responsive: preset form on small screens */
+@media (max-width: 380px) {
+    .lumiverse-preset-header {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .lumiverse-preset-create-form {
+        width: 100%;
+        max-width: none;
+        order: 1;
+    }
+
+    .lumiverse-preset-title {
+        flex: 1;
+    }
 }
 
 .lumiverse-preset-input:focus {

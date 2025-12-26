@@ -393,6 +393,10 @@ jQuery(async () => {
   registerReactCallback("refreshOOCComments", (clearExisting = true) => {
     processAllLumiaOOCComments(clearExisting);
   });
+  registerReactCallback("generateSummary", async () => {
+    // Generate summary with manual trigger and visual feedback
+    return await generateLoomSummary(null, true, true);
+  });
 
   // Initialize React UI (bundled together, should be available immediately)
   console.log(`[${MODULE_NAME}] About to initialize React UI...`);

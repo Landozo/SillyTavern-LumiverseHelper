@@ -587,14 +587,11 @@ function SummaryTextEditor() {
         }
     }, []);
 
-    // Load on mount and set up refresh interval
+    // Load on mount only - no periodic refresh to avoid overwriting edits
     useEffect(() => {
         loadSummary();
-
-        // Refresh periodically to catch external changes
-        const interval = setInterval(loadSummary, 5000);
-        return () => clearInterval(interval);
-    }, [loadSummary]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Only run on mount, not on loadSummary changes
 
     // Handle text changes
     const handleTextChange = useCallback((e) => {

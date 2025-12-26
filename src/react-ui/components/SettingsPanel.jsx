@@ -5,7 +5,7 @@ import { exportPackAsWorldBook } from './modals/PackEditorModal';
 import { CollapsibleContent } from './Collapsible';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
-import { Eye, Sparkles, Wrench, Layers, Trash2, Users } from 'lucide-react';
+import { Eye, Sparkles, Wrench, Layers, Trash2, Users, Bookmark, Plus, ChevronDown, Check, X } from 'lucide-react';
 
 /* global LumiverseBridge, toastr */
 
@@ -358,6 +358,206 @@ function MacroItem({ code, description }) {
 }
 
 /**
+ * Quick Actions Section - combines Council Config and Preset Management
+ * Provides compact controls for frequently-used actions
+ */
+function QuickActionsSection({ councilMode, councilMembers, onOpenCouncil, actions }) {
+    const [isCreating, setIsCreating] = useState(false);
+    const [newPresetName, setNewPresetName] = useState('');
+    const [showPresetDropdown, setShowPresetDropdown] = useState(false);
+
+    // Subscribe to presets and activePresetName
+    const presets = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().presets || {},
+        () => store.getState().presets || {}
+    );
+    const activePresetName = useSyncExternalStore(
+        store.subscribe,
+        () => store.getState().activePresetName,
+        () => store.getState().activePresetName
+    );
+
+    const presetList = useMemo(() => {
+        return Object.values(presets).sort((a, b) => {
+            const timeA = a.updatedAt || a.createdAt || 0;
+            const timeB = b.updatedAt || b.createdAt || 0;
+            return timeB - timeA;
+        });
+    }, [presets]);
+
+    const handleSavePreset = useCallback(() => {
+        const trimmedName = newPresetName.trim();
+        if (!trimmedName) return;
+        if (presets[trimmedName]) {
+            if (typeof toastr !== 'undefined') {
+                toastr.warning(`Preset "${trimmedName}" already exists`);
+            }
+            return;
+        }
+        actions.savePreset(trimmedName);
+        saveToExtension();
+        setNewPresetName('');
+        setIsCreating(false);
+        if (typeof toastr !== 'undefined') {
+            toastr.success(`Preset "${trimmedName}" saved`);
+        }
+    }, [newPresetName, presets, actions]);
+
+    const handleLoadPreset = useCallback((presetName) => {
+        actions.loadPreset(presetName);
+        saveToExtension();
+        setShowPresetDropdown(false);
+        if (typeof toastr !== 'undefined') {
+            toastr.info(`Loaded preset "${presetName}"`);
+        }
+    }, [actions]);
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') handleSavePreset();
+        if (e.key === 'Escape') {
+            setIsCreating(false);
+            setNewPresetName('');
+        }
+    };
+
+    return (
+        <div className="lumia-quick-actions">
+            {/* Council Config Button - always visible, disabled when council mode is off */}
+            <button
+                className={clsx(
+                    'lumia-quick-action-btn',
+                    'lumia-quick-action-btn--council',
+                    !councilMode && 'lumia-quick-action-btn--disabled'
+                )}
+                onClick={councilMode ? onOpenCouncil : undefined}
+                disabled={!councilMode}
+                type="button"
+                title={councilMode ? 'Configure council members' : 'Enable Council Mode first'}
+            >
+                <Users size={14} strokeWidth={1.5} />
+                <span className="lumia-quick-action-text">
+                    {councilMode
+                        ? (councilMembers.length > 0
+                            ? `${councilMembers.length} member${councilMembers.length !== 1 ? 's' : ''}`
+                            : 'Configure')
+                        : 'Council'}
+                </span>
+            </button>
+
+            {/* Preset Management */}
+            <div className="lumia-quick-action-group">
+                {!isCreating ? (
+                    <>
+                        {/* New Preset Button */}
+                        <button
+                            className="lumia-quick-action-btn lumia-quick-action-btn--primary"
+                            onClick={() => setIsCreating(true)}
+                            title="Save current configuration as preset"
+                            type="button"
+                        >
+                            <Plus size={14} strokeWidth={2} />
+                        </button>
+
+                        {/* Preset Dropdown */}
+                        <div className="lumia-quick-action-dropdown-wrapper">
+                            <button
+                                className={clsx(
+                                    'lumia-quick-action-btn',
+                                    activePresetName && 'lumia-quick-action-btn--active'
+                                )}
+                                onClick={() => setShowPresetDropdown(!showPresetDropdown)}
+                                title={activePresetName ? `Active: ${activePresetName}` : 'Load preset'}
+                                type="button"
+                            >
+                                <Bookmark size={14} strokeWidth={1.5} />
+                                <span className="lumia-quick-action-text">
+                                    {activePresetName || 'Presets'}
+                                </span>
+                                <ChevronDown
+                                    size={12}
+                                    strokeWidth={2}
+                                    className={clsx('lumia-quick-action-chevron', showPresetDropdown && 'lumia-quick-action-chevron--open')}
+                                />
+                            </button>
+
+                            {/* Dropdown Menu */}
+                            <AnimatePresence>
+                                {showPresetDropdown && (
+                                    <motion.div
+                                        className="lumia-quick-action-dropdown"
+                                        initial={{ opacity: 0, y: -8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -8 }}
+                                        transition={{ duration: 0.15 }}
+                                    >
+                                        {presetList.length === 0 ? (
+                                            <div className="lumia-quick-action-dropdown-empty">
+                                                No presets saved
+                                            </div>
+                                        ) : (
+                                            presetList.map((preset) => (
+                                                <button
+                                                    key={preset.name}
+                                                    className={clsx(
+                                                        'lumia-quick-action-dropdown-item',
+                                                        activePresetName === preset.name && 'lumia-quick-action-dropdown-item--active'
+                                                    )}
+                                                    onClick={() => handleLoadPreset(preset.name)}
+                                                    type="button"
+                                                >
+                                                    <span>{preset.name}</span>
+                                                    {activePresetName === preset.name && (
+                                                        <Check size={12} strokeWidth={2} />
+                                                    )}
+                                                </button>
+                                            ))
+                                        )}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </>
+                ) : (
+                    /* Create New Preset Form */
+                    <div className="lumia-quick-action-form">
+                        <input
+                            type="text"
+                            className="lumia-quick-action-input"
+                            placeholder="Preset name..."
+                            value={newPresetName}
+                            onChange={(e) => setNewPresetName(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            autoFocus
+                        />
+                        <button
+                            className="lumia-quick-action-btn lumia-quick-action-btn--primary"
+                            onClick={handleSavePreset}
+                            disabled={!newPresetName.trim()}
+                            type="button"
+                            title="Save preset"
+                        >
+                            <Check size={14} strokeWidth={2} />
+                        </button>
+                        <button
+                            className="lumia-quick-action-btn"
+                            onClick={() => {
+                                setIsCreating(false);
+                                setNewPresetName('');
+                            }}
+                            type="button"
+                            title="Cancel"
+                        >
+                            <X size={14} strokeWidth={2} />
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+/**
  * Main Settings Panel component - matching old HTML structure exactly
  */
 function SettingsPanel() {
@@ -647,22 +847,13 @@ function SettingsPanel() {
                     />
                 </div>
 
-                {/* Council Mode Active Notice / Configure Button */}
-                {councilMode && (
-                    <button
-                        className="lumia-council-config-btn"
-                        onClick={() => actions.openModal('councilSelect')}
-                        type="button"
-                    >
-                        <Users size={16} strokeWidth={1.5} />
-                        <span className="lumia-council-config-text">
-                            {councilMembers.length > 0
-                                ? `${councilMembers.length} council member${councilMembers.length !== 1 ? 's' : ''}`
-                                : 'Configure council members'}
-                        </span>
-                        <span className="lumia-council-config-action">Configure</span>
-                    </button>
-                )}
+                {/* Quick Actions: Council Config + Preset Management */}
+                <QuickActionsSection
+                    councilMode={councilMode}
+                    councilMembers={councilMembers}
+                    onOpenCouncil={() => actions.openModal('councilSelect')}
+                    actions={actions}
+                />
 
                 <div className={clsx('lumia-selector-group', isCouncilActive && 'lumia-selector-group--disabled')}>
                     <SelectionButton
