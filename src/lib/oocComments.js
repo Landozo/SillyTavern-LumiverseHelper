@@ -127,16 +127,17 @@ function sanitizeLumiaName(name) {
   // Trim whitespace
   let sanitized = name.trim();
 
-  // Remove "Lumia" prefix (case insensitive) if present
-  // Handles: "Lumia Serena", "lumia serena", "LUMIA Serena", etc.
-  sanitized = sanitized.replace(/^lumia\s+/i, "");
+  // Remove "Lumia" or "Lumio" prefix (case insensitive) if present
+  // Handles: "Lumia Serena", "Lumio Marcus", "lumia serena", etc.
+  sanitized = sanitized.replace(/^lumi[ao]\s+/i, "");
 
-  // Also handle if someone wrote it as "LumiaSerena" (no space)
-  if (sanitized.toLowerCase().startsWith("lumia") && sanitized.length > 5) {
-    // Check if it looks like "LumiaSomething" (camelCase)
-    const afterLumia = sanitized.substring(5);
-    if (afterLumia[0] === afterLumia[0].toUpperCase()) {
-      sanitized = afterLumia;
+  // Also handle if someone wrote it as "LumiaSerena" or "LumioMarcus" (no space)
+  const lowerSanitized = sanitized.toLowerCase();
+  if ((lowerSanitized.startsWith("lumia") || lowerSanitized.startsWith("lumio")) && sanitized.length > 5) {
+    // Check if it looks like "LumiaSomething" or "LumioSomething" (camelCase)
+    const afterPrefix = sanitized.substring(5);
+    if (afterPrefix[0] === afterPrefix[0].toUpperCase()) {
+      sanitized = afterPrefix;
     }
   }
 
