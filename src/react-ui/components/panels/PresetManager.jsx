@@ -3,6 +3,16 @@ import clsx from 'clsx';
 import { Bookmark, Trash2, RefreshCw, Plus, Check, X, Clock, FileText, Zap, Heart, Users } from 'lucide-react';
 import { useLumiverseStore, useLumiverseActions, saveToExtension } from '../../store/LumiverseContext';
 
+// Get store for direct state access
+const store = useLumiverseStore;
+
+// Stable fallback constants for useSyncExternalStore
+const EMPTY_OBJECT = {};
+
+// Stable selector functions
+const selectPresets = () => store.getState().presets || EMPTY_OBJECT;
+const selectActivePresetName = () => store.getState().activePresetName;
+
 /**
  * Format a timestamp to a relative time string
  */
@@ -176,7 +186,6 @@ function EmptyState() {
  * Main Preset Manager component
  */
 function PresetManager() {
-    const store = useLumiverseStore;
     const actions = useLumiverseActions();
     const [newPresetName, setNewPresetName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
@@ -184,14 +193,14 @@ function PresetManager() {
     // Subscribe to presets and activePresetName
     const presets = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().presets || {},
-        () => store.getState().presets || {}
+        selectPresets,
+        selectPresets
     );
 
     const activePresetName = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().activePresetName,
-        () => store.getState().activePresetName
+        selectActivePresetName,
+        selectActivePresetName
     );
 
     // Convert presets object to sorted array

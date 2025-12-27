@@ -7,6 +7,16 @@ import { User, FileText, Zap, Heart, Sparkles, Star, X, Layers, Users, ArrowRigh
 // Get store for direct state access
 const store = useLumiverseStore;
 
+// Stable fallback constants for useSyncExternalStore
+const EMPTY_ARRAY = [];
+
+// Stable selector functions
+const selectChatChangeCounter = () => store.getState().chatChangeCounter || 0;
+const selectChimeraMode = () => store.getState().chimeraMode || false;
+const selectSelectedDefinitions = () => store.getState().selectedDefinitions || EMPTY_ARRAY;
+const selectCouncilMode = () => store.getState().councilMode || false;
+const selectCouncilMembers = () => store.getState().councilMembers || EMPTY_ARRAY;
+
 /* global SillyTavern */
 
 /**
@@ -34,7 +44,7 @@ function useCurrentCharacter() {
     // Subscribe to chat change counter to force re-render when chat changes
     const chatChangeCounter = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().chatChangeCounter || 0,
+        selectChatChangeCounter,
         () => 0
     );
 
@@ -285,25 +295,25 @@ function CharacterProfile({ onTabChange }) {
     // Subscribe to Chimera mode state
     const chimeraMode = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().chimeraMode || false,
-        () => store.getState().chimeraMode || false
+        selectChimeraMode,
+        selectChimeraMode
     );
     const selectedDefinitions = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().selectedDefinitions || [],
-        () => store.getState().selectedDefinitions || []
+        selectSelectedDefinitions,
+        selectSelectedDefinitions
     );
 
     // Subscribe to Council mode state
     const councilMode = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().councilMode || false,
-        () => store.getState().councilMode || false
+        selectCouncilMode,
+        selectCouncilMode
     );
     const councilMembers = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().councilMembers || [],
-        () => store.getState().councilMembers || []
+        selectCouncilMembers,
+        selectCouncilMembers
     );
 
     // Check if council mode is active with members

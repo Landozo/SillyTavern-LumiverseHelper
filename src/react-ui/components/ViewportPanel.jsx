@@ -6,6 +6,12 @@ import { useLumiverseStore } from '../store/LumiverseContext';
 // Get store for direct access
 const store = useLumiverseStore;
 
+// Stable fallback constants for useSyncExternalStore
+const DEFAULT_BUTTON_POSITION = { useDefault: true, xPercent: 1, yPercent: 1 };
+
+// Stable selector functions
+const selectButtonPosition = () => store.getState().lumiaButtonPosition ?? DEFAULT_BUTTON_POSITION;
+
 // Panel dimensions
 const DESKTOP_PANEL_WIDTH = 376; // 56px tabs + 320px content
 const TAB_BAR_WIDTH = 56;
@@ -193,8 +199,8 @@ function ViewportPanel({
     // Subscribe to button position settings
     const buttonPosition = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().lumiaButtonPosition ?? { useDefault: true, xPercent: 1, yPercent: 1 },
-        () => store.getState().lumiaButtonPosition ?? { useDefault: true, xPercent: 1, yPercent: 1 }
+        selectButtonPosition,
+        selectButtonPosition
     );
 
     // Determine if using custom position (disables slide-out animation)

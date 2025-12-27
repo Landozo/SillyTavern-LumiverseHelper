@@ -12,6 +12,23 @@ import { Eye, Sparkles, Wrench, Layers, Trash2, Users, Bookmark, Plus, ChevronDo
 // Get the store for direct access
 const store = useLumiverseStore;
 
+// Stable fallback constants for useSyncExternalStore
+// CRITICAL: These must be defined outside components to prevent infinite loops
+// Using inline `|| []` or `|| {}` creates new references each render
+const EMPTY_ARRAY = [];
+const EMPTY_OBJECT = {};
+const DEFAULT_BUTTON_POSITION = { useDefault: true, xPercent: 1, yPercent: 1 };
+
+// Stable selector functions for useSyncExternalStore
+const selectPresets = () => store.getState().presets || EMPTY_OBJECT;
+const selectActivePresetName = () => store.getState().activePresetName;
+const selectChimeraMode = () => store.getState().chimeraMode || false;
+const selectCouncilMode = () => store.getState().councilMode || false;
+const selectCouncilMembers = () => store.getState().councilMembers || EMPTY_ARRAY;
+const selectSelectedDefinitions = () => store.getState().selectedDefinitions || EMPTY_ARRAY;
+const selectShowDrawer = () => store.getState().showLumiverseDrawer ?? true;
+const selectButtonPosition = () => store.getState().lumiaButtonPosition ?? DEFAULT_BUTTON_POSITION;
+
 /**
  * SVG Icons for mode toggles
  */
@@ -369,13 +386,13 @@ function QuickActionsSection({ councilMode, councilMembers, onOpenCouncil, actio
     // Subscribe to presets and activePresetName
     const presets = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().presets || {},
-        () => store.getState().presets || {}
+        selectPresets,
+        selectPresets
     );
     const activePresetName = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().activePresetName,
-        () => store.getState().activePresetName
+        selectActivePresetName,
+        selectActivePresetName
     );
 
     const presetList = useMemo(() => {
@@ -587,23 +604,23 @@ function SettingsPanel() {
     // Subscribe to Chimera and Council mode state
     const chimeraMode = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().chimeraMode || false,
-        () => store.getState().chimeraMode || false
+        selectChimeraMode,
+        selectChimeraMode
     );
     const councilMode = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().councilMode || false,
-        () => store.getState().councilMode || false
+        selectCouncilMode,
+        selectCouncilMode
     );
     const councilMembers = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().councilMembers || [],
-        () => store.getState().councilMembers || []
+        selectCouncilMembers,
+        selectCouncilMembers
     );
     const selectedDefinitions = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().selectedDefinitions || [],
-        () => store.getState().selectedDefinitions || []
+        selectSelectedDefinitions,
+        selectSelectedDefinitions
     );
 
     // Check if council mode is active with members
@@ -735,15 +752,15 @@ function SettingsPanel() {
     // Get drawer visibility setting from store
     const showDrawer = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().showLumiverseDrawer ?? true,
-        () => store.getState().showLumiverseDrawer ?? true
+        selectShowDrawer,
+        selectShowDrawer
     );
 
     // Get button position settings from store
     const buttonPosition = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().lumiaButtonPosition ?? { useDefault: true, xPercent: 1, yPercent: 1 },
-        () => store.getState().lumiaButtonPosition ?? { useDefault: true, xPercent: 1, yPercent: 1 }
+        selectButtonPosition,
+        selectButtonPosition
     );
 
     // Handle drawer toggle

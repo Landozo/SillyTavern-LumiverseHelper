@@ -12,6 +12,13 @@ import clsx from 'clsx';
 // Get store for direct state access
 const store = useLumiverseStore;
 
+// Stable fallback constants for useSyncExternalStore
+const EMPTY_ARRAY = [];
+
+// Stable selector functions
+const selectChimeraMode = () => store.getState().chimeraMode || false;
+const selectSelectedDefinitions = () => store.getState().selectedDefinitions || EMPTY_ARRAY;
+
 // SVG icons matching the old design exactly
 const SVG_ICONS = {
     star: `<svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>`,
@@ -383,13 +390,13 @@ function SelectionModal({
     // Subscribe to Chimera mode for multi-select definitions
     const chimeraMode = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().chimeraMode || false,
-        () => store.getState().chimeraMode || false
+        selectChimeraMode,
+        selectChimeraMode
     );
     const selectedDefinitions = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().selectedDefinitions || [],
-        () => store.getState().selectedDefinitions || []
+        selectSelectedDefinitions,
+        selectSelectedDefinitions
     );
 
     const config = getModalConfig(type, chimeraMode);

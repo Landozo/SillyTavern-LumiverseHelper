@@ -967,10 +967,14 @@ const selectDefinition = () => store.getState().selectedDefinition;
 const selectDominantBehavior = () => store.getState().dominantBehavior;
 const selectDominantPersonality = () => store.getState().dominantPersonality;
 
+// Stable empty array fallback (must be same reference to prevent infinite loops)
+const EMPTY_ARRAY = [];
+
 // Stable selectors for useLoomSelections hook
-const selectLoomStyles = () => store.getState().selectedLoomStyle || [];
-const selectLoomUtils = () => store.getState().selectedLoomUtils || [];
-const selectLoomRetrofits = () => store.getState().selectedLoomRetrofits || [];
+// CRITICAL: Return EMPTY_ARRAY constant, not a new [] literal, to prevent useSyncExternalStore infinite loops
+const selectLoomStyles = () => store.getState().selectedLoomStyle || EMPTY_ARRAY;
+const selectLoomUtils = () => store.getState().selectedLoomUtils || EMPTY_ARRAY;
+const selectLoomRetrofits = () => store.getState().selectedLoomRetrofits || EMPTY_ARRAY;
 
 // Stable selector for usePacks hook
 const selectPacks = () => store.getState().packs;

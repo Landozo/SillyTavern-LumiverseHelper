@@ -12,6 +12,12 @@ import { useAdaptiveImagePosition } from '../../hooks/useAdaptiveImagePosition';
 // Get store for direct state access
 const store = useLumiverseStore;
 
+// Stable fallback constants for useSyncExternalStore
+const EMPTY_ARRAY = [];
+
+// Stable selector functions
+const selectCouncilMembers = () => store.getState().councilMembers || EMPTY_ARRAY;
+
 /**
  * Get display name for a Lumia item from pack data
  */
@@ -248,8 +254,8 @@ function CouncilSelectModal({ onClose }) {
     // Subscribe to council state
     const councilMembers = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().councilMembers || [],
-        () => store.getState().councilMembers || []
+        selectCouncilMembers,
+        selectCouncilMembers
     );
 
     // Build packs object for lookups

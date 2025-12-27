@@ -13,6 +13,15 @@ import { motion, AnimatePresence } from 'motion/react';
 // Get the store for direct access
 const store = useLumiverseStore;
 
+// Stable fallback constants for useSyncExternalStore
+const EMPTY_OBJECT = {};
+const DEFAULT_TRUNCATION = { enabled: false, keepCount: 50 };
+
+// Stable selector functions
+const selectSummarization = () => store.getState().summarization || EMPTY_OBJECT;
+const selectMessageTruncation = () => store.getState().messageTruncation || DEFAULT_TRUNCATION;
+const selectChatChangeCounter = () => store.getState().chatChangeCounter || 0;
+
 const LOOM_SUMMARY_KEY = 'loom_summary';
 
 const PLACEHOLDER_TEXT = `Write or paste your Loom summary here...
@@ -263,13 +272,13 @@ function SummarizationConfig() {
     // Get summarization settings from store
     const summarization = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().summarization || {},
-        () => store.getState().summarization || {}
+        selectSummarization,
+        selectSummarization
     );
     const messageTruncation = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().messageTruncation || { enabled: false, keepCount: 50 },
-        () => store.getState().messageTruncation || { enabled: false, keepCount: 50 }
+        selectMessageTruncation,
+        selectMessageTruncation
     );
 
     const mode = summarization.mode || 'disabled';
@@ -560,7 +569,7 @@ function SummaryTextEditor() {
     // Subscribe to chat change counter to reload when chat changes
     const chatChangeCounter = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().chatChangeCounter || 0,
+        selectChatChangeCounter,
         () => 0
     );
 

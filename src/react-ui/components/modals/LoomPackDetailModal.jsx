@@ -9,6 +9,13 @@ import { useLumiverseStore, useLumiverseActions, useLoomSelections, saveToExtens
 // Get store for direct access
 const store = useLumiverseStore;
 
+// Stable fallback constants for useSyncExternalStore
+const EMPTY_OBJECT = {};
+
+// Stable selector functions
+const selectViewingLoomPack = () => store.getState().ui?.viewingLoomPack;
+const selectPacks = () => store.getState().packs || EMPTY_OBJECT;
+
 /**
  * Loom category configuration
  */
@@ -233,14 +240,14 @@ function LoomPackDetailModal() {
     // Subscribe to viewingLoomPack and packs
     const viewingLoomPack = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().ui?.viewingLoomPack,
-        () => store.getState().ui?.viewingLoomPack
+        selectViewingLoomPack,
+        selectViewingLoomPack
     );
 
     const packs = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().packs || {},
-        () => store.getState().packs || {}
+        selectPacks,
+        selectPacks
     );
 
     // Get the pack data

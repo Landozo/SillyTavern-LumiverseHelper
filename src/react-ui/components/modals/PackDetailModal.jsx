@@ -10,6 +10,13 @@ import { useAdaptiveImagePosition } from '../../hooks/useAdaptiveImagePosition';
 // Get store for direct access
 const store = useLumiverseStore;
 
+// Stable fallback constants for useSyncExternalStore
+const EMPTY_OBJECT = {};
+
+// Stable selector functions
+const selectViewingPack = () => store.getState().ui?.viewingPack;
+const selectPacks = () => store.getState().packs || EMPTY_OBJECT;
+
 /**
  * Truncate text to a maximum length with ellipsis
  */
@@ -231,14 +238,14 @@ function PackDetailModal() {
     // Subscribe to viewingPack and packs
     const viewingPack = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().ui?.viewingPack,
-        () => store.getState().ui?.viewingPack
+        selectViewingPack,
+        selectViewingPack
     );
 
     const packs = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().packs || {},
-        () => store.getState().packs || {}
+        selectPacks,
+        selectPacks
     );
 
     // Get the pack data

@@ -6,6 +6,13 @@ import { useLumiverseStore, useLumiverseActions, usePacks, saveToExtension } fro
 // Get store for direct state access
 const store = useLumiverseStore;
 
+// Stable fallback constants for useSyncExternalStore
+const EMPTY_ARRAY = [];
+
+// Stable selector functions
+const selectCouncilMode = () => store.getState().councilMode || false;
+const selectCouncilMembers = () => store.getState().councilMembers || EMPTY_ARRAY;
+
 /**
  * Get display name for a Lumia item from pack data
  */
@@ -321,13 +328,13 @@ function CouncilManager() {
     // Subscribe to council state
     const councilMode = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().councilMode || false,
-        () => store.getState().councilMode || false
+        selectCouncilMode,
+        selectCouncilMode
     );
     const councilMembers = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().councilMembers || [],
-        () => store.getState().councilMembers || []
+        selectCouncilMembers,
+        selectCouncilMembers
     );
 
     const handleAddMember = useCallback((member) => {

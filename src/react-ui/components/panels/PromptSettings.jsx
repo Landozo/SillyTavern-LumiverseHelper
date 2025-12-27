@@ -7,6 +7,18 @@ import { useLumiverseStore, useLumiverseActions, saveToExtension } from '../../s
 // Get the store for direct access (old code uses root-level settings)
 const store = useLumiverseStore;
 
+// Stable fallback constants for useSyncExternalStore
+const EMPTY_OBJECT = {};
+const DEFAULT_SOVEREIGN_HAND = { enabled: false, excludeLastMessage: true, includeMessageInPrompt: true };
+
+// Stable selector functions
+const selectSovereignHand = () => store.getState().sovereignHand || DEFAULT_SOVEREIGN_HAND;
+const selectContextFilters = () => store.getState().contextFilters || EMPTY_OBJECT;
+const selectChimeraMode = () => store.getState().chimeraMode || false;
+const selectCouncilMode = () => store.getState().councilMode || false;
+const selectSelectedDefinitionsCount = () => store.getState().selectedDefinitions?.length || 0;
+const selectCouncilMembersCount = () => store.getState().councilMembers?.length || 0;
+
 /**
  * Toggle switch component
  */
@@ -163,35 +175,35 @@ function PromptSettings() {
     // Get settings directly from store (old code uses root-level fields)
     const sovereignHand = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().sovereignHand || { enabled: false, excludeLastMessage: true, includeMessageInPrompt: true },
-        () => store.getState().sovereignHand || { enabled: false, excludeLastMessage: true, includeMessageInPrompt: true }
+        selectSovereignHand,
+        selectSovereignHand
     );
     const contextFilters = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().contextFilters || {},
-        () => store.getState().contextFilters || {}
+        selectContextFilters,
+        selectContextFilters
     );
 
     // Chimera and Council mode states
     const chimeraMode = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().chimeraMode || false,
-        () => store.getState().chimeraMode || false
+        selectChimeraMode,
+        selectChimeraMode
     );
     const councilMode = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().councilMode || false,
-        () => store.getState().councilMode || false
+        selectCouncilMode,
+        selectCouncilMode
     );
     const selectedDefinitionsCount = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().selectedDefinitions?.length || 0,
-        () => store.getState().selectedDefinitions?.length || 0
+        selectSelectedDefinitionsCount,
+        selectSelectedDefinitionsCount
     );
     const councilMembersCount = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().councilMembers?.length || 0,
-        () => store.getState().councilMembers?.length || 0
+        selectCouncilMembersCount,
+        selectCouncilMembersCount
     );
 
     const sovereignEnabled = sovereignHand.enabled ?? false;
