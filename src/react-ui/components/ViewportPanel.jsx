@@ -21,7 +21,9 @@ function useIsMobile(breakpoint = MOBILE_BREAKPOINT) {
 
     useEffect(() => {
         const handleResize = () => {
-            setIsMobile(window.innerWidth <= breakpoint);
+            const newIsMobile = window.innerWidth <= breakpoint;
+            // Only update state if value actually changed
+            setIsMobile(prev => prev !== newIsMobile ? newIsMobile : prev);
         };
 
         window.addEventListener('resize', handleResize);

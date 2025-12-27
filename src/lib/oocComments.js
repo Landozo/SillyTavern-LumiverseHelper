@@ -265,9 +265,10 @@ const processedOOCTexts = new Map();
 
 /**
  * Clear processed texts for a message (used when reprocessing)
+ * Call this before reprocessing a message to avoid stuck states
  * @param {number} mesId - Message ID
  */
-function clearProcessedTexts(mesId) {
+export function clearProcessedTexts(mesId) {
   processedOOCTexts.delete(mesId);
 }
 
@@ -304,47 +305,62 @@ function markTextProcessed(mesId, text) {
 }
 
 /**
- * Check if two names match using fuzzy matching
- * Handles partial matches, different word orders, etc.
+ * Calculate a match score between two names
+ * Higher score = better match. 0 = no match.
+ * Uses strict matching to avoid similar names colliding.
  * @param {string} searchName - The name we're looking for
  * @param {string} targetName - The name to compare against
- * @returns {boolean} True if names match
+ * @returns {number} Match score (0 = no match, 100 = exact match)
  */
-function namesMatch(searchName, targetName) {
-  if (!searchName || !targetName) return false;
+function getNameMatchScore(searchName, targetName) {
+  if (!searchName || !targetName) return 0;
 
   const search = searchName.toLowerCase().trim();
   const target = targetName.toLowerCase().trim();
 
-  // Exact match
-  if (search === target) return true;
+  // Exact match - highest score
+  if (search === target) return 100;
 
-  // Search is contained in target (e.g., "Serena" in "Serena Lumia")
-  if (target.includes(search)) return true;
+  // Split into words for word-level matching
+  const searchWords = search.split(/\s+/).filter(w => w.length >= 2);
+  const targetWords = target.split(/\s+/).filter(w => w.length >= 2);
 
-  // Target is contained in search (e.g., "Lumia Serena" contains "Serena")
-  if (search.includes(target)) return true;
-
-  // Check if any word in search matches any word in target
-  const searchWords = search.split(/\s+/);
-  const targetWords = target.split(/\s+/);
-
+  // Check for exact word matches (not substring matches)
+  let exactWordMatches = 0;
   for (const sw of searchWords) {
-    if (sw.length < 2) continue; // Skip very short words
-    for (const tw of targetWords) {
-      if (tw.length < 2) continue;
-      if (sw === tw) return true;
-      if (tw.includes(sw) || sw.includes(tw)) return true;
+    if (targetWords.includes(sw)) {
+      exactWordMatches++;
     }
   }
 
-  return false;
+  // If we have exact word matches, score based on how complete the match is
+  if (exactWordMatches > 0) {
+    // Score based on proportion of words matched
+    const searchCoverage = exactWordMatches / searchWords.length;
+    const targetCoverage = exactWordMatches / targetWords.length;
+    // Average of both coverages, scaled to 50-90 range
+    return 50 + Math.round((searchCoverage + targetCoverage) / 2 * 40);
+  }
+
+  // No match - don't use loose substring matching as it causes collisions
+  // e.g., "Serena" vs "Serenity" should NOT match
+  return 0;
+}
+
+/**
+ * Check if two names match (wrapper for score-based matching)
+ * @param {string} searchName - The name we're looking for
+ * @param {string} targetName - The name to compare against
+ * @returns {boolean} True if names match with sufficient confidence
+ */
+function namesMatch(searchName, targetName) {
+  return getNameMatchScore(searchName, targetName) >= 50;
 }
 
 /**
  * Get avatar image URL for a Lumia by name
  * Works in both council mode and normal mode
- * Uses fuzzy matching to handle name variations
+ * Uses score-based matching to find the best match and avoid similar name collisions
  * @param {string} lumiaName - The Lumia's name from the OOC tag
  * @returns {string|null} Avatar image URL or null
  */
@@ -352,18 +368,31 @@ function getLumiaAvatarByName(lumiaName) {
   if (!lumiaName) return null;
 
   const settings = getSettings();
+  let bestMatch = { score: 0, avatar: null };
 
-  // In council mode, search council members first
+  /**
+   * Helper to update best match if this candidate scores higher
+   */
+  const checkCandidate = (item, nameToCheck) => {
+    if (!item?.lumia_img) return;
+    const score = getNameMatchScore(lumiaName, nameToCheck);
+    if (score > bestMatch.score) {
+      bestMatch = { score, avatar: item.lumia_img };
+    }
+  };
+
+  // In council mode, check council members (highest priority)
   if (settings.councilMode && settings.councilMembers?.length) {
     for (const member of settings.councilMembers) {
       const item = getItemFromLibrary(member.packName, member.itemName);
       if (!item) continue;
 
       // Check against both itemName and lumiaDefName
-      const itemName = item.lumiaDefName || member.itemName;
-      if (namesMatch(lumiaName, itemName) || namesMatch(lumiaName, member.itemName)) {
-        return item.lumia_img || null;
-      }
+      checkCandidate(item, item.lumiaDefName || member.itemName);
+      checkCandidate(item, member.itemName);
+
+      // If we found an exact match (score 100), return immediately
+      if (bestMatch.score === 100) return bestMatch.avatar;
     }
   }
 
@@ -374,10 +403,10 @@ function getLumiaAvatarByName(lumiaName) {
       settings.selectedDefinition.itemName
     );
     if (item) {
-      const defName = item.lumiaDefName || settings.selectedDefinition.itemName;
-      if (namesMatch(lumiaName, defName) || namesMatch(lumiaName, settings.selectedDefinition.itemName)) {
-        return item.lumia_img || null;
-      }
+      checkCandidate(item, item.lumiaDefName || settings.selectedDefinition.itemName);
+      checkCandidate(item, settings.selectedDefinition.itemName);
+
+      if (bestMatch.score === 100) return bestMatch.avatar;
     }
   }
 
@@ -387,27 +416,34 @@ function getLumiaAvatarByName(lumiaName) {
       const item = getItemFromLibrary(sel.packName, sel.itemName);
       if (!item) continue;
 
-      const defName = item.lumiaDefName || sel.itemName;
-      if (namesMatch(lumiaName, defName) || namesMatch(lumiaName, sel.itemName)) {
-        return item.lumia_img || null;
-      }
+      checkCandidate(item, item.lumiaDefName || sel.itemName);
+      checkCandidate(item, sel.itemName);
+
+      if (bestMatch.score === 100) return bestMatch.avatar;
     }
   }
 
-  // Fallback: search all packs for any matching Lumia
+  // If we have a good match from active selections, use it
+  // (Prefer active selections over searching all packs)
+  if (bestMatch.score >= 50) {
+    return bestMatch.avatar;
+  }
+
+  // Fallback: search all packs for matching Lumia
   if (settings.packs) {
     for (const pack of Object.values(settings.packs)) {
       if (!pack.items) continue;
       for (const item of pack.items) {
         const itemName = item.lumiaDefName || "";
-        if (namesMatch(lumiaName, itemName)) {
-          return item.lumia_img || null;
-        }
+        checkCandidate(item, itemName);
+
+        if (bestMatch.score === 100) return bestMatch.avatar;
       }
     }
   }
 
-  return null;
+  // Return best match if score is sufficient, otherwise null
+  return bestMatch.score >= 50 ? bestMatch.avatar : null;
 }
 
 /**

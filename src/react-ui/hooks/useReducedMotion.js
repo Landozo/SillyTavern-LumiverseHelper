@@ -19,10 +19,13 @@ export function useReducedMotion() {
     useEffect(() => {
         const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-        // Update state if it changed after initial render
-        setPrefersReducedMotion(mediaQuery.matches);
+        // Only update state if value changed after initial render (using functional update)
+        setPrefersReducedMotion(prev => prev !== mediaQuery.matches ? mediaQuery.matches : prev);
 
-        const handler = (e) => setPrefersReducedMotion(e.matches);
+        const handler = (e) => {
+            // Only update if value actually changed
+            setPrefersReducedMotion(prev => prev !== e.matches ? e.matches : prev);
+        };
         mediaQuery.addEventListener('change', handler);
 
         return () => mediaQuery.removeEventListener('change', handler);

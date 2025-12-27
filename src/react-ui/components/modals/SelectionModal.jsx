@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useSyncExternalStore } from 'react';
+import React, { useState, useMemo, useEffect, useSyncExternalStore, useCallback } from 'react';
 import {
     usePacks,
     useSelections,
@@ -534,7 +534,7 @@ function SelectionModal({
         setCollapsedPacks(new Set());
     };
 
-    const togglePackCollapse = (packName) => {
+    const togglePackCollapse = useCallback((packName) => {
         setCollapsedPacks(prev => {
             const next = new Set(prev);
             if (next.has(packName)) {
@@ -544,49 +544,53 @@ function SelectionModal({
             }
             return next;
         });
-    };
+    }, []);
 
-    const isPackCollapsed = (packName) => collapsedPacks.has(packName);
+    const isPackCollapsed = useCallback((packName) => collapsedPacks.has(packName), [collapsedPacks]);
 
     /**
      * Check if an item is selected
      * Comparisons use packName + itemName (old code format)
+     * Memoized with useCallback to prevent unnecessary child re-renders
      *
      * @param {Object} item - The item from pack.items
      * @param {string} packName - The pack this item belongs to
      */
-    const isSelected = (item, packName) => {
+    const isSelected = useCallback((item, packName) => {
         const itemName = item.lumiaDefName;
         return selectedItems.some((selected) =>
             selected.packName === packName && selected.itemName === itemName
         );
-    };
+    }, [selectedItems]);
 
     /**
      * Check if an item is the dominant trait
+     * Memoized with useCallback to prevent unnecessary child re-renders
      */
-    const isDominant = (item, packName) => {
+    const isDominant = useCallback((item, packName) => {
         if (!dominantItem) return false;
         const itemName = item.lumiaDefName;
         return dominantItem.packName === packName && dominantItem.itemName === itemName;
-    };
+    }, [dominantItem]);
 
     /**
      * Handle item selection
      * Converts item + packName to { packName, itemName } format for storage
+     * Memoized with useCallback to prevent unnecessary child re-renders
      */
-    const handleSelect = (item, packName) => {
+    const handleSelect = useCallback((item, packName) => {
         const selection = {
             packName: packName,
             itemName: item.lumiaDefName,
         };
         toggleAction(selection);
-    };
+    }, [toggleAction]);
 
     /**
      * Handle setting dominant trait
+     * Memoized with useCallback to prevent unnecessary child re-renders
      */
-    const handleSetDominant = (item, packName) => {
+    const handleSetDominant = useCallback((item, packName) => {
         if (!setDominantAction) return;
 
         const selection = {
@@ -605,42 +609,44 @@ function SelectionModal({
         } else {
             setDominantAction(selection);
         }
-    };
+    }, [setDominantAction, toggleAction, isSelected, isDominant]);
 
-    const handleClearAll = () => {
+    const handleClearAll = useCallback(() => {
         clearAction();
-    };
+    }, [clearAction]);
 
-    const handleRemovePack = (packName) => {
+    const handleRemovePack = useCallback((packName) => {
         if (!window.confirm(`Delete pack "${packName}"? This action cannot be undone.`)) {
             return;
         }
         actions.removeCustomPack(packName);
         saveToExtension();
-    };
+    }, [actions]);
 
     /**
      * Handle editing a Lumia item from a custom pack
      * Opens the LumiaEditorModal with the item for editing
+     * Memoized with useCallback to prevent unnecessary child re-renders
      */
-    const handleEditItem = (item, packName) => {
+    const handleEditItem = useCallback((item, packName) => {
         actions.openModal('lumiaEditor', {
             packName: packName,
             editingItem: item,
         });
-    };
+    }, [actions]);
 
     /**
      * Handle enabling all traits for a Lumia item
      * Uses the enableAllTraitsForLumia action from the store
+     * Memoized with useCallback to prevent unnecessary child re-renders
      */
-    const handleEnableAll = (item, packName) => {
+    const handleEnableAll = useCallback((item, packName) => {
         const itemName = item.lumiaDefName;
         if (itemName) {
             actions.enableAllTraitsForLumia(packName, itemName);
             saveToExtension();
         }
-    };
+    }, [actions]);
 
     return (
         <div className="lumia-modal-selection-content">

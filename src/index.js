@@ -69,6 +69,7 @@ import {
   setIsGenerating,
   initializeRAFBatchRenderer,
   flushPendingUpdates,
+  clearProcessedTexts,
 } from "./lib/oocComments.js";
 
 import {
@@ -515,17 +516,27 @@ jQuery(async () => {
 
     eventSource.on(event_types.MESSAGE_EDITED, (mesId) => {
       console.log(`[${MODULE_NAME}] MESSAGE_EDITED event for mesId ${mesId}`);
+      // Clear tracked texts to avoid stuck states
+      clearProcessedTexts(mesId);
       const messageElement = query(`div[mesid="${mesId}"] .mes_text`);
       if (messageElement) {
         const existingBoxes = queryAll("[data-lumia-ooc]", messageElement);
         existingBoxes.forEach((box) => box.remove());
       }
-      processLumiaOOCComments(mesId);
+      // Force reprocess since content may have changed
+      processLumiaOOCComments(mesId, true);
     });
 
     eventSource.on(event_types.MESSAGE_SWIPED, (mesId) => {
       console.log(`[${MODULE_NAME}] MESSAGE_SWIPED event for mesId ${mesId}`);
-      processLumiaOOCComments(mesId);
+      // Clear tracked texts and force reprocess for the new swipe
+      clearProcessedTexts(mesId);
+      const messageElement = query(`div[mesid="${mesId}"] .mes_text`);
+      if (messageElement) {
+        const existingBoxes = queryAll("[data-lumia-ooc]", messageElement);
+        existingBoxes.forEach((box) => box.remove());
+      }
+      processLumiaOOCComments(mesId, true);
     });
 
     eventSource.on(event_types.CHAT_CHANGED, () => {

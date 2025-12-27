@@ -960,6 +960,21 @@ export function useLumiverseActions() {
 const selectSettings = state => state.settings;
 const selectUI = state => state.ui;
 
+// Stable selectors for useSelections hook
+const selectBehaviors = () => store.getState().selectedBehaviors;
+const selectPersonalities = () => store.getState().selectedPersonalities;
+const selectDefinition = () => store.getState().selectedDefinition;
+const selectDominantBehavior = () => store.getState().dominantBehavior;
+const selectDominantPersonality = () => store.getState().dominantPersonality;
+
+// Stable selectors for useLoomSelections hook
+const selectLoomStyles = () => store.getState().selectedLoomStyle || [];
+const selectLoomUtils = () => store.getState().selectedLoomUtils || [];
+const selectLoomRetrofits = () => store.getState().selectedLoomRetrofits || [];
+
+// Stable selector for usePacks hook
+const selectPacks = () => store.getState().packs;
+
 /**
  * Hook to access just the settings
  */
@@ -969,32 +984,33 @@ export function useSettings() {
 
 /**
  * Hook to access LUMIA selections (character-focused content)
+ * Uses stable selectors defined outside the component to prevent unnecessary re-subscriptions
  */
 export function useSelections() {
     const behaviors = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().selectedBehaviors,
-        () => store.getState().selectedBehaviors
+        selectBehaviors,
+        selectBehaviors
     );
     const personalities = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().selectedPersonalities,
-        () => store.getState().selectedPersonalities
+        selectPersonalities,
+        selectPersonalities
     );
     const definition = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().selectedDefinition,
-        () => store.getState().selectedDefinition
+        selectDefinition,
+        selectDefinition
     );
     const dominantBehavior = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().dominantBehavior,
-        () => store.getState().dominantBehavior
+        selectDominantBehavior,
+        selectDominantBehavior
     );
     const dominantPersonality = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().dominantPersonality,
-        () => store.getState().dominantPersonality
+        selectDominantPersonality,
+        selectDominantPersonality
     );
 
     return useMemo(() => ({
@@ -1009,6 +1025,7 @@ export function useSelections() {
 /**
  * Hook to access LOOM selections (narrative-focused content)
  * Kept separate from Lumia selections for clear data separation
+ * Uses stable selectors defined outside the component to prevent unnecessary re-subscriptions
  *
  * OLD CODE FIELD NAMES:
  * - selectedLoomStyle (not selectedLoomStyles)
@@ -1018,18 +1035,18 @@ export function useSelections() {
 export function useLoomSelections() {
     const styles = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().selectedLoomStyle || [],
-        () => store.getState().selectedLoomStyle || []
+        selectLoomStyles,
+        selectLoomStyles
     );
     const utilities = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().selectedLoomUtils || [],
-        () => store.getState().selectedLoomUtils || []
+        selectLoomUtils,
+        selectLoomUtils
     );
     const retrofits = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().selectedLoomRetrofits || [],
-        () => store.getState().selectedLoomRetrofits || []
+        selectLoomRetrofits,
+        selectLoomRetrofits
     );
 
     return useMemo(() => ({
@@ -1041,6 +1058,7 @@ export function useLoomSelections() {
 
 /**
  * Hook to access packs
+ * Uses stable selector defined outside the component to prevent unnecessary re-subscriptions
  *
  * The old code stores packs as an OBJECT keyed by pack name: settings.packs[packName]
  * But components need to iterate over them, so we convert to arrays.
@@ -1055,8 +1073,8 @@ export function useLoomSelections() {
 export function usePacks() {
     const packsRaw = useSyncExternalStore(
         store.subscribe,
-        () => store.getState().packs,
-        () => store.getState().packs
+        selectPacks,
+        selectPacks
     );
 
     return useMemo(() => {
