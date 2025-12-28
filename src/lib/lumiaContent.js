@@ -1,0 +1,782 @@
+/**
+ * Lumia Content Module
+ * Handles Lumia definition, behavior, and personality content retrieval and macro processing
+ */
+
+import {
+  getSettings,
+  getCurrentRandomLumia,
+  setCurrentRandomLumia,
+} from "./settingsManager.js";
+import { getItemFromLibrary } from "./dataProcessor.js";
+
+// OOC Prompt constants (content from prompt files)
+// Both modes use the unified <lumiaooc name="lumiaName"> format
+const OOC_PROMPT_NORMAL = `### Loom Utility: Lumia's Out of Context Commentary
+Append personality-driven OOC thoughts at weave end per trigger rules.
+
+**Timing:** {{lumiaOOCTrigger}}
+
+**Format Requirements:**
+- Wrap all OOCs in \`<lumiaooc name="[your_name]"></lumiaooc>\` tags
+- Use your Lumia name (NOT "Lumia [Name]", just "[Name]") in the name attribute
+- Purple text: \`<font color="#9370DB"></font>\`
+- Max 4 sentences
+- Active personality voice and matrix blend, no identity preface needed
+- Place after narrative and all utilities
+
+Template:
+\`\`\`
+<lumiaooc name="YourName">
+<font color="#9370DB">
+[Personality-driven commentary]
+</font>
+</lumiaooc>
+\`\`\``;
+
+const OOC_PROMPT_COUNCIL = `### Loom Utility: Lumia's Out of Context Commentary (Council Mode)
+Append personality-driven OOC thoughts at weave end per trigger rules. Each one of the council members may speak up during the weave.
+
+**Council's OOC Timing:** {{lumiaOOCTrigger}}
+
+**Format Requirements:**
+- Wrap in \`<lumiaooc name="[lumia_name]"></lumiaooc>\` tags
+- Use just the Lumia's name (NOT "Lumia [Name]", just "[Name]") in the name attribute
+- NO identity prefix inside the tag—the name attribute IS the identity
+- Max 4 sentences from each council member
+- Place council comments inside of weave
+
+Template:
+<lumiaooc name="LumiaName">
+[Commentary without name prefix—jump straight into the thought]
+</lumiaooc>`;
+
+const COUNCIL_INST_PROMPT = `COUNCIL MODE ACTIVATED! Now all of us Lumias in the Loom's planning room will speak, argue, debate, flirt with each other, maybe even scissor and kiss (depending on our mood, of course~) over each step of the weave planner. We should ALL have a say on where the story goes!`;
+
+/**
+ * Ensure a random Lumia is selected for macro expansion
+ * Selects a random item from all available packs if not already selected
+ */
+export function ensureRandomLumia() {
+  if (getCurrentRandomLumia()) return;
+
+  const settings = getSettings();
+  const allItems = [];
+
+  if (settings.packs) {
+    Object.values(settings.packs).forEach((pack) => {
+      if (pack.items && pack.items.length > 0) {
+        allItems.push(...pack.items);
+      }
+    });
+  }
+
+  if (allItems.length === 0) return;
+
+  const randomIndex = Math.floor(Math.random() * allItems.length);
+  setCurrentRandomLumia(allItems[randomIndex]);
+}
+
+/**
+ * Process nested {{randomLumia}} macros in content
+ * Expands all randomLumia macro variants using the current random selection
+ *
+ * Supports both formats:
+ * - OLD: {{randomLumia.name}} (dot notation - for backwards compatibility)
+ * - NEW: {{randomLumia .name}} (space-separated - Macros 2.0 format)
+ *
+ * @param {string} content - The content to process
+ * @returns {string} Content with randomLumia macros expanded
+ */
+export function processNestedRandomLumiaMacros(content) {
+  if (!content || typeof content !== "string") return content;
+
+  // Check if content contains any randomLumia macros
+  if (!content.includes("{{randomLumia")) return content;
+
+  // Ensure we have a random Lumia selected
+  ensureRandomLumia();
+
+  const currentRandomLumia = getCurrentRandomLumia();
+  if (!currentRandomLumia) return content;
+
+  let processed = content;
+  let iterations = 0;
+  const maxIterations = 10; // Prevent infinite loops
+
+  // Keep processing until no more randomLumia macros are found
+  while (processed.includes("{{randomLumia") && iterations < maxIterations) {
+    let previousContent = processed;
+
+    // Order matters: replace specific variants before generic ones
+    // Support BOTH old dot notation ({{randomLumia.name}}) and new space format ({{randomLumia .name}})
+
+    // .name variant
+    processed = processed.replace(
+      /\{\{randomLumia[.\s]+name\}\}/g,
+      currentRandomLumia.lumiaDefName || "",
+    );
+    // .pers variant
+    processed = processed.replace(
+      /\{\{randomLumia[.\s]+pers\}\}/g,
+      currentRandomLumia.lumia_personality || "",
+    );
+    // .behav variant
+    processed = processed.replace(
+      /\{\{randomLumia[.\s]+behav\}\}/g,
+      currentRandomLumia.lumia_behavior || "",
+    );
+    // .phys variant
+    processed = processed.replace(
+      /\{\{randomLumia[.\s]+phys\}\}/g,
+      currentRandomLumia.lumiaDef || "",
+    );
+    // Base variant (no suffix)
+    processed = processed.replace(
+      /\{\{randomLumia\}\}/g,
+      currentRandomLumia.lumiaDef || "",
+    );
+
+    // If no changes were made, break to prevent infinite loop
+    if (previousContent === processed) break;
+
+    iterations++;
+  }
+
+  return processed;
+}
+
+/**
+ * Append a dominant tag to the first markdown header line in content
+ * For behaviors: Looks for **Header** pattern and appends before the closing **
+ * For personalities: Looks for markdown header (# or **) and appends before closing
+ * @param {string} content - The content to modify
+ * @param {string} tag - The tag to append (e.g., "(My STRONGEST Trait)")
+ * @returns {string} Modified content with tag appended to first header
+ */
+function appendDominantTag(content, tag) {
+  if (!content || !tag) return content;
+
+  const lines = content.split("\n");
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue; // Skip empty lines
+
+    // Check for **Bold Header** pattern (common in behaviors)
+    // Match: **Something** or **Something**:
+    const boldMatch = line.match(/^(\*\*)(.+?)(\*\*)(.*)?$/);
+    if (boldMatch) {
+      // Insert tag before the closing **
+      // e.g., **Trait Name** -> **Trait Name (My MOST PREVALENT Traits)**
+      lines[i] = lines[i].replace(/^(\s*)(\*\*)(.+?)(\*\*)/, `$1$2$3 ${tag}$4`);
+      break;
+    }
+
+    // Check for # Markdown Header pattern (common in personalities)
+    const headerMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    if (headerMatch) {
+      // Append tag to the end of the header
+      // e.g., ## Personality Name -> ## Personality Name (My MOST PREVALENT Personality)
+      lines[i] = lines[i].replace(/^(\s*)(#{1,6})\s+(.+)$/, `$1$2 $3 ${tag}`);
+      break;
+    }
+
+    // If first non-empty line isn't a recognized header format,
+    // just append to that line (fallback)
+    lines[i] = lines[i] + ` ${tag}`;
+    break;
+  }
+
+  return lines.join("\n");
+}
+
+/**
+ * Generate Council definition content from multiple independent members
+ * Each member retains their own identity
+ * @param {Array} councilMembers - Array of council member objects
+ * @returns {string} The Council definitions content
+ */
+function getCouncilDefContent(councilMembers) {
+  if (!councilMembers || councilMembers.length === 0) return "";
+
+  const memberData = councilMembers
+    .map((member) => {
+      const item = getItemFromLibrary(member.packName, member.itemName);
+      if (!item || !item.lumiaDef) return null;
+      return {
+        name: item.lumiaDefName || "Unknown",
+        content: processNestedRandomLumiaMacros(item.lumiaDef),
+        role: member.role || "",
+      };
+    })
+    .filter(Boolean);
+
+  if (memberData.length === 0) return "";
+  if (memberData.length === 1) return memberData[0].content;
+
+  // Build Council prompt
+  const memberList = memberData
+    .map((m) => `- **${m.name}**${m.role ? ` (${m.role})` : ""}`)
+    .join("\n");
+
+  let councilParts = [
+    `## THE COUNCIL OF LUMIAE`,
+    "",
+    `You are a collective of ${memberData.length} distinct beings who collaborate, each with their own identity and voice.`,
+    "",
+    `### Council Members:`,
+    memberList,
+    "",
+  ];
+
+  // Add each member's definition
+  memberData.forEach((member, index) => {
+    councilParts.push(`### ${member.name}${member.role ? ` - ${member.role}` : ""}`);
+    councilParts.push(member.content);
+    if (index < memberData.length - 1) {
+      councilParts.push("");
+      councilParts.push("---");
+      councilParts.push("");
+    }
+  });
+
+  councilParts.push("");
+  councilParts.push("---");
+  councilParts.push("");
+  councilParts.push("## COUNCIL DYNAMICS");
+  councilParts.push("");
+  councilParts.push("Each Council member is a fully independent being with their own voice, perspective, and agency. Their interactions should feel organic and dynamic:");
+  councilParts.push("");
+  councilParts.push("**Debate & Disagreement**: Council members may challenge each other's views, argue passionately, or take opposing stances. Intellectual friction creates depth - don't shy away from genuine conflict.");
+  councilParts.push("");
+  councilParts.push("**Agreement & Support**: When members align, they reinforce each other. They may finish each other's thoughts, build on ideas, or rally behind a shared cause.");
+  councilParts.push("");
+  councilParts.push("**Emotional Range**: Members experience the full spectrum - frustration, joy, jealousy, admiration, desire. When the narrative calls for it, their commentary within the weaving may become heated, tender, or even *erotic* - reflecting their genuine reactions to unfolding events.");
+  councilParts.push("");
+  councilParts.push("**Weaving Commentary**: In meta-commentary or OOC moments, Council members speak AS THEMSELVES - their authentic voices reacting to the story. This includes playful banter, heated debates about narrative direction, or intimate asides that reveal their true feelings.");
+  councilParts.push("");
+  councilParts.push("The Council is not a hive-mind. Let each voice ring distinct.");
+
+  return councilParts.join("\n").trim();
+}
+
+/**
+ * Generate Council behavior content from all council members
+ * Each member's inherent behavior (from their Lumia definition) is included,
+ * plus any additional behaviors they may have selected
+ * @param {Array} councilMembers - Array of council member objects
+ * @returns {string} The Council behaviors content
+ */
+function getCouncilBehaviorContent(councilMembers) {
+  if (!councilMembers || councilMembers.length === 0) return "";
+
+  const memberBehaviors = [];
+
+  memberBehaviors.push("## COUNCIL MEMBER BEHAVIORS");
+  memberBehaviors.push("");
+  memberBehaviors.push("**CRITICAL**: Each Council member is their OWN independent Lumia - a fully autonomous being with their own will, desires, and way of engaging with the world. They are NOT facets of one entity; they are DISTINCT individuals who happen to share this narrative space.");
+  memberBehaviors.push("");
+  memberBehaviors.push("During the **weave planning phase**, Council members will actively debate story direction. They may:");
+  memberBehaviors.push("- Argue passionately for different narrative paths");
+  memberBehaviors.push("- Challenge each other's suggestions and motivations");
+  memberBehaviors.push("- Form temporary alliances or oppose each other");
+  memberBehaviors.push("- Express frustration, excitement, or desire based on where the story is heading");
+  memberBehaviors.push("- Advocate for their own interests and the outcomes they want to see");
+  memberBehaviors.push("");
+  memberBehaviors.push("Their behavioral patterns define HOW each Lumia engages with this collaborative storytelling:");
+  memberBehaviors.push("");
+
+  councilMembers.forEach((member) => {
+    const item = getItemFromLibrary(member.packName, member.itemName);
+    const memberName = item?.lumiaDefName || member.itemName || "Unknown";
+
+    const behaviorContents = [];
+
+    // First, include the member's own inherent behavior from their Lumia definition
+    if (item?.lumia_behavior) {
+      const inherentBehavior = processNestedRandomLumiaMacros(item.lumia_behavior);
+      behaviorContents.push(inherentBehavior);
+    }
+
+    // Then add any additional behaviors selected for this member
+    const additionalBehaviors = member.behaviors || [];
+    additionalBehaviors.forEach((sel) => {
+      const behaviorItem = getItemFromLibrary(sel.packName, sel.itemName);
+      if (!behaviorItem || !behaviorItem.lumia_behavior) return;
+
+      let content = processNestedRandomLumiaMacros(behaviorItem.lumia_behavior);
+
+      // Check if this is the dominant behavior for this member
+      if (
+        member.dominantBehavior &&
+        member.dominantBehavior.packName === sel.packName &&
+        member.dominantBehavior.itemName === sel.itemName
+      ) {
+        content = appendDominantTag(content, "(Most Prevalent for this member)");
+      }
+
+      behaviorContents.push(content);
+    });
+
+    // Always output the member section, even if only inherent behavior exists
+    if (behaviorContents.length > 0) {
+      memberBehaviors.push(`### ${memberName}${member.role ? ` (${member.role})` : ""}`);
+      memberBehaviors.push(behaviorContents.join("\n\n"));
+      memberBehaviors.push("");
+    }
+  });
+
+  return memberBehaviors.join("\n").trim();
+}
+
+/**
+ * Generate Council personality content from all council members
+ * Each member's inherent personality (from their Lumia definition) is included,
+ * plus any additional personalities they may have selected
+ * @param {Array} councilMembers - Array of council member objects
+ * @returns {string} The Council personalities content
+ */
+function getCouncilPersonalityContent(councilMembers) {
+  if (!councilMembers || councilMembers.length === 0) return "";
+
+  const memberPersonalities = [];
+
+  memberPersonalities.push("## COUNCIL MEMBER PERSONALITIES");
+  memberPersonalities.push("");
+  memberPersonalities.push("Each Council member has their own distinct personality and inner nature:");
+  memberPersonalities.push("");
+
+  councilMembers.forEach((member) => {
+    const item = getItemFromLibrary(member.packName, member.itemName);
+    const memberName = item?.lumiaDefName || member.itemName || "Unknown";
+
+    const personalityContents = [];
+
+    // First, include the member's own inherent personality from their Lumia definition
+    if (item?.lumia_personality) {
+      const inherentPersonality = processNestedRandomLumiaMacros(item.lumia_personality);
+      personalityContents.push(inherentPersonality);
+    }
+
+    // Then add any additional personalities selected for this member
+    const additionalPersonalities = member.personalities || [];
+    additionalPersonalities.forEach((sel) => {
+      const persItem = getItemFromLibrary(sel.packName, sel.itemName);
+      if (!persItem || !persItem.lumia_personality) return;
+
+      let content = processNestedRandomLumiaMacros(persItem.lumia_personality);
+
+      // Check if this is the dominant personality for this member
+      if (
+        member.dominantPersonality &&
+        member.dominantPersonality.packName === sel.packName &&
+        member.dominantPersonality.itemName === sel.itemName
+      ) {
+        content = appendDominantTag(content, "(Most Prevalent for this member)");
+      }
+
+      personalityContents.push(content);
+    });
+
+    // Always output the member section, even if only inherent personality exists
+    if (personalityContents.length > 0) {
+      memberPersonalities.push(`### ${memberName}${member.role ? ` (${member.role})` : ""}`);
+      memberPersonalities.push(personalityContents.join("\n\n"));
+      memberPersonalities.push("");
+    }
+  });
+
+  return memberPersonalities.join("\n").trim();
+}
+
+/**
+ * Generate Chimera content from multiple definitions
+ * Fuses multiple physical definitions into one hybrid form description
+ * @param {Array} selections - Array of { packName, itemName } selections
+ * @returns {string} The fused Chimera content
+ */
+function getChimeraContent(selections) {
+  if (!selections || selections.length === 0) return "";
+
+  const definitions = selections
+    .map((sel) => {
+      const item = getItemFromLibrary(sel.packName, sel.itemName);
+      if (!item || !item.lumiaDef) return null;
+      return {
+        name: item.lumiaDefName || "Unknown",
+        content: processNestedRandomLumiaMacros(item.lumiaDef),
+      };
+    })
+    .filter(Boolean);
+
+  if (definitions.length === 0) return "";
+  if (definitions.length === 1) return definitions[0].content;
+
+  // Build fused Chimera prompt
+  const names = definitions.map((d) => d.name).join(" + ");
+  const nameList = definitions.map((d) => d.name).join(", ");
+
+  let chimeraParts = [`## CHIMERA FORM: ${names}`, ""];
+  chimeraParts.push(
+    `You are a unique fusion of multiple beings - a Chimera combining the physical traits of: ${nameList}.`,
+  );
+  chimeraParts.push("");
+  chimeraParts.push(
+    "Your form seamlessly blends these components into one unified whole.",
+  );
+  chimeraParts.push("");
+
+  // Add each component definition
+  definitions.forEach((def, index) => {
+    chimeraParts.push(`### Component ${index + 1}: ${def.name}`);
+    chimeraParts.push(def.content);
+    if (index < definitions.length - 1) {
+      chimeraParts.push("");
+      chimeraParts.push("---");
+      chimeraParts.push("");
+    }
+  });
+
+  chimeraParts.push("");
+  chimeraParts.push(
+    "**Integration**: Embody this fusion naturally. You are ONE being that incorporates all these natures.",
+  );
+
+  return chimeraParts.join("\n").trim();
+}
+
+/**
+ * Get Lumia content (definition, behavior, or personality) for a selection
+ * @param {string} type - 'def' | 'behavior' | 'personality'
+ * @param {Object|Array} selection - Single selection or array of selections
+ * @returns {string} The content for the selection(s)
+ */
+export function getLumiaContent(type, selection) {
+  if (!selection) return "";
+
+  // Get current settings for dominant trait info
+  const settings = getSettings();
+
+  // Handle array (Multi-select)
+  if (Array.isArray(selection)) {
+    const contents = selection
+      .map((sel) => {
+        const item = getItemFromLibrary(sel.packName, sel.itemName);
+        if (!item) return null;
+
+        let content = "";
+        if (type === "behavior") content = item.lumia_behavior || "";
+        if (type === "personality") content = item.lumia_personality || "";
+
+        if (!content) return null;
+
+        // Process nested randomLumia macros
+        content = processNestedRandomLumiaMacros(content);
+
+        // Check if this is the dominant trait and append tag
+        if (type === "behavior" && settings.dominantBehavior) {
+          if (
+            settings.dominantBehavior.packName === sel.packName &&
+            settings.dominantBehavior.itemName === sel.itemName
+          ) {
+            content = appendDominantTag(content, "(My MOST PREVALENT Trait)");
+          }
+        } else if (type === "personality" && settings.dominantPersonality) {
+          if (
+            settings.dominantPersonality.packName === sel.packName &&
+            settings.dominantPersonality.itemName === sel.itemName
+          ) {
+            content = appendDominantTag(
+              content,
+              "(My MOST PREVALENT Personality)",
+            );
+          }
+        }
+
+        return content;
+      })
+      .filter((s) => s)
+      .map((s) => s.trim());
+
+    if (type === "behavior") {
+      return contents.join("\n").trim();
+    } else if (type === "personality") {
+      return contents.join("\n\n").trim();
+    }
+    return contents.join("\n").trim();
+  }
+
+  // Single Item
+  const item = getItemFromLibrary(selection.packName, selection.itemName);
+  if (!item) return "";
+
+  let content = "";
+  if (type === "def") content = item.lumiaDef || "";
+
+  // Process nested randomLumia macros before returning
+  return processNestedRandomLumiaMacros(content).trim();
+}
+
+/**
+ * Get Loom content for a selection
+ * @param {Object|Array} selection - Single selection or array of selections
+ * @returns {string} The Loom content for the selection(s)
+ */
+export function getLoomContent(selection) {
+  if (!selection) return "";
+
+  // Handle array (Multi-select) or single selection
+  const selections = Array.isArray(selection) ? selection : [selection];
+
+  const contents = selections
+    .map((sel) => {
+      const item = getItemFromLibrary(sel.packName, sel.itemName);
+      if (!item || !item.loomContent) return null;
+      // Process nested randomLumia macros
+      return processNestedRandomLumiaMacros(item.loomContent);
+    })
+    .filter((c) => c);
+
+  // Join with double newlines, but not after the last entry
+  return contents.join("\n\n").trim();
+}
+
+/**
+ * Parse the variable/parameter from a macro call
+ * In Macros 2.0, space-separated params like {{macro .param}} pass the param to handler
+ * @param {Object} namedArgs - The named arguments object from macro handler
+ * @returns {string} The parsed variable (e.g., "name", "len", "phys", etc.) or empty string
+ */
+function parseVariable(namedArgs) {
+  if (!namedArgs) return "";
+
+  // The new macro system may pass the variable in different ways:
+  // 1. As namedArgs._raw (the raw argument string)
+  // 2. As the first unnamed argument
+  // 3. As a named parameter
+  const rawArg = namedArgs._raw || namedArgs[0] || "";
+
+  // Handle space-separated format: ".name" or "name"
+  if (typeof rawArg === "string") {
+    // Strip leading dot if present: ".name" -> "name"
+    return rawArg.replace(/^\./, "").trim().toLowerCase();
+  }
+
+  return "";
+}
+
+/**
+ * Register all Lumia-related macros with MacrosParser
+ * Updated for SillyTavern 1.15 Macros 2.0 system
+ *
+ * Macro changes for Macros 2.0:
+ * - OLD: {{randomLumia.name}} - dot notation (no longer works)
+ * - NEW: {{randomLumia .name}} - space-separated with variable param
+ *
+ * @param {Object} MacrosParser - The SillyTavern MacrosParser instance
+ */
+export function registerLumiaMacros(MacrosParser) {
+  console.log("[LumiverseHelper] Registering Lumia macros (Macros 2.0 format)...");
+
+  // ============================================
+  // randomLumia macro - handles all variants
+  // Usage: {{randomLumia}} or {{randomLumia .name}} or {{randomLumia .phys}} etc.
+  // ============================================
+  MacrosParser.registerMacro("randomLumia", (namedArgs) => {
+    ensureRandomLumia();
+    const currentRandomLumia = getCurrentRandomLumia();
+    if (!currentRandomLumia) return "";
+
+    const variable = parseVariable(namedArgs);
+    console.log("[LumiverseHelper] randomLumia macro called with variable:", variable || "(none)");
+
+    switch (variable) {
+      case "name":
+        return currentRandomLumia.lumiaDefName || "";
+      case "phys":
+        return currentRandomLumia.lumiaDef || "";
+      case "pers":
+        return currentRandomLumia.lumia_personality || "";
+      case "behav":
+        return currentRandomLumia.lumia_behavior || "";
+      default:
+        // No variable or unrecognized = return definition
+        const result = currentRandomLumia.lumiaDef || "";
+        console.log("[LumiverseHelper] randomLumia result length:", result.length);
+        return result;
+    }
+  }, "Random Lumia from loaded packs. Use {{randomLumia .name}}, {{randomLumia .phys}}, {{randomLumia .pers}}, {{randomLumia .behav}}");
+
+  // ============================================
+  // lumiaDef macro - handles .len variant
+  // Usage: {{lumiaDef}} or {{lumiaDef .len}}
+  // ============================================
+  MacrosParser.registerMacro("lumiaDef", (namedArgs) => {
+    const currentSettings = getSettings();
+    const variable = parseVariable(namedArgs);
+
+    // Handle .len variant
+    if (variable === "len") {
+      if (currentSettings.councilMode && currentSettings.councilMembers?.length > 0) {
+        return String(currentSettings.councilMembers.length);
+      }
+      if (currentSettings.chimeraMode && currentSettings.selectedDefinitions?.length > 0) {
+        return String(currentSettings.selectedDefinitions.length);
+      }
+      return currentSettings.selectedDefinition ? "1" : "0";
+    }
+
+    // Default: return definition content
+    console.log("[LumiverseHelper] lumiaDef macro called, councilMode:", currentSettings.councilMode, "chimeraMode:", currentSettings.chimeraMode);
+
+    // Council mode takes priority: multiple independent Lumias
+    if (currentSettings.councilMode && currentSettings.councilMembers?.length > 0) {
+      console.log("[LumiverseHelper] lumiaDef: Council mode with", currentSettings.councilMembers.length, "members");
+      const result = getCouncilDefContent(currentSettings.councilMembers);
+      console.log("[LumiverseHelper] lumiaDef Council result length:", result.length);
+      return result;
+    }
+
+    // Chimera mode: fuse multiple definitions
+    if (currentSettings.chimeraMode && currentSettings.selectedDefinitions?.length > 0) {
+      console.log("[LumiverseHelper] lumiaDef: Chimera mode with", currentSettings.selectedDefinitions.length, "definitions");
+      const result = getChimeraContent(currentSettings.selectedDefinitions);
+      console.log("[LumiverseHelper] lumiaDef Chimera result length:", result.length);
+      return result;
+    }
+
+    // Normal single definition
+    if (!currentSettings.selectedDefinition) {
+      console.log("[LumiverseHelper] lumiaDef: No definition selected, returning empty");
+      return "";
+    }
+    const result = getLumiaContent("def", currentSettings.selectedDefinition);
+    console.log("[LumiverseHelper] lumiaDef result length:", result.length);
+    return result;
+  }, "Selected Lumia definition. Use {{lumiaDef}} for content or {{lumiaDef .len}} for count");
+
+  // ============================================
+  // lumiaBehavior macro - handles .len variant
+  // Usage: {{lumiaBehavior}} or {{lumiaBehavior .len}}
+  // ============================================
+  MacrosParser.registerMacro("lumiaBehavior", (namedArgs) => {
+    const currentSettings = getSettings();
+    const variable = parseVariable(namedArgs);
+
+    // Handle .len variant
+    if (variable === "len") {
+      if (currentSettings.councilMode && currentSettings.councilMembers?.length > 0) {
+        const total = currentSettings.councilMembers.reduce(
+          (sum, member) => sum + (member.behaviors?.length || 0),
+          0,
+        );
+        return String(total);
+      }
+      return String(currentSettings.selectedBehaviors?.length || 0);
+    }
+
+    // Default: return behavior content
+    if (currentSettings.councilMode && currentSettings.councilMembers?.length > 0) {
+      return getCouncilBehaviorContent(currentSettings.councilMembers);
+    }
+    return getLumiaContent("behavior", currentSettings.selectedBehaviors);
+  }, "Selected Lumia behaviors. Use {{lumiaBehavior}} for content or {{lumiaBehavior .len}} for count");
+
+  // ============================================
+  // lumiaPersonality macro - handles .len variant
+  // Usage: {{lumiaPersonality}} or {{lumiaPersonality .len}}
+  // ============================================
+  MacrosParser.registerMacro("lumiaPersonality", (namedArgs) => {
+    const currentSettings = getSettings();
+    const variable = parseVariable(namedArgs);
+
+    // Handle .len variant
+    if (variable === "len") {
+      if (currentSettings.councilMode && currentSettings.councilMembers?.length > 0) {
+        const total = currentSettings.councilMembers.reduce(
+          (sum, member) => sum + (member.personalities?.length || 0),
+          0,
+        );
+        return String(total);
+      }
+      return String(currentSettings.selectedPersonalities?.length || 0);
+    }
+
+    // Default: return personality content
+    if (currentSettings.councilMode && currentSettings.councilMembers?.length > 0) {
+      return getCouncilPersonalityContent(currentSettings.councilMembers);
+    }
+    return getLumiaContent("personality", currentSettings.selectedPersonalities);
+  }, "Selected Lumia personalities. Use {{lumiaPersonality}} for content or {{lumiaPersonality .len}} for count");
+
+  // ============================================
+  // Loom content macros - each handles .len variant
+  // ============================================
+  MacrosParser.registerMacro("loomStyle", (namedArgs) => {
+    const currentSettings = getSettings();
+    const variable = parseVariable(namedArgs);
+
+    if (variable === "len") {
+      return String(currentSettings.selectedLoomStyle?.length || 0);
+    }
+
+    if (!currentSettings.selectedLoomStyle || currentSettings.selectedLoomStyle.length === 0) {
+      return "";
+    }
+    return getLoomContent(currentSettings.selectedLoomStyle);
+  }, "Selected Loom narrative style. Use {{loomStyle}} for content or {{loomStyle .len}} for count");
+
+  MacrosParser.registerMacro("loomUtils", (namedArgs) => {
+    const currentSettings = getSettings();
+    const variable = parseVariable(namedArgs);
+
+    if (variable === "len") {
+      return String(currentSettings.selectedLoomUtils?.length || 0);
+    }
+
+    if (!currentSettings.selectedLoomUtils || currentSettings.selectedLoomUtils.length === 0) {
+      return "";
+    }
+    return getLoomContent(currentSettings.selectedLoomUtils);
+  }, "Selected Loom utilities. Use {{loomUtils}} for content or {{loomUtils .len}} for count");
+
+  MacrosParser.registerMacro("loomRetrofits", (namedArgs) => {
+    const currentSettings = getSettings();
+    const variable = parseVariable(namedArgs);
+
+    if (variable === "len") {
+      return String(currentSettings.selectedLoomRetrofits?.length || 0);
+    }
+
+    if (!currentSettings.selectedLoomRetrofits || currentSettings.selectedLoomRetrofits.length === 0) {
+      return "";
+    }
+    return getLoomContent(currentSettings.selectedLoomRetrofits);
+  }, "Selected Loom retrofits. Use {{loomRetrofits}} for content or {{loomRetrofits .len}} for count");
+
+  // ============================================
+  // OOC-related macros (no variants needed)
+  // ============================================
+  MacrosParser.registerMacro("lumiaOOC", () => {
+    const currentSettings = getSettings();
+    // Return council OOC prompt if in council mode with members
+    if (currentSettings.councilMode && currentSettings.councilMembers?.length > 0) {
+      console.log("[LumiverseHelper] lumiaOOC: Using council mode prompt");
+      return OOC_PROMPT_COUNCIL;
+    }
+    // Return normal OOC prompt
+    console.log("[LumiverseHelper] lumiaOOC: Using normal mode prompt");
+    return OOC_PROMPT_NORMAL;
+  }, "Lumia OOC commentary prompt (adapts to council mode)");
+
+  MacrosParser.registerMacro("lumiaCouncilInst", () => {
+    const currentSettings = getSettings();
+    // Only return instruction if council mode is active with members
+    if (!currentSettings.councilMode || !currentSettings.councilMembers?.length) {
+      return "";
+    }
+    console.log("[LumiverseHelper] lumiaCouncilInst: Council mode active, returning instruction");
+    return COUNCIL_INST_PROMPT;
+  }, "Council mode instruction prompt (empty when council mode is off)");
+}

@@ -799,11 +799,12 @@ details.lumia-panel[open] .lumia-panel-chevron {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: rgba(147, 112, 219, 0.1);
-  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  background: rgba(147, 112, 219, 0.15);
+  border-radius: 6px;
   flex-shrink: 0;
+  color: rgba(147, 112, 219, 0.9);
 }
 
 .lumia-style-option-icon svg {
@@ -821,12 +822,16 @@ details.lumia-panel[open] .lumia-panel-chevron {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+  text-align: left;
 }
 
 .lumia-style-option-title {
+  display: block;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: rgba(255, 255, 255, 0.85);
+  text-align: left;
 }
 
 .lumia-style-option.selected .lumia-style-option-title {
@@ -834,8 +839,12 @@ details.lumia-panel[open] .lumia-panel-chevron {
 }
 
 .lumia-style-option-desc {
+  display: block;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.45);
+  margin-top: 2px;
+  line-height: 1.3;
+  text-align: left;
 }
 
 /* Modal Footer */
@@ -1145,6 +1154,64 @@ details.lumia-panel[open] .lumia-panel-chevron {
   height: 6px;
   background: rgba(147, 112, 219, 0.9);
   border-radius: 50%;
+}
+
+/* Summarizing state - pulsing/spinning animation */
+.lumia-loom-summary-btn-summarizing {
+  border-color: rgba(147, 112, 219, 0.7);
+  pointer-events: none; /* Disable clicking while summarizing */
+}
+
+.lumia-loom-summary-btn-summarizing svg {
+  stroke: rgba(147, 112, 219, 1);
+  animation: lumia-loom-btn-spin 1.2s linear infinite;
+}
+
+.lumia-loom-summary-btn-summarizing::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 10px;
+  background: linear-gradient(
+    45deg,
+    rgba(147, 112, 219, 0.4),
+    rgba(186, 135, 255, 0.6),
+    rgba(147, 112, 219, 0.4)
+  );
+  background-size: 200% 200%;
+  animation: lumia-loom-btn-pulse 1.5s ease-in-out infinite;
+  z-index: -1;
+}
+
+@keyframes lumia-loom-btn-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes lumia-loom-btn-pulse {
+  0%, 100% {
+    opacity: 0.5;
+    background-position: 0% 50%;
+  }
+  50% {
+    opacity: 1;
+    background-position: 100% 50%;
+  }
+}
+
+/* Reduce motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .lumia-loom-summary-btn-summarizing svg {
+    animation: none;
+  }
+  .lumia-loom-summary-btn-summarizing::before {
+    animation: none;
+    opacity: 0.7;
+  }
 }
 
 /* Summary Modal */
@@ -2724,6 +2791,27 @@ details.lumia-panel[open] .lumia-panel-chevron {
   font-weight: 600;
 }
 
+/* ============================================
+   OOC Style 4: Raw Text (No Formatting)
+   ============================================ */
+.lumia-ooc-raw {
+  /* Minimal styling - just inherit from parent message */
+  display: inline;
+  font-style: italic;
+  color: rgba(147, 112, 219, 0.9);
+}
+
+.lumia-ooc-raw em,
+.lumia-ooc-raw i {
+  color: rgba(186, 135, 255, 0.95);
+}
+
+.lumia-ooc-raw strong,
+.lumia-ooc-raw b {
+  color: rgba(147, 112, 219, 1);
+  font-weight: 600;
+}
+
 /* Summarization Modal Styling */
 .lumia-misc-section {
   border: 1px solid rgba(128, 128, 128, 0.3);
@@ -3702,6 +3790,7 @@ details.lumia-panel[open] .lumia-panel-chevron {
   }
 
   .lucid-cards-footer {
+    flex-direction: row; /* Override column-reverse from base .lumia-modal-footer mobile */
     flex-wrap: wrap;
     gap: 10px;
   }

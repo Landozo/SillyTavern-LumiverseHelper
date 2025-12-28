@@ -3,10 +3,10 @@
  * Handles all modal dialog rendering and interaction for Lumia Injector
  */
 
-import { getContext } from "../../../../extensions.js";
+import { getContext } from "../stContext.js";
 import { getSettings, saveSettings, MODULE_NAME, LOOM_SUMMARY_KEY } from "./settingsManager.js";
 import { getItemFromLibrary, escapeHtml } from "./dataProcessor.js";
-import { generateLoomSummary, getProviderDefaults, PROVIDER_CONFIG, getProviderConfig } from "./summarization.js";
+import { generateLoomSummary, getProviderDefaults, PROVIDER_CONFIG, getProviderConfig, getIsSummarizing } from "./summarization.js";
 import { showLumiaEditorModal, showPackEditorModal, canEditPack } from "./lumiaEditor.js";
 
 // Note: processAllLumiaOOCComments is imported dynamically to avoid circular dependency
@@ -1650,6 +1650,8 @@ export function showPromptSettingsModal() {
 
   const sovereignHand = settings.sovereignHand || {};
   const isSovereignEnabled = sovereignHand.enabled || false;
+  const isExcludeLastMessage = sovereignHand.excludeLastMessage !== false; // Default true
+  const isIncludeMessageInPrompt = sovereignHand.includeMessageInPrompt !== false; // Default true
 
   const contextFilters = settings.contextFilters || {};
   const htmlTags = contextFilters.htmlTags || {};
@@ -1690,11 +1692,41 @@ export function showPromptSettingsModal() {
                             <div class="lumia-toggle-row">
                                 <label class="lumia-toggle-label" for="lumia-sovereign-hand-toggle">
                                     <span class="lumia-toggle-text">Use Sovereign Hand Features</span>
-                                    <span class="lumia-toggle-hint">Enables {{loomLastUserMessage}} macro and context exclusion</span>
+                                    <span class="lumia-toggle-hint">Enables Sovereign Hand macros for advanced prompt control</span>
                                 </label>
                                 <div class="lumia-toggle-switch-wrapper">
                                     <input type="checkbox" id="lumia-sovereign-hand-toggle" class="lumia-toggle-input" ${isSovereignEnabled ? "checked" : ""} />
                                     <label for="lumia-sovereign-hand-toggle" class="lumia-toggle-switch-label">
+                                        <div class="lumia-toggle-track">
+                                            <div class="lumia-toggle-thumb"></div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="lumia-toggle-row ${isSovereignEnabled ? "" : "lumia-toggle-disabled"}">
+                                <label class="lumia-toggle-label" for="lumia-sovereign-exclude-toggle">
+                                    <span class="lumia-toggle-text">Exclude Last Message from Context</span>
+                                    <span class="lumia-toggle-hint">When enabled, removes the last user message from the outgoing context</span>
+                                </label>
+                                <div class="lumia-toggle-switch-wrapper">
+                                    <input type="checkbox" id="lumia-sovereign-exclude-toggle" class="lumia-toggle-input" ${isExcludeLastMessage ? "checked" : ""} ${isSovereignEnabled ? "" : "disabled"} />
+                                    <label for="lumia-sovereign-exclude-toggle" class="lumia-toggle-switch-label">
+                                        <div class="lumia-toggle-track">
+                                            <div class="lumia-toggle-thumb"></div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="lumia-toggle-row ${isSovereignEnabled ? "" : "lumia-toggle-disabled"}">
+                                <label class="lumia-toggle-label" for="lumia-sovereign-include-prompt-toggle">
+                                    <span class="lumia-toggle-text">Include Message in Master Prompt</span>
+                                    <span class="lumia-toggle-hint">When enabled, includes the user message in the {{loomSovHand}} macro output</span>
+                                </label>
+                                <div class="lumia-toggle-switch-wrapper">
+                                    <input type="checkbox" id="lumia-sovereign-include-prompt-toggle" class="lumia-toggle-input" ${isIncludeMessageInPrompt ? "checked" : ""} ${isSovereignEnabled ? "" : "disabled"} />
+                                    <label for="lumia-sovereign-include-prompt-toggle" class="lumia-toggle-switch-label">
                                         <div class="lumia-toggle-track">
                                             <div class="lumia-toggle-thumb"></div>
                                         </div>
@@ -1709,12 +1741,13 @@ export function showPromptSettingsModal() {
                                         <line x1="12" y1="16" x2="12" y2="12"></line>
                                         <line x1="12" y1="8" x2="12.01" y2="8"></line>
                                     </svg>
-                                    <span>When enabled:</span>
+                                    <span>Available macros:</span>
                                 </div>
                                 <ul class="lumia-info-box-list">
                                     <li><code>{{loomLastUserMessage}}</code> returns the last user message content</li>
-                                    <li>The last user message is excluded from the outgoing prompt context</li>
-                                    <li>Use this to provide instructions with the user's input to specific prompt locations</li>
+                                    <li><code>{{loomLastCharMessage}}</code> returns the last character message content</li>
+                                    <li><code>{{lastMessageName}}</code> returns the name of whoever sent the last message</li>
+                                    <li><code>{{loomContinuePrompt}}</code> adds continuation instructions when character spoke last</li>
                                 </ul>
                             </div>
                         </div>
@@ -1881,13 +1914,25 @@ export function showPromptSettingsModal() {
     const isChecked = $(this).is(":checked");
     const $infoBox = $modal.find(".lumia-info-box-sovereign");
     const $status = $(this).closest(".lumia-collapsible").find(".lumia-panel-status");
+    const $excludeToggle = $modal.find("#lumia-sovereign-exclude-toggle");
+    const $excludeRow = $excludeToggle.closest(".lumia-toggle-row");
+    const $includePromptToggle = $modal.find("#lumia-sovereign-include-prompt-toggle");
+    const $includePromptRow = $includePromptToggle.closest(".lumia-toggle-row");
 
     if (isChecked) {
       $infoBox.removeClass("lumia-info-box-muted");
       $status.addClass("lumia-panel-status-active").text("Active");
+      $excludeToggle.prop("disabled", false);
+      $excludeRow.removeClass("lumia-toggle-disabled");
+      $includePromptToggle.prop("disabled", false);
+      $includePromptRow.removeClass("lumia-toggle-disabled");
     } else {
       $infoBox.addClass("lumia-info-box-muted");
       $status.removeClass("lumia-panel-status-active").text("Inactive");
+      $excludeToggle.prop("disabled", true);
+      $excludeRow.addClass("lumia-toggle-disabled");
+      $includePromptToggle.prop("disabled", true);
+      $includePromptRow.addClass("lumia-toggle-disabled");
     }
   });
 
@@ -1948,10 +1993,14 @@ export function showPromptSettingsModal() {
   $modal.find(".lumia-prompt-settings-save-btn").click(() => {
     // Save Sovereign Hand settings
     const isSovereignEnabled = $modal.find("#lumia-sovereign-hand-toggle").is(":checked");
+    const isExcludeLastMessage = $modal.find("#lumia-sovereign-exclude-toggle").is(":checked");
+    const isIncludeMessageInPrompt = $modal.find("#lumia-sovereign-include-prompt-toggle").is(":checked");
     if (!settings.sovereignHand) {
       settings.sovereignHand = {};
     }
     settings.sovereignHand.enabled = isSovereignEnabled;
+    settings.sovereignHand.excludeLastMessage = isExcludeLastMessage;
+    settings.sovereignHand.includeMessageInPrompt = isIncludeMessageInPrompt;
 
     // Save Context Filters settings
     if (!settings.contextFilters) {
@@ -2184,10 +2233,27 @@ export async function showLucidCardsModal() {
     const $content = $modal.find(".lucid-cards-content");
     $content.empty();
 
-    // Find the category
-    const category = cachedData.categories.find(
-      (c) => c.displayName === currentCategory || c.name === currentCategory,
-    );
+    // Find the category - use flexible matching since API names may vary
+    // Map tab categories to possible API category names
+    const categoryNameMap = {
+      "Lumia DLCs": ["Lumia DLCs", "Lumia", "DLCs", "Lumia Packs"],
+      "Loom Utilities": ["Loom Utilities", "Utilities", "Loom Utils"],
+      "Loom Retrofits": ["Loom Retrofits", "Retrofits", "Retrofit"],
+      "Loom Narratives": ["Loom Narratives", "Narratives", "Narrative Styles", "Narrative"],
+    };
+
+    const possibleNames = categoryNameMap[currentCategory] || [currentCategory];
+    const category = cachedData.categories.find((c) => {
+      const catDisplayName = c.displayName || "";
+      const catName = c.name || "";
+      return possibleNames.some(
+        (name) =>
+          catDisplayName.toLowerCase() === name.toLowerCase() ||
+          catName.toLowerCase() === name.toLowerCase() ||
+          catDisplayName.toLowerCase().includes(name.toLowerCase()) ||
+          catName.toLowerCase().includes(name.toLowerCase())
+      );
+    });
 
     if (!category || !category.books || category.books.length === 0) {
       $content.html(
@@ -2197,71 +2263,38 @@ export async function showLucidCardsModal() {
       return;
     }
 
-    // Determine layout based on category
-    const isLumiaDLC = currentCategory === "Lumia DLCs";
+    // Use unified card grid layout for all categories
+    const cardsHtml = category.books
+      .map((book) => {
+        const escapedName = escapeHtml(book.prettyName);
+        const escapedPath = escapeHtml(book.path);
+        // We'll fetch metadata when displaying - for now show placeholder
+        return `
+                  <div class="lucid-dlc-card" data-path="${escapedPath}" data-name="${escapedName}">
+                      <div class="lucid-dlc-card-image">
+                          <div class="lucid-dlc-card-placeholder">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                  <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                  <polyline points="21 15 16 10 5 21"></polyline>
+                              </svg>
+                          </div>
+                      </div>
+                      <div class="lucid-dlc-card-info">
+                          <div class="lucid-dlc-card-title">${escapedName}</div>
+                          <div class="lucid-dlc-card-author">Loading...</div>
+                      </div>
+                  </div>
+              `;
+      })
+      .join("");
 
-    if (isLumiaDLC) {
-      // Card grid layout for Lumia DLCs
-      const cardsHtml = category.books
-        .map((book) => {
-          const escapedName = escapeHtml(book.prettyName);
-          const escapedPath = escapeHtml(book.path);
-          // We'll fetch metadata when displaying - for now show placeholder
-          return `
-                    <div class="lucid-dlc-card" data-path="${escapedPath}" data-name="${escapedName}">
-                        <div class="lucid-dlc-card-image">
-                            <div class="lucid-dlc-card-placeholder">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                                    <polyline points="21 15 16 10 5 21"></polyline>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="lucid-dlc-card-info">
-                            <div class="lucid-dlc-card-title">${escapedName}</div>
-                            <div class="lucid-dlc-card-author">Loading...</div>
-                        </div>
-                    </div>
-                `;
-        })
-        .join("");
+    $content.html(`<div class="lucid-dlc-grid">${cardsHtml}</div>`);
 
-      $content.html(`<div class="lucid-dlc-grid">${cardsHtml}</div>`);
-
-      // Fetch metadata for each card asynchronously
-      category.books.forEach((book) => {
-        fetchBookMetadata(book.path, $content);
-      });
-    } else {
-      // List layout for Loom items
-      const listHtml = category.books
-        .map((book) => {
-          const escapedName = escapeHtml(book.prettyName);
-          const escapedPath = escapeHtml(book.path);
-          return `
-                    <div class="lucid-loom-item" data-path="${escapedPath}" data-name="${escapedName}">
-                        <div class="lucid-loom-item-content">
-                            <span class="lucid-loom-item-name">${escapedName}</span>
-                            <span class="lucid-loom-item-author">Loading...</span>
-                        </div>
-                        <div class="lucid-loom-item-action">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                            </svg>
-                        </div>
-                    </div>
-                `;
-        })
-        .join("");
-
-      $content.html(`<div class="lucid-loom-list">${listHtml}</div>`);
-
-      // Fetch metadata for each item asynchronously
-      category.books.forEach((book) => {
-        fetchBookMetadata(book.path, $content);
-      });
-    }
+    // Fetch metadata for each card asynchronously
+    category.books.forEach((book) => {
+      fetchBookMetadata(book.path, $content);
+    });
 
     $content.show();
 
@@ -2334,7 +2367,7 @@ export async function showLucidCardsModal() {
           }
         }
         $card
-          .find(".lucid-dlc-card-author, .lucid-loom-item-author")
+          .find(".lucid-dlc-card-author")
           .text(authorName || "Unknown Author");
       }
     } catch (error) {
@@ -2346,7 +2379,7 @@ export async function showLucidCardsModal() {
       const $card = $content.find(`[data-path="${escapedPath}"]`);
       if ($card.length) {
         $card
-          .find(".lucid-dlc-card-author, .lucid-loom-item-author")
+          .find(".lucid-dlc-card-author")
           .text("Unknown Author");
       }
     }
@@ -2362,13 +2395,13 @@ export async function showLucidCardsModal() {
     renderContent();
   });
 
-  // Handle card/item selection
-  $modal.on("click", ".lucid-dlc-card, .lucid-loom-item", function () {
+  // Handle card selection (unified for all categories)
+  $modal.on("click", ".lucid-dlc-card", function () {
     const $this = $(this);
     const wasSelected = $this.hasClass("selected");
 
     // Deselect all
-    $modal.find(".lucid-dlc-card, .lucid-loom-item").removeClass("selected");
+    $modal.find(".lucid-dlc-card").removeClass("selected");
 
     if (wasSelected) {
       selectedBook = null;
@@ -2388,6 +2421,9 @@ export async function showLucidCardsModal() {
         .text(`by ${selectedBook.author}`);
       $modal.find(".lucid-cards-selected-info, .lucid-cards-import-btn").show();
     }
+
+    // Recalculate height constraints after footer size changes
+    requestAnimationFrame(() => applyLucidCardsHeightConstraints());
   });
 
   // Handle close button
@@ -2422,7 +2458,7 @@ export async function showLucidCardsModal() {
       toastr.success(`Successfully imported "${selectedBook.name}"!`);
 
       // Deselect after import
-      $modal.find(".lucid-dlc-card, .lucid-loom-item").removeClass("selected");
+      $modal.find(".lucid-dlc-card").removeClass("selected");
       selectedBook = null;
       $modal.find(".lucid-cards-selected-info, .lucid-cards-import-btn").hide();
     } catch (error) {
@@ -2456,14 +2492,29 @@ export function refreshUIDisplay() {
     // Update Definition Selector Label
     const currentDefDiv = document.getElementById("lumia-current-definition");
     if (currentDefDiv) {
-      const sel = settings.selectedDefinition;
-      if (sel) {
-        const item = getItemFromLibrary(sel.packName, sel.itemName);
-        currentDefDiv.textContent = item
-          ? `${item.lumiaDefName} (${sel.packName})`
-          : "Item not found (Maybe pack removed?)";
+      // Check if in Chimera mode
+      if (settings.chimeraMode && settings.selectedDefinitions?.length > 0) {
+        // Chimera mode: show all selected definitions
+        const names = settings.selectedDefinitions
+          .map((sel) => {
+            const item = getItemFromLibrary(sel.packName, sel.itemName);
+            return item ? item.lumiaDefName : null;
+          })
+          .filter((n) => n);
+        currentDefDiv.textContent = names.length > 0
+          ? `[Chimera] ${names.join(" + ")}`
+          : "No Chimera definitions selected";
       } else {
-        currentDefDiv.textContent = "No definition selected";
+        // Normal mode: single definition
+        const sel = settings.selectedDefinition;
+        if (sel) {
+          const item = getItemFromLibrary(sel.packName, sel.itemName);
+          currentDefDiv.textContent = item
+            ? `${item.lumiaDefName} (${sel.packName})`
+            : "Item not found (Maybe pack removed?)";
+        } else {
+          currentDefDiv.textContent = "No definition selected";
+        }
       }
     }
 
@@ -2627,6 +2678,7 @@ export function createLoomSummaryButton() {
 
 /**
  * Update the Loom Summary button's visual state based on whether a summary exists
+ * and whether summarization is in progress
  */
 export function updateLoomSummaryButtonState() {
   const btn = document.getElementById("lumia-loom-summary-btn");
@@ -2636,14 +2688,22 @@ export function updateLoomSummaryButtonState() {
   const hasSummary = context?.chatMetadata?.[LOOM_SUMMARY_KEY];
   const hasChat = context?.chat && context.chat.length > 0;
 
+  // Check if currently summarizing
+  const summarizing = getIsSummarizing();
+
   // Clear all state classes first
   btn.classList.remove(
     "lumia-loom-summary-btn-hidden",
     "lumia-loom-summary-btn-empty",
-    "lumia-loom-summary-btn-active"
+    "lumia-loom-summary-btn-active",
+    "lumia-loom-summary-btn-summarizing"
   );
 
-  if (!hasChat) {
+  if (summarizing) {
+    // Summarizing state takes priority
+    btn.classList.add("lumia-loom-summary-btn-summarizing");
+    btn.title = "Generating summary...";
+  } else if (!hasChat) {
     btn.classList.add("lumia-loom-summary-btn-hidden");
     btn.title = "No active chat";
   } else if (hasSummary) {

@@ -3,18 +3,57 @@
  * Handles all summarization logic including API calls, prompt building, and auto-trigger
  */
 
-import { getContext } from "../../../../extensions.js";
-import { getRequestHeaders } from "../../../../../script.js";
+import { getContext, getRequestHeaders } from "../stContext.js";
 import {
   getSettings,
   MODULE_NAME,
   LOOM_SUMMARY_KEY,
+  getLumiaConfigVersion,
 } from "./settingsManager.js";
+
+// Metadata key for tracking last summarized message count
+export const LOOM_LAST_SUMMARIZED_KEY = "loom_last_summarized_at";
 
 // Track current spinner element for cleanup
 let currentSpinnerElement = null;
 // Track the message element that triggered the current summary
 let currentSummaryMessageElement = null;
+// Track if summarization is currently in progress
+let isSummarizing = false;
+
+/**
+ * Check if summarization is currently in progress
+ * @returns {boolean}
+ */
+export function getIsSummarizing() {
+  return isSummarizing;
+}
+
+/**
+ * Get the last summarized message count from chat metadata
+ * @returns {number} The message count when last summarized, or 0 if never
+ */
+export function getLastSummarizedCount() {
+  const context = getContext();
+  if (!context?.chatMetadata?.[LOOM_LAST_SUMMARIZED_KEY]) return 0;
+  return context.chatMetadata[LOOM_LAST_SUMMARIZED_KEY].messageCount || 0;
+}
+
+/**
+ * Store the last summarized message count in chat metadata
+ * @param {number} messageCount - The current message count
+ */
+function storeLastSummarizedCount(messageCount) {
+  const context = getContext();
+  if (!context?.chatMetadata) return;
+
+  context.chatMetadata[LOOM_LAST_SUMMARIZED_KEY] = {
+    messageCount: messageCount,
+    timestamp: Date.now(),
+  };
+
+  // Note: saveMetadata is called by the caller after this
+}
 
 // SVG Icons for summary indicators
 const LOOM_SPOOL_SVG = `<svg class="loom-summary-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -481,26 +520,46 @@ export async function generateSummaryWithSecondaryLLM(
   let response;
 
   if (providerConfig.format === "anthropic") {
+    // Get current settings for cache control
+    const currentSettings = getSettings();
+    const lumiaVersion = getLumiaConfigVersion();
+
     // Anthropic uses a different API format
+    // When cache is disabled, use ephemeral cache_control to force fresh response
     const requestBody = {
       model: model,
       max_tokens: maxTokens,
-      system: prompts.systemPrompt,
+      system: currentSettings.disableAnthropicCache
+        ? [{ type: "text", text: prompts.systemPrompt, cache_control: { type: "ephemeral" } }]
+        : prompts.systemPrompt,
       messages: [{ role: "user", content: prompts.userPrompt }],
       temperature: temperature,
+      // Include Lumia config version in metadata for debugging
+      metadata: {
+        lumia_config_version: String(lumiaVersion),
+      },
     };
-    // Only include top_p if it's not the default (1.0)
-    if (topP < 1.0) {
+    // Only include top_p if it's not the default (1.0) and not 0 (user wants to omit)
+    if (topP > 0 && topP < 1.0) {
       requestBody.top_p = topP;
+    }
+
+    // Prepare headers - include beta header for cache control when needed
+    const headers = {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    };
+
+    // Add beta header for prompt caching API when cache control is being used
+    if (currentSettings.disableAnthropicCache) {
+      headers["anthropic-beta"] = "prompt-caching-2024-07-31";
+      console.log(`[${MODULE_NAME}] Cache busting enabled for this request (Lumia config v${lumiaVersion})`);
     }
 
     response = await fetch(endpoint, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
+      headers: headers,
       body: JSON.stringify(requestBody),
     });
 
@@ -545,8 +604,8 @@ export async function generateSummaryWithSecondaryLLM(
         maxOutputTokens: maxTokens,
       },
     };
-    // Only include topP if it's not the default (1.0)
-    if (topP < 1.0) {
+    // Only include topP if it's not the default (1.0) and not 0 (user wants to omit)
+    if (topP > 0 && topP < 1.0) {
       requestBody.generationConfig.topP = topP;
     }
 
@@ -595,8 +654,8 @@ export async function generateSummaryWithSecondaryLLM(
       temperature: temperature,
       max_tokens: maxTokens,
     };
-    // Only include top_p if it's not the default (1.0)
-    if (topP < 1.0) {
+    // Only include top_p if it's not the default (1.0) and not 0 (user wants to omit)
+    if (topP > 0 && topP < 1.0) {
       requestBody.top_p = topP;
     }
 
@@ -686,8 +745,12 @@ export async function generateLoomSummary(
     if (summaryText && summaryText.trim()) {
       // Store the summary in chat metadata
       context.chatMetadata[LOOM_SUMMARY_KEY] = summaryText.trim();
+
+      // Track when we summarized (message count) for auto-summary interval
+      storeLastSummarizedCount(context.chat.length);
+
       await context.saveMetadata();
-      console.log(`[${MODULE_NAME}] Summary saved to chat metadata`);
+      console.log(`[${MODULE_NAME}] Summary saved to chat metadata at message ${context.chat.length}`);
 
       // Show completion indicator
       if (showVisualFeedback) {
@@ -715,9 +778,12 @@ export async function generateLoomSummary(
 }
 
 /**
- * Check if auto-summarization should trigger
+ * Check if auto-summarization should trigger based on messages since last summary
  */
 export function checkAutoSummarization() {
+  // Don't trigger if already summarizing
+  if (isSummarizing) return;
+
   const settings = getSettings();
   const sumSettings = settings.summarization;
   if (!sumSettings || sumSettings.mode !== "auto") return;
@@ -726,21 +792,53 @@ export function checkAutoSummarization() {
   if (!context || !context.chat) return;
 
   const interval = sumSettings.autoInterval || 10;
-  const messageCount = context.chat.length;
+  const currentMessageCount = context.chat.length;
 
-  // Trigger when message count is divisible by interval
-  if (messageCount > 0 && messageCount % interval === 0) {
+  // Get the last summarized count from chat metadata
+  const lastSummarizedAt = getLastSummarizedCount();
+
+  // Calculate how many messages since last summary
+  const messagesSinceLastSummary = currentMessageCount - lastSummarizedAt;
+
+  // Trigger if we've accumulated enough new messages since last summary
+  // Also ensure we have at least 'interval' messages total (don't trigger on tiny chats)
+  if (currentMessageCount >= interval && messagesSinceLastSummary >= interval) {
     console.log(
-      `[${MODULE_NAME}] Auto-summarization triggered at message ${messageCount}`,
+      `[${MODULE_NAME}] Auto-summarization triggered: ${messagesSinceLastSummary} messages since last summary (at ${lastSummarizedAt}), current count: ${currentMessageCount}`,
     );
+
+    // Set summarizing state for UI feedback
+    isSummarizing = true;
+
+    // Import and call UI update dynamically to avoid circular dependency
+    import("./uiModals.js")
+      .then(({ updateLoomSummaryButtonState }) => {
+        updateLoomSummaryButtonState();
+      })
+      .catch(() => {});
+
     // Pass showVisualFeedback=true for auto-summarization to show spinner
     generateLoomSummary(null, false, true)
       .then((result) => {
+        isSummarizing = false;
+        // Update UI state after completion
+        import("./uiModals.js")
+          .then(({ updateLoomSummaryButtonState }) => {
+            updateLoomSummaryButtonState();
+          })
+          .catch(() => {});
+
         if (result) {
           toastr.info("Loom summary updated automatically");
         }
       })
       .catch((error) => {
+        isSummarizing = false;
+        import("./uiModals.js")
+          .then(({ updateLoomSummaryButtonState }) => {
+            updateLoomSummaryButtonState();
+          })
+          .catch(() => {});
         console.error(`[${MODULE_NAME}] Auto-summarization failed:`, error);
       });
   }

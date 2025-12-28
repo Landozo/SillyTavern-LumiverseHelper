@@ -3,7 +3,7 @@
  * Handles creation, editing, and export of custom Lumia definitions and packs
  */
 
-import { getSettings, saveSettings, MODULE_NAME } from "./settingsManager.js";
+import { getSettings, saveSettings, MODULE_NAME, bumpLumiaConfigVersion } from "./settingsManager.js";
 import { escapeHtml } from "./dataProcessor.js";
 
 // SVG icons used in the editor
@@ -178,6 +178,7 @@ export function addLumiaToPackItems(packName, lumiaItem, originalName = null) {
   }
 
   saveSettings();
+  bumpLumiaConfigVersion(); // Invalidate Claude cache when Lumia definitions change
   return lumiaItem;
 }
 
@@ -236,6 +237,7 @@ export function deleteLumiaFromPack(packName, itemName) {
     }
 
     saveSettings();
+    bumpLumiaConfigVersion(); // Invalidate Claude cache when Lumia definitions change
   }
 }
 

@@ -3,8 +3,7 @@
  * Handles all settings persistence, migration, and state management for Lumia Injector
  */
 
-import { extension_settings } from "../../../../extensions.js";
-import { saveSettingsDebounced } from "../../../../../script.js";
+import { getExtensionSettings, getSaveSettingsDebounced } from "../stContext.js";
 
 export const MODULE_NAME = "lumia-injector";
 export const SETTINGS_KEY = "lumia_injector_settings";
@@ -21,10 +20,20 @@ const DEFAULT_SETTINGS = {
   selectedLoomStyle: [],
   selectedLoomUtils: [],
   selectedLoomRetrofits: [],
+  // Preset system
+  presets: {}, // Saved preset configurations keyed by name
+  activePresetName: null, // Currently loaded preset name (for UI indication)
+  // Chimera/Council modes (for preset compatibility)
+  chimeraMode: false,
+  selectedDefinitions: [], // Array of { packName, itemName } - used in Chimera mode
+  councilMode: false,
+  councilMembers: [], // Array of council member configurations
   lumiaOOCInterval: null,
   lumiaOOCStyle: "social",
   sovereignHand: {
     enabled: false,
+    excludeLastMessage: true, // Whether to remove last user message from context
+    includeMessageInPrompt: true, // Whether to include user message in {{loomSovHand}} macro
   },
   contextFilters: {
     htmlTags: {
@@ -60,6 +69,16 @@ const DEFAULT_SETTINGS = {
       topP: 1.0,
       maxTokens: 8192,
     },
+  },
+  // Cache control for Anthropic API calls
+  lumiaConfigVersion: 1,
+  lastLumiaChangeTimestamp: null,
+  disableAnthropicCache: false,
+  // Lumia button position (percentage from edges)
+  lumiaButtonPosition: {
+    useDefault: true, // When true, use default positioning (top-right, animates with panel)
+    xPercent: 1,      // Percentage from right edge (0-100)
+    yPercent: 1,      // Percentage from top edge (0-100)
   },
 };
 
@@ -198,7 +217,17 @@ export function migrateSettings() {
   if (!settings.sovereignHand) {
     settings.sovereignHand = {
       enabled: false,
+      excludeLastMessage: true,
+      includeMessageInPrompt: true,
     };
+  }
+  // Ensure excludeLastMessage default for existing sovereignHand settings
+  if (settings.sovereignHand.excludeLastMessage === undefined) {
+    settings.sovereignHand.excludeLastMessage = true;
+  }
+  // Ensure includeMessageInPrompt default for existing sovereignHand settings
+  if (settings.sovereignHand.includeMessageInPrompt === undefined) {
+    settings.sovereignHand.includeMessageInPrompt = true;
   }
 
   // Ensure contextFilters defaults
@@ -304,6 +333,18 @@ export function migrateSettings() {
     settings.summarization.secondary.maxTokens = 8192;
   }
 
+  // Ensure preset system defaults
+  if (!settings.presets) settings.presets = {};
+  if (settings.activePresetName === undefined) settings.activePresetName = null;
+
+  // Ensure Chimera mode defaults
+  if (settings.chimeraMode === undefined) settings.chimeraMode = false;
+  if (!settings.selectedDefinitions) settings.selectedDefinitions = [];
+
+  // Ensure Council mode defaults
+  if (settings.councilMode === undefined) settings.councilMode = false;
+  if (!settings.councilMembers) settings.councilMembers = [];
+
   return migrated;
 }
 
@@ -311,6 +352,7 @@ export function migrateSettings() {
  * Load settings from SillyTavern storage
  */
 export function loadSettings() {
+  const extension_settings = getExtensionSettings();
   if (extension_settings[SETTINGS_KEY]) {
     settings = { ...settings, ...extension_settings[SETTINGS_KEY] };
 
@@ -326,27 +368,68 @@ export function loadSettings() {
  * Save settings to SillyTavern storage
  */
 export function saveSettings() {
+  const extension_settings = getExtensionSettings();
+  const saveSettingsDebounced = getSaveSettingsDebounced();
   extension_settings[SETTINGS_KEY] = settings;
   saveSettingsDebounced();
 }
 
 /**
- * Get the extension directory path
- * @returns {string} Extension directory path
+ * Get the current Lumia config version
+ * Used for cache invalidation with Anthropic API
+ * @returns {number} Current version number
  */
-export function getExtensionDirectory() {
-  const index_path = new URL(import.meta.url).pathname;
-  // Go up from lib/ to extension root
-  const libPath = index_path.substring(0, index_path.lastIndexOf("/"));
-  return libPath.substring(0, libPath.lastIndexOf("/"));
+export function getLumiaConfigVersion() {
+  return settings.lumiaConfigVersion || 1;
 }
 
 /**
- * Load the settings HTML template
- * @returns {Promise<string>} Settings HTML content
+ * Increment Lumia config version for cache invalidation
+ * Call this whenever Lumia definitions change
  */
-export async function loadSettingsHtml() {
-  const response = await fetch(`${getExtensionDirectory()}/settings.html`);
-  const html = await response.text();
-  return html;
+export function bumpLumiaConfigVersion() {
+  settings.lumiaConfigVersion = (settings.lumiaConfigVersion || 0) + 1;
+  settings.lastLumiaChangeTimestamp = Date.now();
+  saveSettings();
+  console.log(`[${MODULE_NAME}] Lumia config version bumped to ${settings.lumiaConfigVersion}`);
+}
+
+/**
+ * Clear Claude cache by bumping version and setting temporary disable flag
+ * This forces all subsequent requests to bypass any cached prompts
+ * @returns {number} New version number
+ */
+export function clearClaudeCache() {
+  settings.lumiaConfigVersion = (settings.lumiaConfigVersion || 0) + 1;
+  settings.lastLumiaChangeTimestamp = Date.now();
+  settings.disableAnthropicCache = true;
+  saveSettings();
+  console.log(`[${MODULE_NAME}] Claude cache cleared - version now ${settings.lumiaConfigVersion}`);
+
+  // Re-enable cache after a short delay (for next request series)
+  setTimeout(() => {
+    settings.disableAnthropicCache = false;
+    saveSettings();
+  }, 5000);
+
+  return settings.lumiaConfigVersion;
+}
+
+/**
+ * Get the extension directory path
+ * Note: In bundled mode, this is less reliable - use for compatibility only
+ * @returns {string} Extension directory path
+ */
+export function getExtensionDirectory() {
+  // Try to find extension path from script tags
+  const scripts = document.querySelectorAll('script[src*="lumia"], script[src*="lumiverse"]');
+  for (const script of scripts) {
+    const src = script.src;
+    const match = src.match(/(\/scripts\/extensions\/third-party\/[^/]+)/);
+    if (match) {
+      return match[1];
+    }
+  }
+  // Fallback
+  return "/scripts/extensions/third-party/SillyTavern-LumiverseHelper";
 }
