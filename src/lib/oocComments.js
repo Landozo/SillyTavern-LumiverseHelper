@@ -1072,6 +1072,26 @@ function performOOCProcessing(mesId, force = false) {
           // Create styled box and insert at the range position
           const commentBox = createOOCCommentBox(surgicalMatch.innerHTML, avatarImg, processedCount, ooc.name);
           surgicalMatch.range.insertNode(commentBox);
+
+          // Clean up empty parent elements left behind after content extraction
+          // The Range API removes content but leaves empty <p> tags which cause extra spacing
+          const parent = commentBox.parentElement;
+          if (parent) {
+            // Check siblings for empty/whitespace-only block elements
+            const siblings = Array.from(parent.children);
+            siblings.forEach((sibling) => {
+              if (sibling === commentBox) return;
+              if (sibling.matches("p, div") && !sibling.textContent?.trim() && !sibling.querySelector("img, [data-lumia-ooc]")) {
+                sibling.remove();
+              }
+            });
+
+            // If parent itself is a <p> and now only contains our box, unwrap it
+            if (parent.matches("p") && parent.children.length === 1 && parent.children[0] === commentBox) {
+              parent.replaceWith(commentBox);
+            }
+          }
+
           markTextProcessed(mesId, plainText);
           processedCount++;
           console.log(
