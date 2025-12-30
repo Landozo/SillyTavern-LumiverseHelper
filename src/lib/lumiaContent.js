@@ -780,6 +780,7 @@ export function registerLumiaMacros(MacrosParser) {
     return COUNCIL_INST_PROMPT;
   }, "Council mode instruction prompt (empty when council mode is off)");
 
+<<<<<<< HEAD
   // ============================================
   // lumiaSelf macro - Self-address pronouns
   // Returns singular or plural pronouns based on council mode
@@ -843,3 +844,14 @@ export function registerLumiaMacros(MacrosParser) {
   //   return "";
   // }, "Lumia third-person pronouns. {{lumiaPn .1}}=he/she, {{lumiaPn .2}}=him/her, {{lumiaPn .3}}=his/hers. PLACEHOLDER - not yet active.");
 }
+=======
+  MacrosParser.registerMacro("lumiaCouncilModeActive", () => {
+    const currentSettings = getSettings();
+    // Return Yes only if council mode is active with members. Otherwise No.
+    if (!currentSettings.councilMode || !currentSettings.councilMembers?.length) {
+      return "**No.**";
+    }
+    return "**Yes.**";
+  }, "Council Mode status indicator (Yes/No — requires members for yes)");
+}
+>>>>>>> 4e34fcc45359c86faa21d0d929d77ced4fea074f
