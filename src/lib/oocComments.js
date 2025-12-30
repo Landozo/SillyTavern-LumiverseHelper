@@ -398,14 +398,19 @@ function findAndWrapOOCContent(container, searchText, rawOOCContent) {
     }
   }
 
-  // Map the match position back to original text (accounting for whitespace normalization)
-  // This is approximate - we'll find the text nodes that span our match
+  // Map the match position back to original text (accounting for normalization)
+  // IMPORTANT: Must use the SAME normalization as above (whitespace, ellipsis, quotes)
+  // Otherwise position mapping will be off when characters change length (e.g., … → ...)
   // Use -1 as sentinel since 0 is a valid position for content at the start
   let originalMatchStart = -1;
   let originalMatchEnd = -1;
 
   for (let i = 0; i < accumulatedText.length; i++) {
-    const normalizedUpToHere = accumulatedText.substring(0, i + 1).replace(/\s+/g, " ");
+    const normalizedUpToHere = accumulatedText.substring(0, i + 1)
+      .replace(/\s+/g, " ")
+      .replace(/…/g, "...")
+      .replace(/[""]/g, '"')
+      .replace(/['']/g, "'");
     if (normalizedUpToHere.length >= matchStart + 1 && originalMatchStart === -1) {
       originalMatchStart = i;
     }
