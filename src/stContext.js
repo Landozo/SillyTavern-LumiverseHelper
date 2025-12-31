@@ -63,12 +63,20 @@ export function getEventTypes() {
 
 /**
  * Get the MacrosParser for registering custom macros.
- * Updated for SillyTavern 1.15 Macros 2.0 system.
+ * Updated for SillyTavern 1.15+ Macros 2.0 system with full API compliance.
  *
- * The new system:
- * - Uses ctx.macros.register(name, { handler, description, category })
- * - Handler receives namedArgs object with parameters
- * - Space-separated params like {{macro .param}} pass ".param" to handler
+ * Uses cascading fallback: tries new API first, falls back to legacy if it fails.
+ * This ensures macros register successfully even if one API is buggy or unavailable.
+ *
+ * Macros 2.0 API properties:
+ * - handler: Function executing the macro logic (required)
+ * - category: Groups macro in docs/autocomplete (required)
+ * - description: Explains macro functionality
+ * - returns: Documents return value specifics
+ * - returnType: Expected output type ('string', 'integer', 'number', 'boolean')
+ * - exampleUsage: Usage examples (string or string[])
+ * - aliases: Alternative names [{alias: string, visible?: boolean}]
+ * - unnamedArgs: Positional argument definitions
  *
  * @returns {Object|null} MacrosParser-compatible object with registerMacro method
  */
@@ -80,69 +88,122 @@ export function getMacrosParser() {
     return null;
   }
 
+  // Detect available APIs
+  const hasNewMacrosAPI = typeof ctx.macros?.register === "function";
+  const hasRegisterMacro = typeof ctx.registerMacro === "function";
+  const hasLegacyParser = typeof ctx.MacrosParser?.registerMacro === "function";
+
   // Log what's available for debugging
   console.log("[LumiverseHelper] Macro API detection:", {
-    "ctx.macros": !!ctx.macros,
-    "ctx.macros?.register": typeof ctx.macros?.register,
-    "ctx.registerMacro": typeof ctx.registerMacro,
-    "ctx.MacrosParser": !!ctx.MacrosParser,
+    "ctx.macros.register": hasNewMacrosAPI,
+    "ctx.registerMacro": hasRegisterMacro,
+    "ctx.MacrosParser": hasLegacyParser,
   });
 
-  // Try 1: Use the new macros.register API (Macros 2.0 - ST 1.15+)
-  // This is the preferred method for the new macro system
-  if (typeof ctx.macros?.register === "function") {
-    console.log("[LumiverseHelper] Using ctx.macros.register (Macros 2.0 API)");
-    return {
-      registerMacro: (name, handlerOrValue, description = null) => {
+  if (!hasNewMacrosAPI && !hasRegisterMacro && !hasLegacyParser) {
+    console.warn("[LumiverseHelper] No macro registration API found");
+    return null;
+  }
+
+  // Return a wrapper that tries each API in order until one succeeds
+  // Accepts either legacy (name, handler, description) or new (name, options) signature
+  return {
+    /**
+     * Register a macro with full Macros 2.0 support
+     * @param {string} name - Macro name (without braces)
+     * @param {Function|Object} handlerOrOptions - Handler function OR options object
+     * @param {string} [legacyDescription] - Description (legacy signature only)
+     *
+     * Options object can include:
+     * - handler: Function (required)
+     * - description: string
+     * - returns: string (documents return value)
+     * - returnType: 'string' | 'integer' | 'number' | 'boolean'
+     * - exampleUsage: string | string[]
+     * - aliases: Array<{alias: string, visible?: boolean}>
+     * - unnamedArgs: number | Array<{name, optional?, defaultValue?, type?, description?}>
+     */
+    registerMacro: (name, handlerOrOptions, legacyDescription = null) => {
+      let options;
+
+      // Detect if using new options object or legacy (handler, description) signature
+      if (typeof handlerOrOptions === "function") {
+        // Legacy signature: (name, handler, description)
+        options = {
+          handler: handlerOrOptions,
+          description: legacyDescription || `Lumiverse Helper macro: ${name}`,
+        };
+      } else if (typeof handlerOrOptions === "object" && handlerOrOptions !== null) {
+        // New signature: (name, options)
+        options = {
+          ...handlerOrOptions,
+          description: handlerOrOptions.description || `Lumiverse Helper macro: ${name}`,
+        };
+      } else {
+        // Static value
+        options = {
+          handler: () => handlerOrOptions,
+          description: legacyDescription || `Lumiverse Helper macro: ${name}`,
+        };
+      }
+
+      // Ensure handler exists
+      const handler = options.handler;
+      if (typeof handler !== "function") {
+        console.error(`[LumiverseHelper] Invalid handler for macro ${name}`);
+        return;
+      }
+
+      // Try 1: New Macros 2.0 API (ST 1.15+)
+      if (hasNewMacrosAPI) {
         try {
-          const handler = typeof handlerOrValue === "function"
-            ? handlerOrValue
-            : () => handlerOrValue;
-          ctx.macros.register(name, {
+          // Build full Macros 2.0 options object
+          const macros2Options = {
             handler,
-            description: description || `Lumiverse Helper macro: ${name}`,
             category: "Lumiverse Helper",
-          });
+            description: options.description,
+          };
+
+          // Add optional Macros 2.0 properties if provided
+          if (options.returns) macros2Options.returns = options.returns;
+          if (options.returnType) macros2Options.returnType = options.returnType;
+          if (options.exampleUsage) macros2Options.exampleUsage = options.exampleUsage;
+          if (options.aliases) macros2Options.aliases = options.aliases;
+          if (options.unnamedArgs !== undefined) macros2Options.unnamedArgs = options.unnamedArgs;
+
+          ctx.macros.register(name, macros2Options);
           console.log(`[LumiverseHelper] Registered macro via macros.register: ${name}`);
+          return; // Success - don't try other methods
         } catch (e) {
-          console.error(`[LumiverseHelper] Failed to register macro ${name} via macros.register:`, e);
+          console.warn(`[LumiverseHelper] macros.register failed for ${name}, trying fallback:`, e.message);
         }
-      },
-    };
-  }
+      }
 
-  // Try 2: Use ctx.registerMacro (documented extension API - may still work)
-  if (typeof ctx.registerMacro === "function") {
-    console.log("[LumiverseHelper] Using ctx.registerMacro (extension API)");
-    return {
-      registerMacro: (name, handlerOrValue) => {
+      // Try 2: Extension API (ctx.registerMacro)
+      if (hasRegisterMacro) {
         try {
-          ctx.registerMacro(name, handlerOrValue);
-          console.log(`[LumiverseHelper] Registered macro: ${name}`);
+          ctx.registerMacro(name, handler);
+          console.log(`[LumiverseHelper] Registered macro via registerMacro: ${name}`);
+          return; // Success
         } catch (e) {
-          console.error(`[LumiverseHelper] Failed to register macro ${name}:`, e);
+          console.warn(`[LumiverseHelper] registerMacro failed for ${name}, trying fallback:`, e.message);
         }
-      },
-    };
-  }
+      }
 
-  // Try 3: Legacy MacrosParser (fallback for older ST versions)
-  if (ctx.MacrosParser?.registerMacro) {
-    console.log("[LumiverseHelper] Using ctx.MacrosParser (legacy fallback)");
-    return {
-      registerMacro: (name, handlerOrValue) => {
+      // Try 3: Legacy MacrosParser
+      if (hasLegacyParser) {
         try {
-          ctx.MacrosParser.registerMacro(name, handlerOrValue);
+          ctx.MacrosParser.registerMacro(name, handler);
           console.log(`[LumiverseHelper] Registered macro via MacrosParser: ${name}`);
+          return; // Success
         } catch (e) {
-          console.error(`[LumiverseHelper] Failed to register macro ${name} via MacrosParser:`, e);
+          console.error(`[LumiverseHelper] All macro registration methods failed for ${name}:`, e.message);
         }
-      },
-    };
-  }
+      }
 
-  console.warn("[LumiverseHelper] No macro registration API found");
-  return null;
+      console.error(`[LumiverseHelper] Could not register macro ${name} - all methods exhausted`);
+    },
+  };
 }
 
 /**

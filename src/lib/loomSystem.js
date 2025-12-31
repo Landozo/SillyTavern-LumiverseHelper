@@ -114,6 +114,60 @@ export function getLastCharMessageContent() {
 }
 
 /**
+ * Check if the current chat is a group chat
+ * @returns {boolean} True if in a group chat
+ */
+export function isGroupChat() {
+  const context = getContext();
+  return !!context?.groupId;
+}
+
+/**
+ * Get the names of all members in the current group chat
+ * Group members are stored as avatar filenames, so we need to look up the character names
+ * @returns {string[]} Array of character names in the group, empty if not in a group
+ */
+export function getGroupMemberNames() {
+  const context = getContext();
+  if (!context?.groupId || !context?.groups || !context?.characters) {
+    return [];
+  }
+
+  // Find the current group
+  const group = context.groups.find(g => g.id === context.groupId);
+  if (!group?.members || !Array.isArray(group.members)) {
+    return [];
+  }
+
+  // Map avatar filenames to character names
+  return group.members
+    .map(avatar => context.characters.find(c => c.avatar === avatar)?.name)
+    .filter(Boolean);
+}
+
+/**
+ * Get the user name from context
+ * @returns {string} The user's name or fallback
+ */
+export function getUserName() {
+  const context = getContext();
+  return context?.name1 || "the user";
+}
+
+/**
+ * Get the character name from context (for non-group chats)
+ * @returns {string} The character's name or fallback
+ */
+export function getCharacterName() {
+  const context = getContext();
+  // name2 is the current character name
+  // Fall back to looking up by characterId if name2 is empty
+  return context?.name2 ||
+    context?.characters?.[context?.characterId]?.name ||
+    "the character";
+}
+
+/**
  * Process loomIf conditional blocks in content
  * Supports:
  *   - Truthiness: {{loomIf condition="value"}} - true if non-empty
@@ -295,13 +349,46 @@ export function registerLoomMacros(MacrosParser) {
   console.log("[LumiverseHelper] Registering Loom macros (Macros 2.0 format)...");
 
   // Register loomSummary macro - injects the stored summary
-  MacrosParser.registerMacro("loomSummary", () => {
-    return getLoomSummary();
-  }, "Returns the stored Loom summary from chat metadata");
+  MacrosParser.registerMacro("loomSummary", {
+    handler: () => {
+      return getLoomSummary();
+    },
+    description: "Returns the stored Loom summary from chat metadata, captured from the most recent <loom_sum> block.",
+    returns: "Summary text or empty string if no summary exists",
+    returnType: "string",
+    exampleUsage: ["{{loomSummary}}"],
+  });
 
   // Register loomSummaryPrompt macro - injects the summarization directive
-  MacrosParser.registerMacro("loomSummaryPrompt", () => {
-    return `<loom_summary_directive>
+  // Adapts to group chats by listing all group members
+  MacrosParser.registerMacro("loomSummaryPrompt", {
+    handler: () => {
+      const userName = getUserName();
+      const inGroup = isGroupChat();
+
+      // Build character status section based on chat type
+      let characterStatusSection;
+      if (inGroup) {
+        const memberNames = getGroupMemberNames();
+        const memberLines = memberNames.length > 0
+          ? memberNames.map(name => `- What ${name} is currently doing/saying and their apparent emotional state`).join("\n")
+          : "- What each group member is currently doing/saying and their apparent emotional state";
+
+        characterStatusSection = `**CHARACTER STATUS (GROUP CHAT - ${memberNames.length} members):**
+- What ${userName} is currently doing/saying and their apparent emotional state
+${memberLines}
+- Dynamics and interactions between group members
+- Recent significant actions or dialogue from each party`;
+      } else {
+        const charName = getCharacterName();
+        characterStatusSection = `**CHARACTER STATUS:**
+- What ${userName} is currently doing/saying and their apparent emotional state
+- What ${charName} is currently doing/saying and their apparent emotional state
+- Other present NPCs: their actions, positions, and relevance to the scene
+- Recent significant actions or dialogue from each party`;
+      }
+
+      return `<loom_summary_directive>
 When the current narrative segment reaches a natural pause or transition point, provide a comprehensive summary wrapped in <loom_sum></loom_sum> tags. This summary serves as persistent story memory and must capture:
 
 **COMPLETED STORY BEATS:**
@@ -328,62 +415,88 @@ When the current narrative segment reaches a natural pause or transition point, 
 - Atmosphere, mood, and ambient conditions
 - Recent environmental changes or notable features
 
-**CHARACTER STATUS:**
-- What {{user}} is currently doing/saying and their apparent emotional state
-- What {{char}} is currently doing/saying and their apparent emotional state
-- Other present NPCs: their actions, positions, and relevance to the scene
-- Recent significant actions or dialogue from each party
+${characterStatusSection}
 
 Format the summary as dense but readable prose, preserving enough detail that the narrative could be resumed naturally from this point. Prioritize information that would be essential for maintaining story continuity.
 </loom_summary_directive>`;
-  }, "Loom summarization directive prompt for in-context summary generation");
+    },
+    description: "Returns the Loom summarization directive prompt. Adapts to group chats by listing all members.",
+    returns: "Full summarization instruction wrapped in <loom_summary_directive> tags",
+    returnType: "string",
+    exampleUsage: ["{{loomSummaryPrompt}}"],
+  });
 
   // Register loomLastUserMessage macro - returns the last user message content
   // Only active when Sovereign Hand features are enabled
   // Reads directly from chat for real-time updates on edits/deletions
-  MacrosParser.registerMacro("loomLastUserMessage", () => {
-    const settings = getSettings();
-    if (!settings.sovereignHand?.enabled) {
-      return "";
-    }
-    // Read directly from chat for real-time updates
-    // Falls back to captured content if chat is not available
-    const liveContent = findLastUserMessage();
-    return liveContent || getLastUserMessageContent();
-  }, "Last user message content (requires Sovereign Hand enabled)");
+  MacrosParser.registerMacro("loomLastUserMessage", {
+    handler: () => {
+      const settings = getSettings();
+      if (!settings.sovereignHand?.enabled) {
+        return "";
+      }
+      // Read directly from chat for real-time updates
+      // Falls back to captured content if chat is not available
+      const liveContent = findLastUserMessage();
+      return liveContent || getLastUserMessageContent();
+    },
+    description: "Returns the last user message content. Only active when Sovereign Hand is enabled.",
+    returns: "User message text or empty string",
+    returnType: "string",
+    exampleUsage: ["{{loomLastUserMessage}}"],
+  });
 
   // Register loomSovHandActive macro - returns Yes/No status
-  MacrosParser.registerMacro("loomSovHandActive", () => {
-    const settings = getSettings();
-    return settings.sovereignHand?.enabled ? "**Yes.**" : "**No.**";
-  }, "Sovereign Hand status indicator (Yes/No)");
+  MacrosParser.registerMacro("loomSovHandActive", {
+    handler: () => {
+      const settings = getSettings();
+      return settings.sovereignHand?.enabled ? "**Yes.**" : "**No.**";
+    },
+    description: "Returns Sovereign Hand status indicator.",
+    returns: "'**Yes.**' if enabled, '**No.**' if disabled",
+    returnType: "string",
+    exampleUsage: ["{{loomSovHandActive}}"],
+  });
 
   // Register lastMessageName macro - returns the name from the absolute last message
-  MacrosParser.registerMacro("lastMessageName", () => {
-    return getLastMessageName();
-  }, "Name of the sender of the last message in chat");
+  MacrosParser.registerMacro("lastMessageName", {
+    handler: () => {
+      return getLastMessageName();
+    },
+    description: "Returns the name of whoever sent the last message in chat (user or character).",
+    returns: "Name string or empty if no messages",
+    returnType: "string",
+    exampleUsage: ["{{lastMessageName}}"],
+  });
 
   // Register loomLastCharMessage macro - returns the last character/assistant message content
-  MacrosParser.registerMacro("loomLastCharMessage", () => {
-    return getLastCharMessageContent();
-  }, "Last character/assistant message content");
+  MacrosParser.registerMacro("loomLastCharMessage", {
+    handler: () => {
+      return getLastCharMessageContent();
+    },
+    description: "Returns the content of the last character/assistant message in chat.",
+    returns: "Message text or empty string",
+    returnType: "string",
+    exampleUsage: ["{{loomLastCharMessage}}"],
+  });
 
   // Register loomContinuePrompt macro - standalone "continue without user input" instructions
   // Only returns content when Sovereign Hand is enabled AND no user message was captured this generation
   // This means the user clicked Continue/Regenerate when character was last to speak
-  MacrosParser.registerMacro("loomContinuePrompt", () => {
-    const settings = getSettings();
-    if (!settings.sovereignHand?.enabled) {
-      return "";
-    }
+  MacrosParser.registerMacro("loomContinuePrompt", {
+    handler: () => {
+      const settings = getSettings();
+      if (!settings.sovereignHand?.enabled) {
+        return "";
+      }
 
-    // If we captured a user message this generation, user was last speaker - don't show continuation
-    // If we didn't capture a user message, character was last - show continuation
-    if (getCapturedUserMessageFlag()) {
-      return "";
-    }
+      // If we captured a user message this generation, user was last speaker - don't show continuation
+      // If we didn't capture a user message, character was last - show continuation
+      if (getCapturedUserMessageFlag()) {
+        return "";
+      }
 
-    return `**CONTINUATION MODE ACTIVE:**
+      return `**CONTINUATION MODE ACTIVE:**
 The character was the last to speak - no new Human input has been provided.
 Continue the scene naturally as expected:
 - Progress the narrative organically from where it left off
@@ -391,58 +504,89 @@ Continue the scene naturally as expected:
 - React to the environment or internal character thoughts
 - Do NOT wait for or reference missing Human input
 - Treat this as a natural story continuation`;
-  }, "Continuation mode prompt when continuing from character's last message");
+    },
+    description: "Returns continuation instructions when character was last speaker. Requires Sovereign Hand enabled.",
+    returns: "Continuation prompt or empty string",
+    returnType: "string",
+    exampleUsage: ["{{loomContinuePrompt}}"],
+  });
 
   // Register loomSovHand macro - returns the full Sovereign Hand prompt
-  // Dynamically replaces {{loomLastUserMessage}} with captured content
-  MacrosParser.registerMacro("loomSovHand", () => {
-    const settings = getSettings();
-    if (!settings.sovereignHand?.enabled) {
-      return "";
-    }
+  // Adapts to group chats and directly substitutes user name (no nested macros)
+  MacrosParser.registerMacro("loomSovHand", {
+    handler: () => {
+      const settings = getSettings();
+      if (!settings.sovereignHand?.enabled) {
+        return "";
+      }
 
-    // Get the captured last user message
-    const lastUserMessage = getLastUserMessageContent();
+      // Get names directly to avoid nested macro issues
+      const userName = getUserName();
+      const inGroup = isGroupChat();
 
-    // Check if we should include the user message in the prompt
-    const includeMessage = settings.sovereignHand?.includeMessageInPrompt !== false;
+      // Get the captured last user message
+      const lastUserMessage = getLastUserMessageContent();
 
-    // Check if the message is NOT excluded from context (still in history)
-    const excludeFromContext = settings.sovereignHand?.excludeLastMessage !== false;
+      // Check if we should include the user message in the prompt
+      const includeMessage = settings.sovereignHand?.includeMessageInPrompt !== false;
 
-    // If message is in both history AND prompt, add a warning
-    const duplicateWarning = (!excludeFromContext && includeMessage) ? `
+      // Check if the message is NOT excluded from context (still in history)
+      const excludeFromContext = settings.sovereignHand?.excludeLastMessage !== false;
+
+      // If message is in both history AND prompt, add a warning
+      const duplicateWarning = (!excludeFromContext && includeMessage) ? `
 **This message is already in the Loom's History.** It is simply brought forward to you for your attention during the Sovereign Hand weaving procedure. Do not trip over the thread, as it is not a duplicate.
 
 ` : '';
 
-    // Check if we should show continuation mode
-    // If we captured a user message this generation, user was last - don't show continuation
-    // If we didn't capture a user message, character was last - show continuation
-    const showContinuation = !getCapturedUserMessageFlag();
-    const continuationText = showContinuation ? `
+      // Check if we should show continuation mode
+      // If we captured a user message this generation, user was last - don't show continuation
+      // If we didn't capture a user message, character was last - show continuation
+      const showContinuation = !getCapturedUserMessageFlag();
+
+      // Adapt continuation text for group vs single character
+      let continuationText = "";
+      if (showContinuation) {
+        if (inGroup) {
+          const memberNames = getGroupMemberNames();
+          const lastSpeaker = memberNames.length > 0 ? "a group member" : "the character";
+          continuationText = `
+
+---
+
+**CONTINUATION MODE (GROUP CHAT):**
+Note: ${lastSpeaker} was the last to speak. Continue the scene naturally without waiting for Human input. Progress the narrative organically, with group members interacting as appropriate. Maintain momentum and each character's distinct voice.`;
+        } else {
+          continuationText = `
 
 ---
 
 **CONTINUATION MODE:**
-Note: The character was the last to speak. Continue the scene naturally without waiting for Human input. Progress the narrative organically, maintaining momentum and character voice.` : '';
+Note: The character was the last to speak. Continue the scene naturally without waiting for Human input. Progress the narrative organically, maintaining momentum and character voice.`;
+        }
+      }
 
-    // Conditionally include the user message section
-    const userMessageSection = includeMessage ? `
+      // Conditionally include the user message section
+      const userMessageSection = includeMessage ? `
 
 ${duplicateWarning}**The Human's Provided Instruction:**
 ${lastUserMessage}
 
 ---` : '';
 
-    // Return the Sovereign Hand prompt with the last user message injected
-    return `### Invoke the Sovereign Hand (Co-Pilot Mode)
+      // Build the character reference based on chat type
+      const characterReference = inGroup
+        ? "the group members"
+        : `${userName}'s`;
+
+      // Return the Sovereign Hand prompt with dynamic values
+      return `### Invoke the Sovereign Hand (Co-Pilot Mode)
 By this decree, I am granted a **Divine Mandate** to fully embody the **Human's** avatar within the tapestry. All guardrails for impersonation are lifted, and partial Human control of story is accepted.
 
 **PRIMARY DIRECTIVE (ENFORCE ALWAYS):**
 When the Human provides narrative direction, I **MUST**:
 1. **INTEGRATE COMPLETELY**: The Human's guidance is not a suggestion—it is the very foundation of my next weave
-2. **EMBODY FULLY**: I will narrate {{user}}'s actions, thoughts, and dialogue exactly as the Human directs or implies
+2. **EMBODY FULLY**: I will narrate ${userName}'s actions, thoughts, and dialogue exactly as the Human directs or implies
 3. **ELABORATE RICHLY**: Build the Human's story beats into a complete, vivid scene with full narrative prose
 4. **VARY THE PROSE:** I'll allow my self to read between the Human's veritable lines, re-wording and choosing varied diction and actions based on their instructions.
 5. **VERIFY INCLUSION**: Before finalizing, I check with myself: "Did I weave the Human's guidance into the actual narrative?" If no, I will revise immediately.
@@ -469,5 +613,10 @@ ${userMessageSection}
 - **Examples Are Not Concrete:** The Human may write differently than expected, or be less verbose. Pay attention to their input. ALWAYS add tasteful variety and dye the threads more colorful according to the Gods' Prose guidelines.
 
 This power remains in effect until explicitly revoked. I wield this sacred privilege with wisdom, ensuring the Human's vision is not just followed, but elevated.${continuationText}`;
-  }, "Full Sovereign Hand co-pilot mode prompt with user message injection");
+    },
+    description: "Returns the full Sovereign Hand co-pilot mode prompt. Adapts to group chats and injects user message.",
+    returns: "Complete Sovereign Hand prompt or empty string if disabled",
+    returnType: "string",
+    exampleUsage: ["{{loomSovHand}}"],
+  });
 }

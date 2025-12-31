@@ -333,17 +333,29 @@ function registerAllMacros() {
   registerLoomMacros(MacrosParser);
 
   // Message count macro
-  MacrosParser.registerMacro("lumiaMessageCount", () => {
-    const context = getContext();
-    if (!context || !context.chat) return "0";
-    return context.chat.length.toString();
-  }, "Current chat message count");
+  MacrosParser.registerMacro("lumiaMessageCount", {
+    handler: () => {
+      const context = getContext();
+      if (!context || !context.chat) return "0";
+      return context.chat.length.toString();
+    },
+    description: "Returns the current chat message count.",
+    returns: "Number of messages as a string",
+    returnType: "integer",
+    exampleUsage: ["{{lumiaMessageCount}}"],
+  });
 
   // OOC trigger countdown/trigger macro
   // Uses shared function from lumiaContent.js to avoid code duplication
-  MacrosParser.registerMacro("lumiaOOCTrigger", () => {
-    return getOOCTriggerText();
-  }, "OOC commentary trigger countdown/activation prompt");
+  MacrosParser.registerMacro("lumiaOOCTrigger", {
+    handler: () => {
+      return getOOCTriggerText();
+    },
+    description: "Returns OOC trigger countdown or activation message based on message count and interval setting.",
+    returns: "Countdown text or 'OOC Commentary Time!' activation message",
+    returnType: "string",
+    exampleUsage: ["{{lumiaOOCTrigger}}"],
+  });
 
   console.log(`[${MODULE_NAME}] Macros registered successfully (Macros 2.0 format)`);
 }
