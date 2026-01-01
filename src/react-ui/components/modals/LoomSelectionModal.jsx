@@ -189,14 +189,32 @@ function PackSection({
 /**
  * Helper to get Loom items from a pack
  * Handles multiple possible pack structures:
- * - pack.loomStyles, pack.loomUtils, pack.loomRetrofits (legacy)
- * - pack.items with loomCategory field (new)
+ *
+ * New format (v2):
+ * - pack.loomItems: array of { loomName, loomContent, loomCategory, ... }
+ *
+ * Legacy formats:
+ * - pack.loomStyles, pack.loomUtils, pack.loomRetrofits (very old)
+ * - pack.items with loomCategory field (old)
  */
 function getLoomItemsFromPack(pack, config) {
     const items = [];
     const { category, packField } = config;
 
-    // First, try the legacy structure (pack.loomStyles, pack.loomUtils, pack.loomRetrofits)
+    // New format (v2): separate loomItems array with loomCategory field
+    if (pack.loomItems && Array.isArray(pack.loomItems)) {
+        pack.loomItems.forEach(item => {
+            if (item.loomCategory === category) {
+                items.push({
+                    ...item,
+                    // Normalize the name field
+                    loomName: item.loomName || item.itemName || item.name,
+                });
+            }
+        });
+    }
+
+    // Legacy structure (pack.loomStyles, pack.loomUtils, pack.loomRetrofits)
     if (pack[packField] && Array.isArray(pack[packField])) {
         pack[packField].forEach(item => {
             items.push({
@@ -207,7 +225,7 @@ function getLoomItemsFromPack(pack, config) {
         });
     }
 
-    // Then, try pack.items with loomCategory field
+    // Legacy: pack.items with loomCategory field
     if (pack.items && Array.isArray(pack.items)) {
         pack.items.forEach(item => {
             // Check multiple possible category field names

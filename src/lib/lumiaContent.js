@@ -7,9 +7,62 @@ import {
   getSettings,
   getCurrentRandomLumia,
   setCurrentRandomLumia,
+  GENDER,
 } from "./settingsManager.js";
 import { getItemFromLibrary } from "./dataProcessor.js";
 import { getContext } from "../stContext.js";
+
+/**
+ * Get a Lumia field value, supporting both new and legacy field names
+ * New format fields are tried first, then fallback to legacy field names
+ * @param {Object} item - The Lumia item
+ * @param {string} field - Field key: 'name', 'def', 'personality', 'behavior', 'img', 'author', 'gender'
+ * @returns {*} The field value or null/undefined if not found
+ */
+export function getLumiaField(item, field) {
+  if (!item) return null;
+
+  // Field mappings: [newFieldName, ...legacyFieldNames]
+  const fieldMap = {
+    name: ["lumiaName", "lumiaDefName"],
+    def: ["lumiaDefinition", "lumiaDef"],
+    personality: ["lumiaPersonality", "lumia_personality"],
+    behavior: ["lumiaBehavior", "lumia_behavior"],
+    img: ["avatarUrl", "lumia_img"],
+    author: ["authorName", "defAuthor"],
+    gender: ["genderIdentity"], // No legacy equivalent
+  };
+
+  const fields = fieldMap[field];
+  if (!fields) return null;
+
+  // Try each field name in order (new format first)
+  for (const fieldName of fields) {
+    if (item[fieldName] !== undefined && item[fieldName] !== null) {
+      return item[fieldName];
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Get pronouns for a Lumia based on genderIdentity
+ * @param {Object} item - The Lumia item
+ * @param {string} type - Pronoun type: 'subject', 'object', 'possessive', 'reflexive'
+ * @returns {string} The pronoun
+ */
+export function getLumiaPronoun(item, type) {
+  const gender = getLumiaField(item, "gender") ?? GENDER.SHE_HER;
+
+  const pronouns = {
+    [GENDER.SHE_HER]: { subject: "she", object: "her", possessive: "her", reflexive: "herself" },
+    [GENDER.HE_HIM]: { subject: "he", object: "him", possessive: "his", reflexive: "himself" },
+    [GENDER.THEY_THEM]: { subject: "they", object: "them", possessive: "their", reflexive: "themself" },
+  };
+
+  return pronouns[gender]?.[type] || pronouns[GENDER.SHE_HER][type];
+}
 
 /**
  * Get the OOC trigger countdown/activation text
@@ -93,6 +146,7 @@ const COUNCIL_INST_PROMPT = `COUNCIL MODE ACTIVATED! Now all of us Lumias in the
 /**
  * Ensure a random Lumia is selected for macro expansion
  * Selects a random item from all available packs if not already selected
+ * Supports both new format (lumiaItems) and legacy format (items)
  */
 export function ensureRandomLumia() {
   if (getCurrentRandomLumia()) return;
@@ -102,8 +156,14 @@ export function ensureRandomLumia() {
 
   if (settings.packs) {
     Object.values(settings.packs).forEach((pack) => {
-      if (pack.items && pack.items.length > 0) {
-        allItems.push(...pack.items);
+      // New format: separate lumiaItems array
+      if (pack.lumiaItems && pack.lumiaItems.length > 0) {
+        allItems.push(...pack.lumiaItems);
+      }
+      // Legacy format: mixed items array (filter for Lumia items only)
+      else if (pack.items && pack.items.length > 0) {
+        const lumiaOnly = pack.items.filter((item) => item.lumiaDefName);
+        allItems.push(...lumiaOnly);
       }
     });
   }
@@ -151,27 +211,27 @@ export function processNestedRandomLumiaMacros(content) {
     // .name variant
     processed = processed.replace(
       /\{\{randomLumia[.\s]+name\}\}/g,
-      currentRandomLumia.lumiaDefName || "",
+      getLumiaField(currentRandomLumia, "name") || "",
     );
     // .pers variant
     processed = processed.replace(
       /\{\{randomLumia[.\s]+pers\}\}/g,
-      currentRandomLumia.lumia_personality || "",
+      getLumiaField(currentRandomLumia, "personality") || "",
     );
     // .behav variant
     processed = processed.replace(
       /\{\{randomLumia[.\s]+behav\}\}/g,
-      currentRandomLumia.lumia_behavior || "",
+      getLumiaField(currentRandomLumia, "behavior") || "",
     );
     // .phys variant
     processed = processed.replace(
       /\{\{randomLumia[.\s]+phys\}\}/g,
-      currentRandomLumia.lumiaDef || "",
+      getLumiaField(currentRandomLumia, "def") || "",
     );
     // Base variant (no suffix)
     processed = processed.replace(
       /\{\{randomLumia\}\}/g,
-      currentRandomLumia.lumiaDef || "",
+      getLumiaField(currentRandomLumia, "def") || "",
     );
 
     // If no changes were made, break to prevent infinite loop
@@ -240,10 +300,11 @@ function getCouncilDefContent(councilMembers) {
   const memberData = councilMembers
     .map((member) => {
       const item = getItemFromLibrary(member.packName, member.itemName);
-      if (!item || !item.lumiaDef) return null;
+      const defContent = getLumiaField(item, "def");
+      if (!item || !defContent) return null;
       return {
-        name: item.lumiaDefName || "Unknown",
-        content: processNestedRandomLumiaMacros(item.lumiaDef),
+        name: getLumiaField(item, "name") || "Unknown",
+        content: processNestedRandomLumiaMacros(defContent),
         role: member.role || "",
       };
     })
@@ -326,23 +387,24 @@ function getCouncilBehaviorContent(councilMembers) {
 
   councilMembers.forEach((member) => {
     const item = getItemFromLibrary(member.packName, member.itemName);
-    const memberName = item?.lumiaDefName || member.itemName || "Unknown";
+    const memberName = getLumiaField(item, "name") || member.itemName || "Unknown";
 
     const behaviorContents = [];
 
     // First, include the member's own inherent behavior from their Lumia definition
-    if (item?.lumia_behavior) {
-      const inherentBehavior = processNestedRandomLumiaMacros(item.lumia_behavior);
-      behaviorContents.push(inherentBehavior);
+    const inherentBehavior = getLumiaField(item, "behavior");
+    if (inherentBehavior) {
+      behaviorContents.push(processNestedRandomLumiaMacros(inherentBehavior));
     }
 
     // Then add any additional behaviors selected for this member
     const additionalBehaviors = member.behaviors || [];
     additionalBehaviors.forEach((sel) => {
       const behaviorItem = getItemFromLibrary(sel.packName, sel.itemName);
-      if (!behaviorItem || !behaviorItem.lumia_behavior) return;
+      const behaviorContent = getLumiaField(behaviorItem, "behavior");
+      if (!behaviorItem || !behaviorContent) return;
 
-      let content = processNestedRandomLumiaMacros(behaviorItem.lumia_behavior);
+      let content = processNestedRandomLumiaMacros(behaviorContent);
 
       // Check if this is the dominant behavior for this member
       if (
@@ -386,23 +448,24 @@ function getCouncilPersonalityContent(councilMembers) {
 
   councilMembers.forEach((member) => {
     const item = getItemFromLibrary(member.packName, member.itemName);
-    const memberName = item?.lumiaDefName || member.itemName || "Unknown";
+    const memberName = getLumiaField(item, "name") || member.itemName || "Unknown";
 
     const personalityContents = [];
 
     // First, include the member's own inherent personality from their Lumia definition
-    if (item?.lumia_personality) {
-      const inherentPersonality = processNestedRandomLumiaMacros(item.lumia_personality);
-      personalityContents.push(inherentPersonality);
+    const inherentPersonality = getLumiaField(item, "personality");
+    if (inherentPersonality) {
+      personalityContents.push(processNestedRandomLumiaMacros(inherentPersonality));
     }
 
     // Then add any additional personalities selected for this member
     const additionalPersonalities = member.personalities || [];
     additionalPersonalities.forEach((sel) => {
       const persItem = getItemFromLibrary(sel.packName, sel.itemName);
-      if (!persItem || !persItem.lumia_personality) return;
+      const persContent = getLumiaField(persItem, "personality");
+      if (!persItem || !persContent) return;
 
-      let content = processNestedRandomLumiaMacros(persItem.lumia_personality);
+      let content = processNestedRandomLumiaMacros(persContent);
 
       // Check if this is the dominant personality for this member
       if (
@@ -439,10 +502,11 @@ function getChimeraContent(selections) {
   const definitions = selections
     .map((sel) => {
       const item = getItemFromLibrary(sel.packName, sel.itemName);
-      if (!item || !item.lumiaDef) return null;
+      const defContent = getLumiaField(item, "def");
+      if (!item || !defContent) return null;
       return {
-        name: item.lumiaDefName || "Unknown",
-        content: processNestedRandomLumiaMacros(item.lumiaDef),
+        name: getLumiaField(item, "name") || "Unknown",
+        content: processNestedRandomLumiaMacros(defContent),
       };
     })
     .filter(Boolean);
@@ -503,8 +567,8 @@ export function getLumiaContent(type, selection) {
         if (!item) return null;
 
         let content = "";
-        if (type === "behavior") content = item.lumia_behavior || "";
-        if (type === "personality") content = item.lumia_personality || "";
+        if (type === "behavior") content = getLumiaField(item, "behavior") || "";
+        if (type === "personality") content = getLumiaField(item, "personality") || "";
 
         if (!content) return null;
 
@@ -549,7 +613,7 @@ export function getLumiaContent(type, selection) {
   if (!item) return "";
 
   let content = "";
-  if (type === "def") content = item.lumiaDef || "";
+  if (type === "def") content = getLumiaField(item, "def") || "";
 
   // Process nested randomLumia macros before returning
   return processNestedRandomLumiaMacros(content).trim();
@@ -631,16 +695,16 @@ export function registerLumiaMacros(MacrosParser) {
 
       switch (variable) {
         case "name":
-          return currentRandomLumia.lumiaDefName || "";
+          return getLumiaField(currentRandomLumia, "name") || "";
         case "phys":
-          return currentRandomLumia.lumiaDef || "";
+          return getLumiaField(currentRandomLumia, "def") || "";
         case "pers":
-          return currentRandomLumia.lumia_personality || "";
+          return getLumiaField(currentRandomLumia, "personality") || "";
         case "behav":
-          return currentRandomLumia.lumia_behavior || "";
+          return getLumiaField(currentRandomLumia, "behavior") || "";
         default:
           // No variable or unrecognized = return definition
-          const result = currentRandomLumia.lumiaDef || "";
+          const result = getLumiaField(currentRandomLumia, "def") || "";
           console.log("[LumiverseHelper] randomLumia result length:", result.length);
           return result;
       }

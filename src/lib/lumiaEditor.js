@@ -5,6 +5,7 @@
 
 import { getSettings, saveSettings, MODULE_NAME, bumpLumiaConfigVersion } from "./settingsManager.js";
 import { escapeHtml } from "./dataProcessor.js";
+import { getLumiaField } from "./lumiaContent.js";
 
 // SVG icons used in the editor
 const SVG_ICONS = {
@@ -102,13 +103,18 @@ export function createCustomPack(name, author = "", coverUrl = "") {
     throw new Error(`Pack "${name}" already exists`);
   }
 
+  // Create pack in new v2 format
   const pack = {
-    name: name,
-    items: [],
-    url: "", // Empty URL indicates local/custom pack
+    packName: name,
+    packAuthor: author || null,
+    coverUrl: coverUrl || null,
+    version: 1,
+    packExtras: [],
+    lumiaItems: [],
+    loomItems: [],
+    // Internal tracking
     isCustom: true,
-    author: author,
-    coverUrl: coverUrl,
+    url: "", // Empty URL indicates local/custom pack
   };
 
   settings.packs[name] = pack;
@@ -135,7 +141,7 @@ export function updatePackMetadata(packName, updates) {
   }
 
   if (updates.author !== undefined) {
-    pack.author = updates.author;
+    pack.packAuthor = updates.author;
   }
   if (updates.coverUrl !== undefined) {
     pack.coverUrl = updates.coverUrl;
@@ -163,18 +169,25 @@ export function addLumiaToPackItems(packName, lumiaItem, originalName = null) {
     throw new Error(`Pack "${packName}" is not editable`);
   }
 
-  // Check if we're editing an existing item
-  const searchName = originalName || lumiaItem.lumiaDefName;
-  const existingIndex = pack.items.findIndex(
-    (item) => item.lumiaDefName === searchName
+  // Ensure lumiaItems array exists (handles both new and legacy format packs)
+  if (!pack.lumiaItems) {
+    pack.lumiaItems = [];
+  }
+
+  // Get the name to search for (supports both old and new field names)
+  const itemName = lumiaItem.lumiaName || lumiaItem.lumiaDefName;
+  const searchName = originalName || itemName;
+
+  const existingIndex = pack.lumiaItems.findIndex(
+    (item) => (item.lumiaName || item.lumiaDefName) === searchName
   );
 
   if (existingIndex >= 0) {
     // Update existing
-    pack.items[existingIndex] = { ...pack.items[existingIndex], ...lumiaItem };
+    pack.lumiaItems[existingIndex] = { ...pack.lumiaItems[existingIndex], ...lumiaItem };
   } else {
     // Add new
-    pack.items.push(lumiaItem);
+    pack.lumiaItems.push(lumiaItem);
   }
 
   saveSettings();
@@ -199,9 +212,11 @@ export function deleteLumiaFromPack(packName, itemName) {
     throw new Error(`Pack "${packName}" is not editable`);
   }
 
-  const index = pack.items.findIndex((item) => item.lumiaDefName === itemName);
+  // Support both new format (lumiaItems) and legacy format (items)
+  const items = pack.lumiaItems || pack.items || [];
+  const index = items.findIndex((item) => (item.lumiaName || item.lumiaDefName) === itemName);
   if (index >= 0) {
-    pack.items.splice(index, 1);
+    items.splice(index, 1);
 
     // Clean up any selections referencing this item
     if (
@@ -249,7 +264,7 @@ export function deleteLumiaFromPack(packName, itemName) {
  * @returns {Object} World Book entry object
  */
 function serializeLumiaToWorldBookEntry(lumiaItem, entryType, uid) {
-  const name = lumiaItem.lumiaDefName;
+  const name = getLumiaField(lumiaItem, "name");
   let comment = "";
   let content = "";
 
@@ -257,22 +272,26 @@ function serializeLumiaToWorldBookEntry(lumiaItem, entryType, uid) {
     comment = `Lumia (${name})`;
     // Build content with metadata tags
     let contentParts = [];
-    if (lumiaItem.lumia_img) {
-      contentParts.push(`[lumia_img=${lumiaItem.lumia_img}]`);
+    const imgUrl = getLumiaField(lumiaItem, "img");
+    const author = getLumiaField(lumiaItem, "author");
+    const defContent = getLumiaField(lumiaItem, "def");
+
+    if (imgUrl) {
+      contentParts.push(`[lumia_img=${imgUrl}]`);
     }
-    if (lumiaItem.defAuthor) {
-      contentParts.push(`[lumia_author=${lumiaItem.defAuthor}]`);
+    if (author) {
+      contentParts.push(`[lumia_author=${author}]`);
     }
-    if (lumiaItem.lumiaDef) {
-      contentParts.push(lumiaItem.lumiaDef);
+    if (defContent) {
+      contentParts.push(defContent);
     }
     content = contentParts.join("\n");
   } else if (entryType === "behavior") {
     comment = `Behavior (${name})`;
-    content = lumiaItem.lumia_behavior || "";
+    content = getLumiaField(lumiaItem, "behavior") || "";
   } else if (entryType === "personality") {
     comment = `Personality (${name})`;
-    content = lumiaItem.lumia_personality || "";
+    content = getLumiaField(lumiaItem, "personality") || "";
   }
 
   return {
@@ -299,14 +318,18 @@ export function generateWorldBookJson(packName) {
   const entries = {};
   let uid = 0;
 
+  // Get pack metadata (support both old and new field names)
+  const packAuthor = pack.packAuthor || pack.author;
+  const packCover = pack.coverUrl;
+
   // Add metadata entry first if pack has author or cover
-  if (pack.author || pack.coverUrl) {
+  if (packAuthor || packCover) {
     let metadataContent = "";
-    if (pack.coverUrl) {
-      metadataContent += `[cover_img=${pack.coverUrl}]`;
+    if (packCover) {
+      metadataContent += `[cover_img=${packCover}]`;
     }
-    if (pack.author) {
-      metadataContent += `[author_name=${pack.author}]`;
+    if (packAuthor) {
+      metadataContent += `[author_name=${packAuthor}]`;
     }
 
     entries[uid] = {
@@ -318,24 +341,28 @@ export function generateWorldBookJson(packName) {
     uid++;
   }
 
-  for (const item of pack.items) {
-    // Skip non-Lumia items (Loom items)
-    if (!item.lumiaDefName) continue;
+  // Support both new format (lumiaItems) and legacy format (items)
+  const lumiaItems = pack.lumiaItems || (pack.items || []).filter(i => i.lumiaDefName);
+
+  for (const item of lumiaItems) {
+    const defContent = getLumiaField(item, "def");
+    const behaviorContent = getLumiaField(item, "behavior");
+    const personalityContent = getLumiaField(item, "personality");
 
     // Always add definition entry
-    if (item.lumiaDef) {
+    if (defContent) {
       entries[uid] = serializeLumiaToWorldBookEntry(item, "definition", uid);
       uid++;
     }
 
     // Add behavior entry if present
-    if (item.lumia_behavior) {
+    if (behaviorContent) {
       entries[uid] = serializeLumiaToWorldBookEntry(item, "behavior", uid);
       uid++;
     }
 
     // Add personality entry if present
-    if (item.lumia_personality) {
+    if (personalityContent) {
       entries[uid] = serializeLumiaToWorldBookEntry(item, "personality", uid);
       uid++;
     }
@@ -445,20 +472,27 @@ export function showPackSelectorModal(onSelect) {
   if (customPacks.length > 0) {
     packsHtml = customPacks
       .map(
-        (pack) => `
-      <div class="lumia-pack-option" data-pack="${escapeHtml(pack.name)}">
+        (pack) => {
+          // Support both new format (lumiaItems) and legacy format (items)
+          const packName = pack.packName || pack.name;
+          const packAuthor = pack.packAuthor || pack.author;
+          const lumiaCount = pack.lumiaItems?.length || (pack.items || []).filter((i) => i.lumiaDefName).length;
+
+          return `
+      <div class="lumia-pack-option" data-pack="${escapeHtml(packName)}">
         <div class="lumia-pack-option-icon">
           ${SVG_ICONS.folder}
         </div>
         <div class="lumia-pack-option-info">
-          <div class="lumia-pack-option-name">${escapeHtml(pack.name)}</div>
-          <div class="lumia-pack-option-meta">${pack.items.filter((i) => i.lumiaDefName).length} Lumias${pack.author ? ` • by ${escapeHtml(pack.author)}` : ""}</div>
+          <div class="lumia-pack-option-name">${escapeHtml(packName)}</div>
+          <div class="lumia-pack-option-meta">${lumiaCount} Lumias${packAuthor ? ` • by ${escapeHtml(packAuthor)}` : ""}</div>
         </div>
         <div class="lumia-pack-option-check">
           ${SVG_ICONS.check}
         </div>
       </div>
-    `
+    `;
+        }
       )
       .join("");
   } else {
@@ -588,13 +622,13 @@ export function showLumiaEditorModal(editingItem = null, packName = null) {
 
   $("#lumia-editor-modal").remove();
 
-  // Pre-fill values if editing
-  const name = isEditing ? editingItem.lumiaDefName || "" : "";
-  const avatarUrl = isEditing ? editingItem.lumia_img || "" : "";
-  const author = isEditing ? editingItem.defAuthor || "" : "";
-  const physicality = isEditing ? editingItem.lumiaDef || "" : "";
-  const personality = isEditing ? editingItem.lumia_personality || "" : "";
-  const behavior = isEditing ? editingItem.lumia_behavior || "" : "";
+  // Pre-fill values if editing (support both old and new field names)
+  const name = isEditing ? getLumiaField(editingItem, "name") || "" : "";
+  const avatarUrl = isEditing ? getLumiaField(editingItem, "img") || "" : "";
+  const author = isEditing ? getLumiaField(editingItem, "author") || "" : "";
+  const physicality = isEditing ? getLumiaField(editingItem, "def") || "" : "";
+  const personality = isEditing ? getLumiaField(editingItem, "personality") || "" : "";
+  const behavior = isEditing ? getLumiaField(editingItem, "behavior") || "" : "";
 
   const modalHtml = `
     <dialog id="lumia-editor-modal" class="popup popup--animation-fast lumia-modal lumia-modal-editor">
@@ -823,10 +857,13 @@ export function showLumiaEditorModal(editingItem = null, packName = null) {
     const settings = getSettings();
     const pack = settings.packs[packName];
     if (pack) {
-      const existingItem = pack.items.find(
-        (item) =>
-          item.lumiaDefName === newName &&
-          (!isEditing || item.lumiaDefName !== editingItem.lumiaDefName)
+      const items = pack.lumiaItems || pack.items || [];
+      const existingItem = items.find(
+        (item) => {
+          const itemName = item.lumiaName || item.lumiaDefName;
+          const editingName = isEditing ? getLumiaField(editingItem, "name") : null;
+          return itemName === newName && (!isEditing || itemName !== editingName);
+        }
       );
       if (existingItem) {
         toastr.error(`A Lumia named "${newName}" already exists in this pack`);
@@ -834,21 +871,23 @@ export function showLumiaEditorModal(editingItem = null, packName = null) {
       }
     }
 
-    // Build the Lumia item
+    // Build the Lumia item in new v2 format
     const lumiaItem = {
-      lumiaDefName: newName,
-      lumia_img: newAvatarUrl || null,
-      defAuthor: newAuthor || null,
-      lumiaDef: newPhysicality || null,
-      lumia_personality: newPersonality || null,
-      lumia_behavior: newBehavior || null,
+      lumiaName: newName,
+      lumiaDefinition: newPhysicality || null,
+      lumiaPersonality: newPersonality || null,
+      lumiaBehavior: newBehavior || null,
+      avatarUrl: newAvatarUrl || null,
+      genderIdentity: 0, // Default: she/her (TODO: add gender dropdown in Step 7)
+      authorName: newAuthor || null,
+      version: 1,
     };
 
     try {
       addLumiaToPackItems(
         packName,
         lumiaItem,
-        isEditing ? editingItem.lumiaDefName : null
+        isEditing ? getLumiaField(editingItem, "name") : null
       );
       toastr.success(
         isEditing
@@ -865,14 +904,15 @@ export function showLumiaEditorModal(editingItem = null, packName = null) {
   // Delete handler
   if (isEditing) {
     $modal.find(".lumia-editor-delete-btn").click(function () {
+      const itemName = getLumiaField(editingItem, "name");
       if (
         confirm(
-          `Are you sure you want to delete "${editingItem.lumiaDefName}"? This cannot be undone.`
+          `Are you sure you want to delete "${itemName}"? This cannot be undone.`
         )
       ) {
         try {
-          deleteLumiaFromPack(packName, editingItem.lumiaDefName);
-          toastr.success(`Lumia "${editingItem.lumiaDefName}" deleted`);
+          deleteLumiaFromPack(packName, itemName);
+          toastr.success(`Lumia "${itemName}" deleted`);
           closeModal();
           refreshUI();
         } catch (error) {
@@ -924,7 +964,7 @@ export function showPackEditorModal(packName) {
             </label>
             <input type="text" id="lumia-pack-author" class="lumia-input"
                    placeholder="Your name"
-                   value="${escapeHtml(pack.author || "")}" />
+                   value="${escapeHtml(pack.packAuthor || pack.author || "")}" />
           </div>
 
           <div class="lumia-editor-field">
@@ -1047,4 +1087,49 @@ export function showPackEditorModal(packName) {
   });
 
   $modal[0].showModal();
+}
+
+/**
+ * Generate native Lumiverse pack JSON format
+ * @param {string} packName - The pack name to export
+ * @returns {Object} Native pack JSON object
+ */
+export function generateNativePackJson(packName) {
+  const settings = getSettings();
+  const pack = settings.packs[packName];
+
+  if (!pack) {
+    throw new Error(`Pack "${packName}" not found`);
+  }
+
+  return {
+    packName: pack.packName || pack.name,
+    packAuthor: pack.packAuthor || pack.author || null,
+    coverUrl: pack.coverUrl || null,
+    version: pack.version || 1,
+    packExtras: pack.packExtras || [],
+    lumiaItems: pack.lumiaItems || [],
+    loomItems: pack.loomItems || [],
+  };
+}
+
+/**
+ * Download a pack as a native Lumiverse JSON file
+ * @param {string} packName - The pack name to export
+ */
+export function exportPackAsNative(packName) {
+  const nativePack = generateNativePackJson(packName);
+  const jsonString = JSON.stringify(nativePack, null, 2);
+  const blob = new Blob([jsonString], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${packName.replace(/[^a-z0-9]/gi, "_")}_lumiverse.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  toastr.success(`Pack "${packName}" exported in Lumiverse format!`);
 }

@@ -9,8 +9,21 @@ export const MODULE_NAME = "lumia-injector";
 export const SETTINGS_KEY = "lumia_injector_settings";
 export const LOOM_SUMMARY_KEY = "loom_summary";
 
+// Schema version for pack format migrations
+// v1: Original mixed items[] array with old field names
+// v2: Separate lumiaItems[]/loomItems[] with new field names
+export const SCHEMA_VERSION = 2;
+
+// Gender identity constants
+export const GENDER = {
+  SHE_HER: 0,
+  HE_HIM: 1,
+  THEY_THEM: 2,
+};
+
 // Default settings structure
 const DEFAULT_SETTINGS = {
+  schemaVersion: SCHEMA_VERSION,
   packs: {},
   selectedDefinition: null,
   selectedBehaviors: [],
@@ -120,6 +133,109 @@ export function resetRandomLumia() {
 }
 
 /**
+ * Migrate a single Lumia item from old format to new format
+ * @param {Object} oldItem - Item with old field names
+ * @returns {Object} Item with new field names
+ */
+function migrateLumiaItem(oldItem) {
+  return {
+    lumiaName: oldItem.lumiaDefName,
+    lumiaDefinition: oldItem.lumiaDef || null,
+    lumiaPersonality: oldItem.lumia_personality || null,
+    lumiaBehavior: oldItem.lumia_behavior || null,
+    avatarUrl: oldItem.lumia_img || null,
+    genderIdentity: GENDER.SHE_HER, // Default to she/her
+    authorName: oldItem.defAuthor || null,
+    version: 1,
+  };
+}
+
+/**
+ * Migrate a single Loom item from old format to new format
+ * @param {Object} oldItem - Item with old field names
+ * @returns {Object} Item with new field names
+ */
+function migrateLoomItem(oldItem) {
+  return {
+    loomName: oldItem.loomName,
+    loomContent: oldItem.loomContent,
+    loomCategory: oldItem.loomCategory,
+    authorName: null,
+    version: 1,
+  };
+}
+
+/**
+ * Migrate a pack from old format (mixed items[]) to new format (separate lumiaItems[]/loomItems[])
+ * @param {Object} oldPack - Pack with old structure
+ * @returns {Object} Pack with new structure
+ */
+function migratePackToV2(oldPack) {
+  const lumiaItems = [];
+  const loomItems = [];
+
+  // Process mixed items array
+  for (const item of oldPack.items || []) {
+    if (item.lumiaDefName) {
+      // This is a Lumia item
+      lumiaItems.push(migrateLumiaItem(item));
+    } else if (item.loomCategory) {
+      // This is a Loom item
+      loomItems.push(migrateLoomItem(item));
+    }
+  }
+
+  return {
+    packName: oldPack.name || oldPack.packName,
+    packAuthor: oldPack.author || oldPack.packAuthor || null,
+    coverUrl: oldPack.coverUrl || null,
+    version: 1,
+    packExtras: oldPack.packExtras || [],
+    lumiaItems,
+    loomItems,
+    // Preserve internal flags
+    isCustom: oldPack.isCustom || false,
+    url: oldPack.url || "",
+  };
+}
+
+/**
+ * Migrate all packs to v2 schema format
+ * @returns {boolean} True if migration occurred
+ */
+function migratePacksToV2() {
+  let migrated = false;
+  const currentVersion = settings.schemaVersion || 1;
+
+  if (currentVersion >= SCHEMA_VERSION) {
+    return false; // Already at current version
+  }
+
+  console.log(`[${MODULE_NAME}] Migrating packs from schema v${currentVersion} to v${SCHEMA_VERSION}...`);
+
+  // Migrate each pack
+  for (const packName in settings.packs) {
+    const pack = settings.packs[packName];
+
+    // Check if pack needs migration (has old items[] array, no lumiaItems/loomItems)
+    if (pack.items && !pack.lumiaItems && !pack.loomItems) {
+      console.log(`[${MODULE_NAME}] Migrating pack: ${packName}`);
+      settings.packs[packName] = migratePackToV2(pack);
+      migrated = true;
+    }
+  }
+
+  // Update schema version
+  settings.schemaVersion = SCHEMA_VERSION;
+
+  if (migrated) {
+    console.log(`[${MODULE_NAME}] Pack migration complete`);
+  }
+
+  return migrated;
+}
+
+/**
  * Migrate settings from v1 (flat library) to v2 (packs)
  * @returns {boolean} True if migration occurred
  */
@@ -201,7 +317,13 @@ export function migrateSettings() {
     }
   }
 
+  // Migrate packs to v2 schema format (separate lumiaItems/loomItems arrays)
+  if (migratePacksToV2()) {
+    migrated = true;
+  }
+
   // Ensure defaults
+  if (!settings.schemaVersion) settings.schemaVersion = SCHEMA_VERSION;
   if (!settings.packs) settings.packs = {};
   if (!settings.selectedBehaviors) settings.selectedBehaviors = [];
   if (!settings.selectedPersonalities) settings.selectedPersonalities = [];

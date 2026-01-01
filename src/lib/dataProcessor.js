@@ -184,6 +184,7 @@ export function processWorldBook(data) {
 
 /**
  * Get an item from the library by pack name and item name
+ * Supports both new format (separate lumiaItems/loomItems) and legacy format (mixed items[])
  * @param {string} packName - The pack name
  * @param {string} itemName - The item name
  * @returns {Object|null} The item or null if not found
@@ -192,9 +193,25 @@ export function getItemFromLibrary(packName, itemName) {
   const settings = getSettings();
   const pack = settings.packs[packName];
   if (!pack) return null;
-  return pack.items.find(
-    (i) => i.lumiaDefName === itemName || i.loomName === itemName,
-  );
+
+  // New format: separate arrays
+  if (pack.lumiaItems) {
+    const lumia = pack.lumiaItems.find((i) => i.lumiaName === itemName);
+    if (lumia) return lumia;
+  }
+  if (pack.loomItems) {
+    const loom = pack.loomItems.find((i) => i.loomName === itemName);
+    if (loom) return loom;
+  }
+
+  // Legacy fallback: mixed items array with old field names
+  if (pack.items) {
+    return pack.items.find(
+      (i) => i.lumiaDefName === itemName || i.loomName === itemName,
+    );
+  }
+
+  return null;
 }
 
 /**
@@ -210,6 +227,39 @@ export function escapeHtml(text) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+/**
+ * Convert old-format items to new-format Lumia item
+ * @param {Object} oldItem - Item with old field names
+ * @returns {Object} Item with new field names
+ */
+function convertToNewLumiaFormat(oldItem) {
+  return {
+    lumiaName: oldItem.lumiaDefName,
+    lumiaDefinition: oldItem.lumiaDef || null,
+    lumiaPersonality: oldItem.lumia_personality || null,
+    lumiaBehavior: oldItem.lumia_behavior || null,
+    avatarUrl: oldItem.lumia_img || null,
+    genderIdentity: 0, // Default: she/her
+    authorName: oldItem.defAuthor || null,
+    version: 1,
+  };
+}
+
+/**
+ * Convert old-format items to new-format Loom item
+ * @param {Object} oldItem - Item with old field names
+ * @returns {Object} Item with new field names
+ */
+function convertToNewLoomFormat(oldItem) {
+  return {
+    loomName: oldItem.loomName,
+    loomContent: oldItem.loomContent,
+    loomCategory: oldItem.loomCategory,
+    authorName: null,
+    version: 1,
+  };
 }
 
 /**
@@ -234,18 +284,40 @@ export function handleNewBook(data, sourceName, isURL = false) {
     }
   }
 
+  // Separate and convert items to new format
+  const lumiaItems = [];
+  const loomItems = [];
+
+  for (const item of library) {
+    if (item.lumiaDefName) {
+      lumiaItems.push(convertToNewLumiaFormat(item));
+    } else if (item.loomCategory) {
+      loomItems.push(convertToNewLoomFormat(item));
+    }
+  }
+
+  // Store in new pack format
   settings.packs[sourceName] = {
-    name: sourceName,
-    items: library,
+    packName: sourceName,
+    packAuthor: null,
+    coverUrl: null,
+    version: 1,
+    packExtras: [],
+    lumiaItems,
+    loomItems,
+    // Internal tracking
+    isCustom: false,
     url: isURL ? sourceName : "",
   };
 
   saveSettings();
+
+  const totalItems = lumiaItems.length + loomItems.length;
   toastr.success(
-    `Lumia Book "${sourceName}" loaded! Found ${library.length} entries.`,
+    `Lumia Book "${sourceName}" loaded! Found ${totalItems} entries (${lumiaItems.length} Lumia, ${loomItems.length} Loom).`,
   );
 
-  return library;
+  return { lumiaItems, loomItems };
 }
 
 /**
@@ -274,4 +346,54 @@ export async function fetchWorldBook(url) {
     if (statusDiv) statusDiv.textContent = "Error";
     toastr.error("Failed to load book: " + error.message);
   }
+}
+
+/**
+ * Import a pack from data, automatically detecting format
+ * Supports both native Lumiverse format and World Book format
+ * @param {Object} data - The pack/world book data
+ * @param {string} sourceName - Name/identifier for the source
+ * @param {boolean} isURL - Whether the source was a URL
+ * @returns {Object|null} The imported pack or null on failure
+ */
+export function importPack(data, sourceName, isURL = false) {
+  const settings = getSettings();
+
+  // Detect format: native Lumiverse format has lumiaItems or loomItems arrays
+  if (data.lumiaItems || data.loomItems) {
+    // Native Lumiverse format - import directly
+    console.log(`[${MODULE_NAME}] Importing native format pack: ${sourceName}`);
+
+    // Check if pack exists
+    if (settings.packs[sourceName]) {
+      if (!confirm(`Pack "${sourceName}" already exists. Overwrite?`)) {
+        return null;
+      }
+    }
+
+    settings.packs[sourceName] = {
+      packName: data.packName || sourceName,
+      packAuthor: data.packAuthor || null,
+      coverUrl: data.coverUrl || null,
+      version: data.version || 1,
+      packExtras: data.packExtras || [],
+      lumiaItems: data.lumiaItems || [],
+      loomItems: data.loomItems || [],
+      // Internal tracking
+      isCustom: false,
+      url: isURL ? sourceName : "",
+    };
+
+    saveSettings();
+
+    const totalItems = (data.lumiaItems?.length || 0) + (data.loomItems?.length || 0);
+    toastr.success(
+      `Pack "${sourceName}" imported! Found ${totalItems} entries.`,
+    );
+
+    return settings.packs[sourceName];
+  }
+
+  // World Book format or raw entries array - use existing handler
+  return handleNewBook(data, sourceName, isURL);
 }

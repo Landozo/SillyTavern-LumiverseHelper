@@ -18,6 +18,52 @@ const selectViewingPack = () => store.getState().ui?.viewingPack;
 const selectPacks = () => store.getState().packs || EMPTY_OBJECT;
 
 /**
+ * Get a Lumia field with fallback for old/new format
+ */
+function getLumiaField(item, field) {
+    if (!item) return null;
+    const fieldMap = {
+        name: ['lumiaName', 'lumiaDefName'],
+        def: ['lumiaDefinition', 'lumiaDef'],
+        personality: ['lumiaPersonality', 'lumia_personality'],
+        behavior: ['lumiaBehavior', 'lumia_behavior'],
+        img: ['avatarUrl', 'lumia_img'],
+        author: ['authorName', 'defAuthor'],
+    };
+    const fields = fieldMap[field];
+    if (!fields) return null;
+    for (const fieldName of fields) {
+        if (item[fieldName] !== undefined && item[fieldName] !== null) {
+            return item[fieldName];
+        }
+    }
+    return null;
+}
+
+/**
+ * Get Lumia items from a pack - supports both new and legacy formats
+ */
+function getLumiaItemsFromPack(pack) {
+    // New format: separate lumiaItems array
+    if (pack.lumiaItems && Array.isArray(pack.lumiaItems)) {
+        return pack.lumiaItems;
+    }
+
+    // Legacy format: mixed items array
+    if (pack.items && Array.isArray(pack.items)) {
+        return pack.items.filter(item => {
+            // Skip Loom items
+            if (item.loomCategory) return false;
+            // Must have lumiaDefName to be a Lumia item
+            if (!item.lumiaDefName) return false;
+            return true;
+        });
+    }
+
+    return [];
+}
+
+/**
  * Truncate text to a maximum length with ellipsis
  */
 function truncateText(text, maxLength = 200) {
@@ -82,82 +128,90 @@ function QuickAddButton({ label, Icon, isSelected, onClick, disabled }) {
  * Lumia detail card within the pack viewer
  */
 function LumiaDetailCard({ item, packName, selections, actions }) {
-    const { objectPosition } = useAdaptiveImagePosition(item.lumia_img);
+    // Get field values with fallback for old/new format
+    const itemName = getLumiaField(item, 'name');
+    const itemImg = getLumiaField(item, 'img');
+    const itemDef = getLumiaField(item, 'def');
+    const itemBehavior = getLumiaField(item, 'behavior');
+    const itemPersonality = getLumiaField(item, 'personality');
+    const itemAuthor = getLumiaField(item, 'author');
+
+    const { objectPosition } = useAdaptiveImagePosition(itemImg);
 
     // Check if this item's traits are selected
     const isDefSelected = useMemo(() => {
         if (!selections.definition) return false;
         return selections.definition.packName === packName &&
-               selections.definition.itemName === item.lumiaDefName;
-    }, [selections.definition, packName, item.lumiaDefName]);
+               selections.definition.itemName === itemName;
+    }, [selections.definition, packName, itemName]);
 
     const isBehaviorSelected = useMemo(() => {
         return (selections.behaviors || []).some(
-            b => b.packName === packName && b.itemName === item.lumiaDefName
+            b => b.packName === packName && b.itemName === itemName
         );
-    }, [selections.behaviors, packName, item.lumiaDefName]);
+    }, [selections.behaviors, packName, itemName]);
 
     const isPersonalitySelected = useMemo(() => {
         return (selections.personalities || []).some(
-            p => p.packName === packName && p.itemName === item.lumiaDefName
+            p => p.packName === packName && p.itemName === itemName
         );
-    }, [selections.personalities, packName, item.lumiaDefName]);
+    }, [selections.personalities, packName, itemName]);
 
     const handleSetDefinition = useCallback(() => {
         if (isDefSelected) return;
-        actions.setSelectedDefinition({ packName, itemName: item.lumiaDefName });
+        actions.setSelectedDefinition({ packName, itemName });
         saveToExtension();
         if (typeof toastr !== 'undefined') {
-            toastr.success(`Set "${item.lumiaDefName}" as definition`);
+            toastr.success(`Set "${itemName}" as definition`);
         }
-    }, [isDefSelected, actions, packName, item.lumiaDefName]);
+    }, [isDefSelected, actions, packName, itemName]);
 
     const handleAddBehavior = useCallback(() => {
         if (isBehaviorSelected) return;
-        actions.toggleBehavior({ packName, itemName: item.lumiaDefName });
+        actions.toggleBehavior({ packName, itemName });
         saveToExtension();
         if (typeof toastr !== 'undefined') {
-            toastr.success(`Added "${item.lumiaDefName}" behavior`);
+            toastr.success(`Added "${itemName}" behavior`);
         }
-    }, [isBehaviorSelected, actions, packName, item.lumiaDefName]);
+    }, [isBehaviorSelected, actions, packName, itemName]);
 
     const handleAddPersonality = useCallback(() => {
         if (isPersonalitySelected) return;
-        actions.togglePersonality({ packName, itemName: item.lumiaDefName });
+        actions.togglePersonality({ packName, itemName });
         saveToExtension();
         if (typeof toastr !== 'undefined') {
-            toastr.success(`Added "${item.lumiaDefName}" personality`);
+            toastr.success(`Added "${itemName}" personality`);
         }
-    }, [isPersonalitySelected, actions, packName, item.lumiaDefName]);
+    }, [isPersonalitySelected, actions, packName, itemName]);
 
-    const hasDefinition = !!item.lumiaDef;
-    const hasBehavior = !!item.lumia_behavior;
-    const hasPersonality = !!item.lumia_personality;
+    const hasDefinition = !!itemDef;
+    const hasBehavior = !!itemBehavior;
+    const hasPersonality = !!itemPersonality;
 
     // Check if all traits are enabled (for toggle behavior)
     const hasMultipleContentTypes = [hasDefinition, hasBehavior, hasPersonality].filter(Boolean).length > 1;
-    const isAllEnabled = hasMultipleContentTypes && actions.areAllTraitsEnabledForLumia(packName, item.lumiaDefName);
+    const isAllEnabled = hasMultipleContentTypes && actions.areAllTraitsEnabledForLumia(packName, itemName);
 
     const handleToggleAll = useCallback(() => {
-        const enabled = actions.toggleAllTraitsForLumia(packName, item.lumiaDefName);
+        const enabled = actions.toggleAllTraitsForLumia(packName, itemName);
         saveToExtension();
         if (typeof toastr !== 'undefined') {
             if (enabled) {
-                toastr.success(`Enabled all traits for "${item.lumiaDefName}"`);
+                toastr.success(`Enabled all traits for "${itemName}"`);
             } else {
-                toastr.info(`Disabled all traits for "${item.lumiaDefName}"`);
+                toastr.info(`Disabled all traits for "${itemName}"`);
             }
         }
-    }, [actions, packName, item.lumiaDefName]);
+    }, [actions, packName, itemName]);
 
     return (
         <div className="lumiverse-pack-detail-lumia">
             <div className="lumiverse-pack-detail-lumia-header">
                 <div className="lumiverse-pack-detail-lumia-avatar">
-                    {item.lumia_img ? (
+                    {itemImg ? (
                         <img
-                            src={item.lumia_img}
-                            alt={item.lumiaDefName}
+                            src={itemImg}
+                            alt={itemName}
                             style={{ objectPosition }}
                         />
                     ) : (
@@ -165,9 +219,9 @@ function LumiaDetailCard({ item, packName, selections, actions }) {
                     )}
                 </div>
                 <div className="lumiverse-pack-detail-lumia-info">
-                    <h4 className="lumiverse-pack-detail-lumia-name">{item.lumiaDefName}</h4>
-                    {item.defAuthor && (
-                        <span className="lumiverse-pack-detail-lumia-author">by {item.defAuthor}</span>
+                    <h4 className="lumiverse-pack-detail-lumia-name">{itemName}</h4>
+                    {itemAuthor && (
+                        <span className="lumiverse-pack-detail-lumia-author">by {itemAuthor}</span>
                     )}
                 </div>
             </div>
@@ -177,19 +231,19 @@ function LumiaDetailCard({ item, packName, selections, actions }) {
                 <TraitPreview
                     title="Definition"
                     Icon={FileText}
-                    content={item.lumiaDef}
+                    content={itemDef}
                     defaultOpen={false}
                 />
                 <TraitPreview
                     title="Behavior"
                     Icon={Zap}
-                    content={item.lumia_behavior}
+                    content={itemBehavior}
                     defaultOpen={false}
                 />
                 <TraitPreview
                     title="Personality"
                     Icon={Heart}
-                    content={item.lumia_personality}
+                    content={itemPersonality}
                     defaultOpen={false}
                 />
             </div>
@@ -262,21 +316,23 @@ function PackDetailModal() {
         return packs[viewingPack] || null;
     }, [viewingPack, packs]);
 
-    // Get Lumia items from the pack
+    // Get Lumia items from the pack (supports both formats)
     const lumiaItems = useMemo(() => {
-        if (!pack?.items) return [];
-        return pack.items.filter(item => item.lumiaDefName && item.lumiaDef);
+        if (!pack) return [];
+        const items = getLumiaItemsFromPack(pack);
+        // Filter to items with definitions
+        return items.filter(item => getLumiaField(item, 'def'));
     }, [pack]);
 
     // Calculate stats
     const stats = useMemo(() => {
-        if (!pack?.items) return { lumias: 0, behaviors: 0, personalities: 0 };
+        if (!pack) return { lumias: 0, behaviors: 0, personalities: 0 };
 
-        const items = pack.items;
+        const items = getLumiaItemsFromPack(pack);
         return {
-            lumias: items.filter(i => i.lumiaDefName && i.lumiaDef).length,
-            behaviors: items.filter(i => i.lumia_behavior).length,
-            personalities: items.filter(i => i.lumia_personality).length,
+            lumias: items.filter(i => getLumiaField(i, 'def')).length,
+            behaviors: items.filter(i => getLumiaField(i, 'behavior')).length,
+            personalities: items.filter(i => getLumiaField(i, 'personality')).length,
         };
     }, [pack]);
 
@@ -379,7 +435,7 @@ function PackDetailModal() {
                         <div className="lumiverse-pack-detail-list">
                             {lumiaItems.map((item, index) => (
                                 <LumiaDetailCard
-                                    key={item.lumiaDefName || index}
+                                    key={getLumiaField(item, 'name') || index}
                                     item={item}
                                     packName={viewingPack}
                                     selections={selections}

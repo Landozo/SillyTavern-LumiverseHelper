@@ -34,15 +34,20 @@ function createStore(initialState) {
 }
 
 /**
- * Initial state - matches the EXACT format from oldLumiverseCode/lib/settingsManager.js
- *
- * IMPORTANT: This must match the DEFAULT_SETTINGS from the old code exactly.
- * DO NOT transform, rename, or restructure any fields.
+ * Initial state - matches the format from settingsManager.js
  *
  * Packs format: OBJECT keyed by pack name (NOT array)
  * Selection format: { packName: string, itemName: string }
- * Item format (Lumia): { lumiaDefName, lumia_img, lumia_personality, lumia_behavior, lumiaDef, defAuthor }
- * Item format (Loom): { loomName, loomCategory, loomContent }
+ *
+ * New Schema (v2):
+ * Pack: { packName, packAuthor, coverUrl, version, packExtras, lumiaItems[], loomItems[] }
+ * Lumia Item: { lumiaName, lumiaDefinition, lumiaPersonality, lumiaBehavior, avatarUrl, genderIdentity, authorName, version }
+ * Loom Item: { loomName, loomContent, loomCategory, authorName, version }
+ *
+ * Legacy Schema (v1 - still supported with fallbacks):
+ * Pack: { name, items[], url }
+ * Lumia Item: { lumiaDefName, lumiaDef, lumia_personality, lumia_behavior, lumia_img, defAuthor }
+ * Loom Item: { loomName, loomCategory, loomContent }
  */
 const initialState = {
     // Packs - OBJECT keyed by pack name (NOT array!)
@@ -130,6 +135,56 @@ function updateSettingsPath(settings, path, value) {
     return result;
 }
 
+/**
+ * Find a Lumia item in a pack - supports both new and legacy formats
+ * @param {Object} pack - The pack object
+ * @param {string} itemName - The item name to find
+ * @returns {Object|null} The Lumia item or null
+ */
+function findLumiaInPack(pack, itemName) {
+    if (!pack) return null;
+
+    // New format: separate lumiaItems array with lumiaName field
+    if (pack.lumiaItems) {
+        const found = pack.lumiaItems.find(i => i.lumiaName === itemName);
+        if (found) return found;
+    }
+
+    // Legacy format: mixed items array with lumiaDefName field
+    if (pack.items) {
+        return pack.items.find(i => i.lumiaDefName === itemName);
+    }
+
+    return null;
+}
+
+/**
+ * Get Lumia field with fallback for old/new format
+ * @param {Object} item - The Lumia item
+ * @param {string} field - Field name: 'name', 'def', 'personality', 'behavior', 'img', 'author', 'gender'
+ * @returns {*} The field value or null
+ */
+function getLumiaItemField(item, field) {
+    if (!item) return null;
+    const fieldMap = {
+        name: ['lumiaName', 'lumiaDefName'],
+        def: ['lumiaDefinition', 'lumiaDef'],
+        personality: ['lumiaPersonality', 'lumia_personality'],
+        behavior: ['lumiaBehavior', 'lumia_behavior'],
+        img: ['avatarUrl', 'lumia_img'],
+        author: ['authorName', 'defAuthor'],
+        gender: ['genderIdentity'],
+    };
+    const fields = fieldMap[field];
+    if (!fields) return null;
+    for (const fieldName of fields) {
+        if (item[fieldName] !== undefined && item[fieldName] !== null) {
+            return item[fieldName];
+        }
+    }
+    return null;
+}
+
 // Actions object - these modify the store
 const actions = {
     // Settings actions
@@ -162,8 +217,9 @@ const actions = {
     addCustomPack: (pack) => {
         const state = store.getState();
         const packsObj = state.packs && typeof state.packs === 'object' ? { ...state.packs } : {};
-        // Store pack by name with isCustom flag
-        packsObj[pack.name] = { ...pack, isCustom: true };
+        // Store pack by name with isCustom flag - support both new (packName) and legacy (name) fields
+        const packName = pack.packName || pack.name;
+        packsObj[packName] = { ...pack, isCustom: true };
         store.setState({ packs: packsObj });
     },
 
@@ -171,19 +227,23 @@ const actions = {
         const state = store.getState();
         const packsObj = state.packs && typeof state.packs === 'object' ? { ...state.packs } : {};
 
-        // Find the pack by id or name
+        // Find the pack by id or name - support both new (packName) and legacy (name)
         let packKey = null;
         for (const [key, pack] of Object.entries(packsObj)) {
-            if (pack.id === packIdOrName || pack.name === packIdOrName || key === packIdOrName) {
+            if (pack.id === packIdOrName ||
+                pack.name === packIdOrName ||
+                pack.packName === packIdOrName ||
+                key === packIdOrName) {
                 packKey = key;
                 break;
             }
         }
 
         if (packKey) {
-            // If updating name, we need to re-key the object
-            const newName = updates.name || packsObj[packKey].name;
-            const updatedPack = { ...packsObj[packKey], ...updates, isCustom: true };
+            // If updating name, we need to re-key the object - support both formats
+            const existingPack = packsObj[packKey];
+            const newName = updates.packName || updates.name || existingPack.packName || existingPack.name;
+            const updatedPack = { ...existingPack, ...updates, isCustom: true };
 
             if (newName !== packKey) {
                 // Name changed - remove old key, add new key
@@ -408,7 +468,7 @@ const actions = {
      * Returns true only if every trait the item has is selected
      *
      * @param {string} packName - The pack containing the item
-     * @param {string} itemName - The lumiaDefName of the item
+     * @param {string} itemName - The lumiaName (or lumiaDefName) of the item
      * @returns {boolean} - true if all traits are enabled
      */
     areAllTraitsEnabledForLumia: (packName, itemName) => {
@@ -416,11 +476,11 @@ const actions = {
         const pack = state.packs[packName];
         if (!pack) return false;
 
-        const item = pack.items.find(i => i.lumiaDefName === itemName);
+        const item = findLumiaInPack(pack, itemName);
         if (!item) return false;
 
         // Check definition
-        if (item.lumiaDef) {
+        if (getLumiaItemField(item, 'def')) {
             const def = state.selectedDefinition;
             if (!def || def.packName !== packName || def.itemName !== itemName) {
                 return false;
@@ -428,7 +488,7 @@ const actions = {
         }
 
         // Check behavior
-        if (item.lumia_behavior) {
+        if (getLumiaItemField(item, 'behavior')) {
             const behaviors = state.selectedBehaviors || [];
             const hasBehavior = behaviors.some(
                 b => b.packName === packName && b.itemName === itemName
@@ -437,7 +497,7 @@ const actions = {
         }
 
         // Check personality
-        if (item.lumia_personality) {
+        if (getLumiaItemField(item, 'personality')) {
             const personalities = state.selectedPersonalities || [];
             const hasPersonality = personalities.some(
                 p => p.packName === packName && p.itemName === itemName
@@ -454,7 +514,7 @@ const actions = {
      * If not all traits are enabled, enables them all
      *
      * @param {string} packName - The pack containing the item
-     * @param {string} itemName - The lumiaDefName of the item
+     * @param {string} itemName - The lumiaName (or lumiaDefName) of the item
      * @returns {boolean} - true if traits were enabled, false if disabled
      */
     toggleAllTraitsForLumia: (packName, itemName) => {
@@ -462,7 +522,7 @@ const actions = {
         const pack = state.packs[packName];
         if (!pack) return false;
 
-        const item = pack.items.find(i => i.lumiaDefName === itemName);
+        const item = findLumiaInPack(pack, itemName);
         if (!item) return false;
 
         const allEnabled = actions.areAllTraitsEnabledForLumia(packName, itemName);
@@ -472,7 +532,7 @@ const actions = {
             const newState = {};
 
             // Clear definition if it matches this item
-            if (item.lumiaDef) {
+            if (getLumiaItemField(item, 'def')) {
                 const def = state.selectedDefinition;
                 if (def && def.packName === packName && def.itemName === itemName) {
                     newState.selectedDefinition = null;
@@ -480,7 +540,7 @@ const actions = {
             }
 
             // Remove behavior if present
-            if (item.lumia_behavior) {
+            if (getLumiaItemField(item, 'behavior')) {
                 const behaviors = state.selectedBehaviors || [];
                 newState.selectedBehaviors = behaviors.filter(
                     b => !(b.packName === packName && b.itemName === itemName)
@@ -488,7 +548,7 @@ const actions = {
             }
 
             // Remove personality if present
-            if (item.lumia_personality) {
+            if (getLumiaItemField(item, 'personality')) {
                 const personalities = state.selectedPersonalities || [];
                 newState.selectedPersonalities = personalities.filter(
                     p => !(p.packName === packName && p.itemName === itemName)
@@ -505,12 +565,12 @@ const actions = {
             const newState = {};
 
             // Set definition if item has one
-            if (item.lumiaDef) {
+            if (getLumiaItemField(item, 'def')) {
                 newState.selectedDefinition = selection;
             }
 
             // Add behavior if item has one and not already selected
-            if (item.lumia_behavior) {
+            if (getLumiaItemField(item, 'behavior')) {
                 const behaviors = state.selectedBehaviors || [];
                 const alreadySelected = behaviors.some(
                     b => b.packName === packName && b.itemName === itemName
@@ -521,7 +581,7 @@ const actions = {
             }
 
             // Add personality if item has one and not already selected
-            if (item.lumia_personality) {
+            if (getLumiaItemField(item, 'personality')) {
                 const personalities = state.selectedPersonalities || [];
                 const alreadySelected = personalities.some(
                     p => p.packName === packName && p.itemName === itemName
@@ -544,26 +604,26 @@ const actions = {
      * without duplicating already-selected items
      *
      * @param {string} packName - The pack containing the item
-     * @param {string} itemName - The lumiaDefName of the item
+     * @param {string} itemName - The lumiaName (or lumiaDefName) of the item
      */
     enableAllTraitsForLumia: (packName, itemName) => {
         const state = store.getState();
         const pack = state.packs[packName];
         if (!pack) return;
 
-        const item = pack.items.find(i => i.lumiaDefName === itemName);
+        const item = findLumiaInPack(pack, itemName);
         if (!item) return;
 
         const selection = { packName, itemName };
         const newState = {};
 
         // Set definition if item has one
-        if (item.lumiaDef) {
+        if (getLumiaItemField(item, 'def')) {
             newState.selectedDefinition = selection;
         }
 
         // Add behavior if item has one and not already selected
-        if (item.lumia_behavior) {
+        if (getLumiaItemField(item, 'behavior')) {
             const behaviors = state.selectedBehaviors || [];
             const alreadySelected = behaviors.some(
                 b => b.packName === packName && b.itemName === itemName
@@ -574,7 +634,7 @@ const actions = {
         }
 
         // Add personality if item has one and not already selected
-        if (item.lumia_personality) {
+        if (getLumiaItemField(item, 'personality')) {
             const personalities = state.selectedPersonalities || [];
             const alreadySelected = personalities.some(
                 p => p.packName === packName && p.itemName === itemName
@@ -806,18 +866,18 @@ const actions = {
 
         // Look up the Lumia item to get its inherent traits
         const pack = state.packs[member.packName];
-        const item = pack?.items?.find(i => i.lumiaDefName === member.itemName);
+        const item = findLumiaInPack(pack, member.itemName);
 
         const behaviors = [];
         const personalities = [];
 
         // Auto-attach inherent behavior if exists
-        if (item?.lumia_behavior) {
+        if (getLumiaItemField(item, 'behavior')) {
             behaviors.push({ packName: member.packName, itemName: member.itemName });
         }
 
         // Auto-attach inherent personality if exists
-        if (item?.lumia_personality) {
+        if (getLumiaItemField(item, 'personality')) {
             personalities.push({ packName: member.packName, itemName: member.itemName });
         }
 
@@ -1310,23 +1370,52 @@ function debugLumiverseData() {
     packEntries.forEach(([packName, pack]) => {
         console.log(`\nPack "${packName}":`);
         console.log('  - Pack keys:', Object.keys(pack));
-        console.log('  - items count:', pack.items?.length || 0);
+        const isNewFormat = !!(pack.lumiaItems || pack.loomItems);
+        console.log('  - Format:', isNewFormat ? 'v2 (lumiaItems/loomItems)' : 'v1 (mixed items[])');
 
-        if (pack.items && pack.items.length > 0) {
-            console.log('  - First item keys:', Object.keys(pack.items[0]));
-            console.log('  - Items with lumiaDefName:', pack.items.filter(i => i.lumiaDefName).length);
-            console.log('  - Items with loomCategory:', pack.items.filter(i => i.loomCategory).length);
+        if (isNewFormat) {
+            // New format: separate lumiaItems and loomItems arrays
+            console.log('  - lumiaItems count:', pack.lumiaItems?.length || 0);
+            console.log('  - loomItems count:', pack.loomItems?.length || 0);
 
-            // Show all items
-            console.log('  - All items:');
-            pack.items.forEach((item, itemIndex) => {
-                const lumiaName = item.lumiaDefName || 'NONE';
-                const loomCat = item.loomCategory || 'NONE';
-                const hasDef = item.lumiaDef ? 'YES' : 'NO';
-                const hasBehavior = item.lumia_behavior ? 'YES' : 'NO';
-                const hasPersonality = item.lumia_personality ? 'YES' : 'NO';
-                console.log(`    [${itemIndex}] lumiaDefName="${lumiaName}", loomCategory="${loomCat}", hasDef=${hasDef}, hasBehavior=${hasBehavior}, hasPersonality=${hasPersonality}`);
-            });
+            if (pack.lumiaItems?.length > 0) {
+                console.log('  - Lumia items:');
+                pack.lumiaItems.forEach((item, idx) => {
+                    const name = item.lumiaName || 'NONE';
+                    const hasDef = item.lumiaDefinition ? 'YES' : 'NO';
+                    const hasBehavior = item.lumiaBehavior ? 'YES' : 'NO';
+                    const hasPersonality = item.lumiaPersonality ? 'YES' : 'NO';
+                    const gender = item.genderIdentity ?? 'NONE';
+                    console.log(`    [${idx}] lumiaName="${name}", hasDef=${hasDef}, hasBehavior=${hasBehavior}, hasPersonality=${hasPersonality}, gender=${gender}`);
+                });
+            }
+
+            if (pack.loomItems?.length > 0) {
+                console.log('  - Loom items:');
+                pack.loomItems.forEach((item, idx) => {
+                    console.log(`    [${idx}] loomName="${item.loomName}", loomCategory="${item.loomCategory}"`);
+                });
+            }
+        } else {
+            // Legacy format: mixed items array
+            console.log('  - items count:', pack.items?.length || 0);
+
+            if (pack.items && pack.items.length > 0) {
+                console.log('  - First item keys:', Object.keys(pack.items[0]));
+                console.log('  - Items with lumiaDefName:', pack.items.filter(i => i.lumiaDefName).length);
+                console.log('  - Items with loomCategory:', pack.items.filter(i => i.loomCategory).length);
+
+                // Show all items
+                console.log('  - All items:');
+                pack.items.forEach((item, itemIndex) => {
+                    const lumiaName = item.lumiaDefName || 'NONE';
+                    const loomCat = item.loomCategory || 'NONE';
+                    const hasDef = item.lumiaDef ? 'YES' : 'NO';
+                    const hasBehavior = item.lumia_behavior ? 'YES' : 'NO';
+                    const hasPersonality = item.lumia_personality ? 'YES' : 'NO';
+                    console.log(`    [${itemIndex}] lumiaDefName="${lumiaName}", loomCategory="${loomCat}", hasDef=${hasDef}, hasBehavior=${hasBehavior}, hasPersonality=${hasPersonality}`);
+                });
+            }
         }
     });
 

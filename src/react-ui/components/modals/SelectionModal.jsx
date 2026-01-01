@@ -52,13 +52,35 @@ function Icon({ name, className }) {
 }
 
 /**
+ * Get a Lumia field with fallback for old/new format
+ */
+function getLumiaField(item, field) {
+    if (!item) return null;
+    const fieldMap = {
+        name: ['lumiaName', 'lumiaDefName'],
+        def: ['lumiaDefinition', 'lumiaDef'],
+        personality: ['lumiaPersonality', 'lumia_personality'],
+        behavior: ['lumiaBehavior', 'lumia_behavior'],
+        img: ['avatarUrl', 'lumia_img'],
+    };
+    const fields = fieldMap[field];
+    if (!fields) return null;
+    for (const fieldName of fields) {
+        if (item[fieldName] !== undefined && item[fieldName] !== null) {
+            return item[fieldName];
+        }
+    }
+    return null;
+}
+
+/**
  * Check if an item has multiple content types (for showing "Enable All" button)
  */
 function hasMultipleContentTypes(item) {
     const contentTypes = [
-        !!item.lumiaDef,
-        !!item.lumia_behavior,
-        !!item.lumia_personality,
+        !!getLumiaField(item, 'def'),
+        !!getLumiaField(item, 'behavior'),
+        !!getLumiaField(item, 'personality'),
     ].filter(Boolean);
     return contentTypes.length > 1;
 }
@@ -83,11 +105,9 @@ function LumiaCard({
     const [imageError, setImageError] = useState(false);
     const actions = useLumiverseActions();
 
-    // Get display values - OLD CODE FORMAT
-    // item.lumiaDefName is the name field for Lumia items
-    // item.lumia_img is the image URL
-    const displayName = item.lumiaDefName || 'Unknown';
-    const imgToShow = item.lumia_img;
+    // Get display values - supports both new and legacy format
+    const displayName = getLumiaField(item, 'name') || 'Unknown';
+    const imgToShow = getLumiaField(item, 'img');
 
     // Check if this item has multiple content types
     const showEnableAll = hasMultipleContentTypes(item);
@@ -271,7 +291,7 @@ function PackSection({
                 <div className="lumia-card-grid">
                     {items.map((item, index) => (
                         <LumiaCard
-                            key={item.lumiaDefName || item.id || index}
+                            key={getLumiaField(item, 'name') || item.id || index}
                             item={item}
                             packName={packName}
                             isSelected={isSelected(item, packName)}
@@ -294,17 +314,25 @@ function PackSection({
 /**
  * Get Lumia items from a pack (filtering out Loom/Narrative Style items)
  *
- * OLD CODE FORMAT:
+ * Supports both new format (lumiaItems array) and legacy format (items array)
+ *
+ * New format (v2):
+ * - Lumia items have: lumiaName, avatarUrl, lumiaDefinition, lumiaBehavior, lumiaPersonality
+ * - Loom items are in separate loomItems array
+ *
+ * Legacy format (v1):
  * - Lumia items have: lumiaDefName, lumia_img, lumiaDef, lumia_behavior, lumia_personality
  * - Loom items have: loomName, loomCategory, loomContent
  *
- * In the old code, the selection modal shows ALL items with lumiaDefName,
- * regardless of whether they're definitions, behaviors, or personalities.
- * The same items appear in all three selection modals.
- *
- * This matches the old code: packItems.filter((item) => item.lumiaDefName)
+ * Returns all Lumia items from the pack
  */
 function getLumiaItemsFromPack(pack, type) {
+    // New format: separate lumiaItems array
+    if (pack.lumiaItems && Array.isArray(pack.lumiaItems)) {
+        return pack.lumiaItems;
+    }
+
+    // Legacy format: mixed items array
     const packItems = pack.items || [];
 
     // Filter to only Lumia items (have lumiaDefName, not loomCategory)
@@ -559,14 +587,14 @@ function SelectionModal({
 
     /**
      * Check if an item is selected
-     * Comparisons use packName + itemName (old code format)
+     * Comparisons use packName + itemName (supports both new and legacy formats)
      * Memoized with useCallback to prevent unnecessary child re-renders
      *
-     * @param {Object} item - The item from pack.items
+     * @param {Object} item - The item from pack.lumiaItems or pack.items
      * @param {string} packName - The pack this item belongs to
      */
     const isSelected = useCallback((item, packName) => {
-        const itemName = item.lumiaDefName;
+        const itemName = getLumiaField(item, 'name');
         return selectedItems.some((selected) =>
             selected.packName === packName && selected.itemName === itemName
         );
@@ -578,7 +606,7 @@ function SelectionModal({
      */
     const isDominant = useCallback((item, packName) => {
         if (!dominantItem) return false;
-        const itemName = item.lumiaDefName;
+        const itemName = getLumiaField(item, 'name');
         return dominantItem.packName === packName && dominantItem.itemName === itemName;
     }, [dominantItem]);
 
@@ -590,7 +618,7 @@ function SelectionModal({
     const handleSelect = useCallback((item, packName) => {
         const selection = {
             packName: packName,
-            itemName: item.lumiaDefName,
+            itemName: getLumiaField(item, 'name'),
         };
         toggleAction(selection);
     }, [toggleAction]);
@@ -604,7 +632,7 @@ function SelectionModal({
 
         const selection = {
             packName: packName,
-            itemName: item.lumiaDefName,
+            itemName: getLumiaField(item, 'name'),
         };
 
         // If item isn't selected, select it first

@@ -5,16 +5,55 @@ import clsx from 'clsx';
 import { User, Smile, Wrench, Trash2 } from 'lucide-react';
 
 /**
- * OLD CODE Lumia Item Structure (from lumiaEditor.js):
+ * Lumia Item Structure (new v2 format):
  * {
- *   lumiaDefName: string,         // Required - the Lumia name
- *   lumia_img: string | null,     // Avatar URL
- *   defAuthor: string | null,     // Creator attribution
- *   lumiaDef: string | null,      // Physical definition → {{lumiaDef}} macro
- *   lumia_personality: string | null,  // → {{lumiaPersonality}} macro
- *   lumia_behavior: string | null      // → {{lumiaBehavior}} macro
+ *   lumiaName: string,           // Required - the Lumia name
+ *   avatarUrl: string | null,    // Avatar URL
+ *   authorName: string | null,   // Creator attribution
+ *   lumiaDefinition: string | null,   // Physical definition → {{lumiaDef}} macro
+ *   lumiaPersonality: string | null,  // → {{lumiaPersonality}} macro
+ *   lumiaBehavior: string | null,     // → {{lumiaBehavior}} macro
+ *   genderIdentity: number,      // 0=she/her, 1=he/him, 2=they/them
+ *   version: number
  * }
  */
+
+// Gender identity constants
+const GENDER = {
+    SHE_HER: 0,
+    HE_HIM: 1,
+    THEY_THEM: 2,
+};
+
+const GENDER_OPTIONS = [
+    { value: GENDER.SHE_HER, label: 'She/Her' },
+    { value: GENDER.HE_HIM, label: 'He/Him' },
+    { value: GENDER.THEY_THEM, label: 'They/Them' },
+];
+
+/**
+ * Get Lumia field with fallback for old/new format
+ */
+function getLumiaField(item, field) {
+    if (!item) return null;
+    const fieldMap = {
+        name: ['lumiaName', 'lumiaDefName'],
+        def: ['lumiaDefinition', 'lumiaDef'],
+        personality: ['lumiaPersonality', 'lumia_personality'],
+        behavior: ['lumiaBehavior', 'lumia_behavior'],
+        img: ['avatarUrl', 'lumia_img'],
+        author: ['authorName', 'defAuthor'],
+        gender: ['genderIdentity'],
+    };
+    const fields = fieldMap[field];
+    if (!fields) return null;
+    for (const fieldName of fields) {
+        if (item[fieldName] !== undefined && item[fieldName] !== null) {
+            return item[fieldName];
+        }
+    }
+    return null;
+}
 
 /**
  * Form field component
@@ -97,16 +136,17 @@ function LumiaEditorModal({ packName, editingItem = null, onClose, onSaved }) {
 
     const isEditing = editingItem !== null;
 
-    // Find the pack
-    const pack = allPacks.find(p => p.name === packName);
+    // Find the pack - support both name and packName
+    const pack = allPacks.find(p => (p.name || p.packName) === packName);
 
-    // Form state
-    const [name, setName] = useState(editingItem?.lumiaDefName || '');
-    const [avatarUrl, setAvatarUrl] = useState(editingItem?.lumia_img || '');
-    const [author, setAuthor] = useState(editingItem?.defAuthor || '');
-    const [physicality, setPhysicality] = useState(editingItem?.lumiaDef || '');
-    const [personality, setPersonality] = useState(editingItem?.lumia_personality || '');
-    const [behavior, setBehavior] = useState(editingItem?.lumia_behavior || '');
+    // Form state - use getLumiaField for backwards compatibility
+    const [name, setName] = useState(getLumiaField(editingItem, 'name') || '');
+    const [avatarUrl, setAvatarUrl] = useState(getLumiaField(editingItem, 'img') || '');
+    const [author, setAuthor] = useState(getLumiaField(editingItem, 'author') || '');
+    const [physicality, setPhysicality] = useState(getLumiaField(editingItem, 'def') || '');
+    const [personality, setPersonality] = useState(getLumiaField(editingItem, 'personality') || '');
+    const [behavior, setBehavior] = useState(getLumiaField(editingItem, 'behavior') || '');
+    const [gender, setGender] = useState(getLumiaField(editingItem, 'gender') ?? GENDER.SHE_HER);
     const [errors, setErrors] = useState({});
 
     // Validate form
@@ -119,10 +159,15 @@ function LumiaEditorModal({ packName, editingItem = null, onClose, onSaved }) {
 
         // Check for duplicate name (if creating new or renaming)
         if (pack && name.trim()) {
-            const existingItem = pack.items?.find(
-                item => item.lumiaDefName === name.trim() &&
-                    (!isEditing || item.lumiaDefName !== editingItem?.lumiaDefName)
-            );
+            // Support both new (lumiaItems) and legacy (items) format
+            const itemsToCheck = pack.lumiaItems || pack.items || [];
+            const editingName = getLumiaField(editingItem, 'name');
+
+            const existingItem = itemsToCheck.find(item => {
+                const itemName = getLumiaField(item, 'name');
+                return itemName === name.trim() &&
+                    (!isEditing || itemName !== editingName);
+            });
             if (existingItem) {
                 newErrors.name = `A Lumia named "${name.trim()}" already exists in this pack`;
             }
@@ -136,50 +181,54 @@ function LumiaEditorModal({ packName, editingItem = null, onClose, onSaved }) {
     const handleSave = useCallback(() => {
         if (!validate()) return;
 
-        // Build the Lumia item (OLD CODE structure)
+        // Build the Lumia item (new v2 format)
         const lumiaItem = {
-            lumiaDefName: name.trim(),
-            lumia_img: avatarUrl.trim() || null,
-            defAuthor: author.trim() || null,
-            lumiaDef: physicality.trim() || null,
-            lumia_personality: personality.trim() || null,
-            lumia_behavior: behavior.trim() || null,
+            lumiaName: name.trim(),
+            avatarUrl: avatarUrl.trim() || null,
+            authorName: author.trim() || null,
+            lumiaDefinition: physicality.trim() || null,
+            lumiaPersonality: personality.trim() || null,
+            lumiaBehavior: behavior.trim() || null,
+            genderIdentity: gender,
+            version: 1,
         };
 
-        // Get current packs from store
-        const currentPacks = actions.getPacks ? actions.getPacks() : {};
-
         // Find and update the pack
-        // This works with packs stored as object (keyed by name)
         if (pack) {
-            const updatedItems = [...(pack.items || [])];
+            // Use lumiaItems array (new format), fall back to items for migration
+            const currentItems = [...(pack.lumiaItems || pack.items || [])];
+            const editingName = getLumiaField(editingItem, 'name');
 
             if (isEditing) {
                 // Find and replace the existing item
-                const index = updatedItems.findIndex(
-                    item => item.lumiaDefName === editingItem.lumiaDefName
+                const index = currentItems.findIndex(item =>
+                    getLumiaField(item, 'name') === editingName
                 );
                 if (index >= 0) {
-                    updatedItems[index] = lumiaItem;
+                    currentItems[index] = lumiaItem;
                 } else {
-                    updatedItems.push(lumiaItem);
+                    currentItems.push(lumiaItem);
                 }
             } else {
                 // Add new item
-                updatedItems.push(lumiaItem);
+                currentItems.push(lumiaItem);
             }
 
-            // Update the pack
-            const updatedPack = { ...pack, items: updatedItems };
+            // Update the pack with new format
+            const updatedPack = {
+                ...pack,
+                lumiaItems: currentItems,
+                // Remove legacy items array if we're updating lumiaItems
+                items: undefined,
+            };
 
             // Use the appropriate action based on pack type
+            const packKey = pack.id || pack.name || pack.packName;
             if (pack.isCustom) {
-                actions.updateCustomPack(pack.id || pack.name, updatedPack);
+                actions.updateCustomPack(packKey, updatedPack);
             } else {
                 // For non-custom packs, we need to update via setPacks
-                // This is a simplified approach - in production, you might need
-                // more sophisticated pack management
-                actions.updateCustomPack(pack.name, { ...updatedPack, isCustom: true });
+                actions.updateCustomPack(packKey, { ...updatedPack, isCustom: true });
             }
 
             saveToExtension();
@@ -191,7 +240,7 @@ function LumiaEditorModal({ packName, editingItem = null, onClose, onSaved }) {
 
         onClose();
     }, [
-        validate, name, avatarUrl, author, physicality, personality, behavior,
+        validate, name, avatarUrl, author, physicality, personality, behavior, gender,
         pack, isEditing, editingItem, actions, packName, onClose, onSaved
     ]);
 
@@ -199,25 +248,31 @@ function LumiaEditorModal({ packName, editingItem = null, onClose, onSaved }) {
     const handleDelete = useCallback(() => {
         if (!isEditing || !editingItem) return;
 
-        if (!window.confirm(`Are you sure you want to delete "${editingItem.lumiaDefName}"? This cannot be undone.`)) {
+        const editingName = getLumiaField(editingItem, 'name');
+        if (!window.confirm(`Are you sure you want to delete "${editingName}"? This cannot be undone.`)) {
             return;
         }
 
         if (pack) {
-            const updatedItems = (pack.items || []).filter(
-                item => item.lumiaDefName !== editingItem.lumiaDefName
+            // Support both new (lumiaItems) and legacy (items) format
+            const currentItems = pack.lumiaItems || pack.items || [];
+            const updatedItems = currentItems.filter(item =>
+                getLumiaField(item, 'name') !== editingName
             );
 
-            const updatedPack = { ...pack, items: updatedItems };
+            // Update with new format
+            const updatedPack = {
+                ...pack,
+                lumiaItems: updatedItems,
+                items: undefined,
+            };
 
+            const packKey = pack.id || pack.name || pack.packName;
             if (pack.isCustom) {
-                actions.updateCustomPack(pack.id || pack.name, updatedPack);
+                actions.updateCustomPack(packKey, updatedPack);
             } else {
-                actions.updateCustomPack(pack.name, { ...updatedPack, isCustom: true });
+                actions.updateCustomPack(packKey, { ...updatedPack, isCustom: true });
             }
-
-            // Also clean up any selections referencing this item
-            // (The store actions should handle this, but we can be explicit)
 
             saveToExtension();
         }
@@ -276,6 +331,22 @@ function LumiaEditorModal({ packName, editingItem = null, onClose, onSaved }) {
                                 onChange={(e) => setAuthor(e.target.value)}
                                 placeholder="Your name"
                             />
+                        </FormField>
+                    </div>
+
+                    <div className="lumiverse-editor-row">
+                        <FormField label="Gender Identity" hint="Used for pronoun macros like {{lumiaPn subject}}">
+                            <select
+                                className="lumiverse-input lumiverse-select"
+                                value={gender}
+                                onChange={(e) => setGender(Number(e.target.value))}
+                            >
+                                {GENDER_OPTIONS.map(opt => (
+                                    <option key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                    </option>
+                                ))}
+                            </select>
                         </FormField>
                     </div>
 
