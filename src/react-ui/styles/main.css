@@ -3469,6 +3469,163 @@ details.lumia-panel[open] .lumia-panel-chevron {
     font-style: italic;
 }
 
+/* Pack Selector - Unified Items List (Lumia + Loom) */
+.lumiverse-pack-selector-items {
+    padding: 8px 12px 12px;
+    border-top: 1px solid var(--lumiverse-border-light);
+}
+
+.lumiverse-pack-selector-add-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, rgba(147, 112, 219, 0.1) 0%, rgba(100, 149, 237, 0.1) 100%);
+    border: 1px dashed rgba(147, 112, 219, 0.3);
+    border-radius: var(--lumiverse-radius-sm);
+    color: var(--lumiverse-primary-text);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.lumiverse-pack-selector-add-item:hover {
+    background: linear-gradient(135deg, rgba(147, 112, 219, 0.2) 0%, rgba(100, 149, 237, 0.2) 100%);
+    border-color: rgba(147, 112, 219, 0.5);
+}
+
+.lumiverse-pack-selector-item-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.lumiverse-pack-selector-item-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(128, 128, 128, 0.08);
+    border-radius: var(--lumiverse-radius-sm);
+    transition: all 0.15s ease;
+}
+
+.lumiverse-pack-selector-item-row:hover {
+    background: rgba(0, 0, 0, 0.18);
+    border-color: rgba(147, 112, 219, 0.2);
+}
+
+.lumiverse-pack-selector-item-row--loom:hover {
+    border-color: rgba(100, 149, 237, 0.2);
+}
+
+.lumiverse-pack-selector-item-icon-sm {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.lumiverse-pack-selector-item-icon--lumia {
+    background: rgba(147, 112, 219, 0.15);
+    color: rgba(186, 135, 255, 0.9);
+    border: 1px solid rgba(147, 112, 219, 0.2);
+}
+
+.lumiverse-pack-selector-item-icon--loom {
+    background: rgba(100, 149, 237, 0.15);
+    color: rgba(130, 179, 255, 0.9);
+    border: 1px solid rgba(100, 149, 237, 0.2);
+}
+
+.lumiverse-pack-selector-item-avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.lumiverse-pack-selector-item-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--lumiverse-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lumiverse-pack-selector-item-type {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    background: rgba(147, 112, 219, 0.15);
+    color: rgba(186, 135, 255, 0.85);
+    flex-shrink: 0;
+}
+
+.lumiverse-pack-selector-item-type--loom {
+    background: rgba(100, 149, 237, 0.15);
+    color: rgba(130, 179, 255, 0.85);
+}
+
+.lumiverse-pack-selector-item-edit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    background: rgba(128, 128, 128, 0.15);
+    border: 1px solid rgba(128, 128, 128, 0.15);
+    border-radius: var(--lumiverse-radius-sm);
+    color: var(--lumiverse-text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.lumiverse-pack-selector-item-edit:hover {
+    background: rgba(147, 112, 219, 0.25);
+    border-color: rgba(147, 112, 219, 0.3);
+    color: var(--lumiverse-primary-text);
+}
+
+.lumiverse-pack-selector-item-row--loom .lumiverse-pack-selector-item-edit:hover {
+    background: rgba(100, 149, 237, 0.25);
+    border-color: rgba(100, 149, 237, 0.3);
+    color: rgba(130, 179, 255, 0.95);
+}
+
+.lumiverse-pack-selector-items-empty {
+    padding: 12px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--lumiverse-text-muted);
+    font-style: italic;
+}
+
+/* Pack name class for clarity */
+.lumiverse-pack-selector-pack-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--lumiverse-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* ----------------------------------------
    Lumia Editor Modal
    ---------------------------------------- */
@@ -3618,6 +3775,229 @@ details.lumia-panel[open] .lumia-panel-chevron {
 
 .lumiverse-editor-footer-spacer {
     flex: 1;
+}
+
+/* ----------------------------------------
+   Item Type Selector
+   Choice between Lumia and Loom
+   ---------------------------------------- */
+.lumiverse-type-selector {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    min-width: 420px;
+}
+
+.lumiverse-type-selector-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.lumiverse-type-selector-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--lumiverse-text);
+    margin: 0 0 6px 0;
+    letter-spacing: -0.2px;
+}
+
+.lumiverse-type-selector-subtitle {
+    font-size: 13px;
+    color: var(--lumiverse-text-muted);
+    margin: 0;
+}
+
+.lumiverse-type-selector-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.lumiverse-type-option {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 18px;
+    background: var(--lumiverse-bg-elevated);
+    border: 1px solid var(--lumiverse-border);
+    border-radius: var(--lumiverse-radius-lg);
+    cursor: pointer;
+    transition: all var(--lumiverse-transition);
+    text-align: left;
+    width: 100%;
+}
+
+.lumiverse-type-option:hover,
+.lumiverse-type-option--hovered {
+    background: var(--lumiverse-bg-hover);
+    border-color: var(--lumiverse-border-hover);
+    transform: translateY(-1px);
+}
+
+.lumiverse-type-option--lumia:hover,
+.lumiverse-type-option--lumia.lumiverse-type-option--hovered {
+    border-color: rgba(147, 112, 219, 0.4);
+    box-shadow: 0 4px 20px rgba(147, 112, 219, 0.15);
+}
+
+.lumiverse-type-option--loom:hover,
+.lumiverse-type-option--loom.lumiverse-type-option--hovered {
+    border-color: rgba(100, 149, 237, 0.4);
+    box-shadow: 0 4px 20px rgba(100, 149, 237, 0.15);
+}
+
+.lumiverse-type-option-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--lumiverse-radius);
+    flex-shrink: 0;
+    transition: all var(--lumiverse-transition);
+}
+
+.lumiverse-type-option--lumia .lumiverse-type-option-icon {
+    background: rgba(147, 112, 219, 0.15);
+    color: rgba(186, 135, 255, 0.9);
+}
+
+.lumiverse-type-option--lumia:hover .lumiverse-type-option-icon,
+.lumiverse-type-option--lumia.lumiverse-type-option--hovered .lumiverse-type-option-icon {
+    background: rgba(147, 112, 219, 0.25);
+}
+
+.lumiverse-type-option--loom .lumiverse-type-option-icon {
+    background: rgba(100, 149, 237, 0.15);
+    color: rgba(130, 179, 255, 0.9);
+}
+
+.lumiverse-type-option--loom:hover .lumiverse-type-option-icon,
+.lumiverse-type-option--loom.lumiverse-type-option--hovered .lumiverse-type-option-icon {
+    background: rgba(100, 149, 237, 0.25);
+}
+
+.lumiverse-type-option-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.lumiverse-type-option-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--lumiverse-text);
+    margin-bottom: 4px;
+}
+
+.lumiverse-type-option-desc {
+    display: block;
+    font-size: 12px;
+    color: var(--lumiverse-text-muted);
+    line-height: 1.4;
+}
+
+.lumiverse-type-option-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: var(--lumiverse-text-dim);
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: all var(--lumiverse-transition);
+}
+
+.lumiverse-type-option:hover .lumiverse-type-option-arrow,
+.lumiverse-type-option--hovered .lumiverse-type-option-arrow {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.lumiverse-type-selector-footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--lumiverse-border);
+}
+
+/* Modal wrapper for type selector */
+.lumia-modal-type-selector {
+    max-width: 480px;
+    width: 90%;
+}
+
+/* ----------------------------------------
+   Loom Editor Modal
+   ---------------------------------------- */
+.lumia-modal-loom-editor {
+    max-width: 580px;
+    width: 90%;
+}
+
+.lumiverse-loom-editor {
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+}
+
+.lumiverse-loom-editor-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.lumiverse-loom-category-select {
+    margin-bottom: 16px;
+}
+
+.lumiverse-loom-category-options {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.lumiverse-loom-category-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--lumiverse-bg-elevated);
+    border: 1px solid var(--lumiverse-border);
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--lumiverse-text-muted);
+    cursor: pointer;
+    transition: all var(--lumiverse-transition);
+}
+
+.lumiverse-loom-category-btn:hover {
+    background: var(--lumiverse-bg-hover);
+    border-color: var(--lumiverse-border-hover);
+    color: var(--lumiverse-text);
+}
+
+.lumiverse-loom-category-btn--selected {
+    background: rgba(100, 149, 237, 0.2);
+    border-color: rgba(100, 149, 237, 0.4);
+    color: rgba(130, 179, 255, 0.95);
+}
+
+.lumiverse-loom-category-btn--selected:hover {
+    background: rgba(100, 149, 237, 0.25);
+    border-color: rgba(100, 149, 237, 0.5);
+}
+
+.lumiverse-loom-content-field {
+    margin-top: 16px;
+}
+
+.lumiverse-loom-content-field .lumiverse-textarea {
+    min-height: 200px;
+    resize: vertical;
 }
 
 /* ----------------------------------------

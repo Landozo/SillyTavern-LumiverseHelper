@@ -27,7 +27,7 @@ import {
   resetRandomLumia,
 } from "./lib/settingsManager.js";
 
-import { handleNewBook, fetchWorldBook } from "./lib/dataProcessor.js";
+import { handleNewBook, fetchWorldBook, importPack } from "./lib/dataProcessor.js";
 
 import {
   showSelectionModal,
@@ -408,7 +408,8 @@ jQuery(async () => {
     });
   });
   registerReactCallback("handleNewBook", (data, filename) => {
-    handleNewBook(data, filename, false);
+    // Use importPack which handles both native Lumiverse format and World Book format
+    importPack(data, filename, false);
     refreshUIDisplay();
     notifyReactOfSettingsChange();
   });
@@ -471,7 +472,8 @@ jQuery(async () => {
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target.result);
-        handleNewBook(data, file.name, false);
+        // Use importPack which handles both native Lumiverse format and World Book format
+        importPack(data, file.name, false);
         refreshUIDisplay();
         notifyReactOfSettingsChange();
       } catch (error) {

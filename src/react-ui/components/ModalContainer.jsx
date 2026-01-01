@@ -9,6 +9,8 @@ import PackEditorModal from './modals/PackEditorModal';
 import LoomSelectionModal from './modals/LoomSelectionModal';
 import PackSelectorModal from './modals/PackSelectorModal';
 import LumiaEditorModal from './modals/LumiaEditorModal';
+import LoomEditorModal from './modals/LoomEditorModal';
+import ItemTypeSelector from './modals/ItemTypeSelector';
 import CouncilSelectModal from './modals/CouncilSelectModal';
 
 /**
@@ -57,7 +59,9 @@ function ModalWrapper({ children, onClose, modalType, size = 'medium', hasCustom
         modalType === 'editor' && 'lumia-modal-editor',
         modalType === 'pack-editor' && 'lumia-modal-pack-editor',
         modalType === 'pack-selector' && 'lumia-modal-pack-selector',
-        modalType === 'lumia-editor' && 'lumia-modal-lumia-editor'
+        modalType === 'lumia-editor' && 'lumia-modal-lumia-editor',
+        modalType === 'loom-editor' && 'lumia-modal-loom-editor',
+        modalType === 'type-selector' && 'lumia-modal-type-selector'
     );
 
     return (
@@ -76,6 +80,31 @@ function ModalWrapper({ children, onClose, modalType, size = 'medium', hasCustom
                 {children}
             </div>
         </div>
+    );
+}
+
+/**
+ * Item Type Selector Wrapper
+ * Wraps ItemTypeSelector to handle the modal flow
+ */
+function ItemTypeSelectorWrapper({ packName, onClose }) {
+    const actions = useLumiverseActions();
+
+    const handleSelectLumia = () => {
+        actions.openModal('lumiaEditor', { packName });
+    };
+
+    const handleSelectLoom = () => {
+        actions.openModal('loomEditor', { packName });
+    };
+
+    return (
+        <ItemTypeSelector
+            packName={packName}
+            onSelectLumia={handleSelectLumia}
+            onSelectLoom={handleSelectLoom}
+            onBack={onClose}
+        />
     );
 }
 
@@ -152,6 +181,22 @@ const MODAL_CONFIG = {
         component: LumiaEditorModal,
         modalType: 'lumia-editor',
         size: 'large',
+        hasCustomHeader: true,
+        props: {},
+    },
+    // Loom editor - for creating/editing Loom items
+    loomEditor: {
+        component: LoomEditorModal,
+        modalType: 'loom-editor',
+        size: 'large',
+        hasCustomHeader: true,
+        props: {},
+    },
+    // Item type selector - choose between Lumia or Loom
+    itemTypeSelector: {
+        component: ItemTypeSelectorWrapper,
+        modalType: 'type-selector',
+        size: 'medium',
         hasCustomHeader: true,
         props: {},
     },

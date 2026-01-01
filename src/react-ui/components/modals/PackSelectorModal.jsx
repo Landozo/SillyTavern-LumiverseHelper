@@ -2,32 +2,92 @@ import React, { useState, useCallback } from 'react';
 import { usePacks, useLumiverseActions, saveToExtension } from '../../store/LumiverseContext';
 import { useAdaptiveImagePosition } from '../../hooks/useAdaptiveImagePosition';
 import clsx from 'clsx';
-import { Folder, FolderPlus, Check, ChevronRight, ChevronDown, Plus, Edit2 } from 'lucide-react';
+import { Folder, FolderPlus, Check, ChevronRight, ChevronDown, Plus, Edit2, User, ScrollText } from 'lucide-react';
+
+/**
+ * Get Lumia name with fallback for different formats
+ */
+function getLumiaName(item) {
+    return item.lumiaName || item.lumiaDefName || 'Unknown';
+}
+
+/**
+ * Get Lumia avatar with fallback for different formats
+ */
+function getLumiaAvatar(item) {
+    return item.avatarUrl || item.lumia_img || null;
+}
+
+/**
+ * Get Loom name with fallback
+ */
+function getLoomName(item) {
+    return item.loomName || item.itemName || item.name || 'Unknown';
+}
 
 /**
  * Individual Lumia item row with adaptive image positioning
  */
 function LumiaItemRow({ item, packName, onEdit }) {
-    const { objectPosition } = useAdaptiveImagePosition(item.lumia_img);
+    const avatarUrl = getLumiaAvatar(item);
+    const { objectPosition } = useAdaptiveImagePosition(avatarUrl);
+    const name = getLumiaName(item);
 
     return (
-        <div className="lumiverse-pack-selector-lumia-item">
-            {item.lumia_img && (
-                <img
-                    src={item.lumia_img}
-                    alt=""
-                    className="lumiverse-pack-selector-lumia-avatar"
-                    style={{ objectPosition }}
-                    onError={(e) => { e.target.style.display = 'none'; }}
-                />
-            )}
-            <span className="lumiverse-pack-selector-lumia-name">
-                {item.lumiaDefName}
+        <div className="lumiverse-pack-selector-item-row">
+            <div className="lumiverse-pack-selector-item-icon-sm lumiverse-pack-selector-item-icon--lumia">
+                {avatarUrl ? (
+                    <img
+                        src={avatarUrl}
+                        alt=""
+                        className="lumiverse-pack-selector-item-avatar"
+                        style={{ objectPosition }}
+                        onError={(e) => { e.target.style.display = 'none'; }}
+                    />
+                ) : (
+                    <User size={14} strokeWidth={1.5} />
+                )}
+            </div>
+            <span className="lumiverse-pack-selector-item-name">{name}</span>
+            <span className="lumiverse-pack-selector-item-type">Lumia</span>
+            <button
+                className="lumiverse-pack-selector-item-edit"
+                onClick={() => onEdit(packName, item, 'lumia')}
+                title="Edit this Lumia"
+                type="button"
+            >
+                <Edit2 size={14} strokeWidth={1.5} />
+            </button>
+        </div>
+    );
+}
+
+/**
+ * Individual Loom item row
+ */
+function LoomItemRow({ item, packName, onEdit }) {
+    const name = getLoomName(item);
+    const category = item.loomCategory || item.category || 'Unknown';
+
+    // Shorten category for display
+    const shortCategory = category === 'Narrative Style' ? 'Style'
+        : category === 'Loom Utilities' ? 'Utility'
+        : category === 'Retrofits' ? 'Retrofit'
+        : category;
+
+    return (
+        <div className="lumiverse-pack-selector-item-row lumiverse-pack-selector-item-row--loom">
+            <div className="lumiverse-pack-selector-item-icon-sm lumiverse-pack-selector-item-icon--loom">
+                <ScrollText size={14} strokeWidth={1.5} />
+            </div>
+            <span className="lumiverse-pack-selector-item-name">{name}</span>
+            <span className="lumiverse-pack-selector-item-type lumiverse-pack-selector-item-type--loom">
+                {shortCategory}
             </span>
             <button
-                className="lumiverse-pack-selector-lumia-edit"
-                onClick={() => onEdit(packName, item)}
-                title="Edit this Lumia"
+                className="lumiverse-pack-selector-item-edit"
+                onClick={() => onEdit(packName, item, 'loom')}
+                title="Edit this Loom item"
                 type="button"
             >
                 <Edit2 size={14} strokeWidth={1.5} />
@@ -71,14 +131,18 @@ function PackSelectorModal({ onSelect, onClose }) {
         setExpandedPackName(prev => prev === pack.name ? null : pack.name);
     }, []);
 
-    // Handle adding a new Lumia to a pack
-    const handleAddNewLumia = useCallback((packName) => {
-        actions.openModal('lumiaEditor', { packName });
+    // Handle adding a new item - opens type selector
+    const handleAddNewItem = useCallback((packName) => {
+        actions.openModal('itemTypeSelector', { packName });
     }, [actions]);
 
-    // Handle editing an existing Lumia
-    const handleEditLumia = useCallback((packName, item) => {
-        actions.openModal('lumiaEditor', { packName, editingItem: item });
+    // Handle editing an existing item (Lumia or Loom)
+    const handleEditItem = useCallback((packName, item, itemType) => {
+        if (itemType === 'loom') {
+            actions.openModal('loomEditor', { packName, editingItem: item });
+        } else {
+            actions.openModal('lumiaEditor', { packName, editingItem: item });
+        }
     }, [actions]);
 
     // Handle creating a new pack
@@ -127,12 +191,22 @@ function PackSelectorModal({ onSelect, onClose }) {
         }
         // Legacy format: items array
         if (!pack.items) return [];
-        return pack.items.filter(item => item.lumiaDefName);
+        return pack.items.filter(item => item.lumiaDefName || item.lumiaName);
     };
 
-    // Count Lumias in a pack
-    const getLumiaCount = (pack) => {
-        return getLumiaItems(pack).length;
+    // Get Loom items from a pack
+    const getLoomItems = (pack) => {
+        if (pack.loomItems && pack.loomItems.length > 0) {
+            return pack.loomItems;
+        }
+        return [];
+    };
+
+    // Count total items in a pack
+    const getItemCount = (pack) => {
+        const lumiaCount = getLumiaItems(pack).length;
+        const loomCount = getLoomItems(pack).length;
+        return { lumiaCount, loomCount, total: lumiaCount + loomCount };
     };
 
     return (
@@ -151,6 +225,8 @@ function PackSelectorModal({ onSelect, onClose }) {
                             {editablePacks.map((pack) => {
                                 const isExpanded = expandedPackName === pack.name;
                                 const lumiaItems = getLumiaItems(pack);
+                                const loomItems = getLoomItems(pack);
+                                const counts = getItemCount(pack);
 
                                 return (
                                     <div
@@ -170,11 +246,14 @@ function PackSelectorModal({ onSelect, onClose }) {
                                                 <Folder size={20} strokeWidth={1.5} />
                                             </div>
                                             <div className="lumiverse-pack-selector-item-info">
-                                                <span className="lumiverse-pack-selector-item-name">
+                                                <span className="lumiverse-pack-selector-pack-name">
                                                     {pack.name}
                                                 </span>
                                                 <span className="lumiverse-pack-selector-item-meta">
-                                                    {getLumiaCount(pack)} Lumias
+                                                    {counts.lumiaCount > 0 && `${counts.lumiaCount} Lumia${counts.lumiaCount !== 1 ? 's' : ''}`}
+                                                    {counts.lumiaCount > 0 && counts.loomCount > 0 && ' • '}
+                                                    {counts.loomCount > 0 && `${counts.loomCount} Loom${counts.loomCount !== 1 ? 's' : ''}`}
+                                                    {counts.total === 0 && 'Empty'}
                                                     {pack.author && ` • by ${pack.author}`}
                                                 </span>
                                             </div>
@@ -185,34 +264,44 @@ function PackSelectorModal({ onSelect, onClose }) {
                                             )}
                                         </button>
 
-                                        {/* Expanded Lumias List */}
+                                        {/* Expanded Items List */}
                                         {isExpanded && (
-                                            <div className="lumiverse-pack-selector-lumias">
-                                                {/* Add New Lumia Button */}
+                                            <div className="lumiverse-pack-selector-items">
+                                                {/* Add New Item Button */}
                                                 <button
-                                                    className="lumiverse-pack-selector-add-lumia"
-                                                    onClick={() => handleAddNewLumia(pack.name)}
+                                                    className="lumiverse-pack-selector-add-item"
+                                                    onClick={() => handleAddNewItem(pack.name)}
                                                     type="button"
                                                 >
                                                     <Plus size={14} strokeWidth={2} />
-                                                    <span>Add New Lumia</span>
+                                                    <span>Add New Item</span>
                                                 </button>
 
-                                                {/* Existing Lumias */}
-                                                {lumiaItems.length > 0 ? (
-                                                    <div className="lumiverse-pack-selector-lumia-list">
+                                                {/* Existing Items */}
+                                                {(lumiaItems.length > 0 || loomItems.length > 0) ? (
+                                                    <div className="lumiverse-pack-selector-item-list">
+                                                        {/* Lumia items first */}
                                                         {lumiaItems.map((item, index) => (
                                                             <LumiaItemRow
-                                                                key={item.lumiaDefName || index}
+                                                                key={getLumiaName(item) || `lumia-${index}`}
                                                                 item={item}
                                                                 packName={pack.name}
-                                                                onEdit={handleEditLumia}
+                                                                onEdit={handleEditItem}
+                                                            />
+                                                        ))}
+                                                        {/* Then Loom items */}
+                                                        {loomItems.map((item, index) => (
+                                                            <LoomItemRow
+                                                                key={getLoomName(item) || `loom-${index}`}
+                                                                item={item}
+                                                                packName={pack.name}
+                                                                onEdit={handleEditItem}
                                                             />
                                                         ))}
                                                     </div>
                                                 ) : (
-                                                    <div className="lumiverse-pack-selector-lumia-empty">
-                                                        No Lumias yet. Add your first one!
+                                                    <div className="lumiverse-pack-selector-items-empty">
+                                                        No items yet. Add your first one!
                                                     </div>
                                                 )}
                                             </div>
