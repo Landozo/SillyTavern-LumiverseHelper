@@ -8090,7 +8090,12 @@ details.lumia-panel[open] .lumia-panel-chevron {
 .lumiverse-council-role-input-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
+    width: 100%;
+}
+
+.lumiverse-council-role-input-row .lumiverse-council-btn {
+    flex-shrink: 0;
 }
 
 .lumiverse-council-input {

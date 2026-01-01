@@ -8,7 +8,7 @@ import {
 import { useLumiverseStore, saveToExtension } from '../../store/LumiverseContext';
 import { motion, AnimatePresence } from 'motion/react';
 
-/* global LumiverseBridge, SillyTavern */
+/* global LumiverseBridge, SillyTavern, toastr */
 
 // Get the store for direct access
 const store = useLumiverseStore;
@@ -682,20 +682,53 @@ function SummaryTextEditor() {
 
         setIsGenerating(true);
         try {
-            // Call the bridge to generate summary if available
-            if (typeof LumiverseBridge !== 'undefined' && LumiverseBridge.getCallbacks) {
-                const callbacks = LumiverseBridge.getCallbacks();
-                if (callbacks.generateSummary) {
-                    const result = await callbacks.generateSummary();
-                    if (result) {
-                        setSummary(result);
-                    }
-                } else {
-                    console.warn('[SummaryEditor] generateSummary callback not available');
+            // Check if bridge is available
+            if (typeof window.LumiverseBridge === 'undefined') {
+                console.error('[SummaryEditor] LumiverseBridge not available');
+                if (typeof toastr !== 'undefined') {
+                    toastr.error('Summary bridge not available. Try refreshing the page.');
+                }
+                return;
+            }
+
+            if (typeof window.LumiverseBridge.getCallbacks !== 'function') {
+                console.error('[SummaryEditor] getCallbacks is not a function');
+                if (typeof toastr !== 'undefined') {
+                    toastr.error('Summary callbacks not configured.');
+                }
+                return;
+            }
+
+            const callbacks = window.LumiverseBridge.getCallbacks();
+            if (!callbacks.generateSummary) {
+                console.error('[SummaryEditor] generateSummary callback not registered');
+                if (typeof toastr !== 'undefined') {
+                    toastr.error('Summary generation not configured.');
+                }
+                return;
+            }
+
+            // Call the summary generation function
+            console.log('[SummaryEditor] Calling generateSummary callback...');
+            const result = await callbacks.generateSummary();
+            console.log('[SummaryEditor] generateSummary returned:', result ? 'success' : 'no result');
+
+            if (result) {
+                setSummary(result);
+                setOriginalSummary(result); // Also update original to reflect saved state
+                if (typeof toastr !== 'undefined') {
+                    toastr.success('Summary generated successfully!');
+                }
+            } else {
+                if (typeof toastr !== 'undefined') {
+                    toastr.warning('No summary was generated. Check your settings.');
                 }
             }
         } catch (e) {
             console.error('[SummaryEditor] Error generating summary:', e);
+            if (typeof toastr !== 'undefined') {
+                toastr.error(`Summary generation failed: ${e.message || 'Unknown error'}`);
+            }
         } finally {
             setIsGenerating(false);
         }

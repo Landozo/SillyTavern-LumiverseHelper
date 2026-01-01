@@ -118,6 +118,7 @@ export function isLumiaOOCFont(fontElement) {
 
 /**
  * Get avatar image URL from selected Lumia definition
+ * Supports both new (avatarUrl) and legacy (lumia_img) field names
  * @returns {string|null} Avatar image URL or null
  */
 export function getLumiaAvatarImg() {
@@ -127,8 +128,10 @@ export function getLumiaAvatarImg() {
       settings.selectedDefinition.packName,
       settings.selectedDefinition.itemName,
     );
-    if (item && item.lumia_img) {
-      return item.lumia_img;
+    // Support both new (avatarUrl) and legacy (lumia_img) field names
+    const avatarUrl = item?.avatarUrl || item?.lumia_img;
+    if (avatarUrl) {
+      return avatarUrl;
     }
   }
   return null;
@@ -672,12 +675,15 @@ function getLumiaAvatarByName(lumiaName) {
 
   /**
    * Helper to update best match if this candidate scores higher
+   * Supports both new (avatarUrl) and legacy (lumia_img) field names
    */
   const checkCandidate = (item, nameToCheck) => {
-    if (!item?.lumia_img) return;
+    // Support both new (avatarUrl) and legacy (lumia_img) field names
+    const avatarUrl = item?.avatarUrl || item?.lumia_img;
+    if (!avatarUrl) return;
     const score = getNameMatchScore(lumiaName, nameToCheck);
     if (score > bestMatch.score) {
-      bestMatch = { score, avatar: item.lumia_img };
+      bestMatch = { score, avatar: avatarUrl };
     }
   };
 
@@ -687,8 +693,9 @@ function getLumiaAvatarByName(lumiaName) {
       const item = getItemFromLibrary(member.packName, member.itemName);
       if (!item) continue;
 
-      // Check against both itemName and lumiaDefName
-      checkCandidate(item, item.lumiaDefName || member.itemName);
+      // Check against both new (lumiaName) and legacy (lumiaDefName) field names
+      const itemName = item.lumiaName || item.lumiaDefName || member.itemName;
+      checkCandidate(item, itemName);
       checkCandidate(item, member.itemName);
 
       // If we found an exact match (score 100), return immediately
@@ -703,7 +710,9 @@ function getLumiaAvatarByName(lumiaName) {
       settings.selectedDefinition.itemName
     );
     if (item) {
-      checkCandidate(item, item.lumiaDefName || settings.selectedDefinition.itemName);
+      // Check against both new (lumiaName) and legacy (lumiaDefName) field names
+      const itemName = item.lumiaName || item.lumiaDefName || settings.selectedDefinition.itemName;
+      checkCandidate(item, itemName);
       checkCandidate(item, settings.selectedDefinition.itemName);
 
       if (bestMatch.score === 100) return bestMatch.avatar;
@@ -716,7 +725,9 @@ function getLumiaAvatarByName(lumiaName) {
       const item = getItemFromLibrary(sel.packName, sel.itemName);
       if (!item) continue;
 
-      checkCandidate(item, item.lumiaDefName || sel.itemName);
+      // Check against both new (lumiaName) and legacy (lumiaDefName) field names
+      const itemName = item.lumiaName || item.lumiaDefName || sel.itemName;
+      checkCandidate(item, itemName);
       checkCandidate(item, sel.itemName);
 
       if (bestMatch.score === 100) return bestMatch.avatar;
@@ -730,14 +741,24 @@ function getLumiaAvatarByName(lumiaName) {
   }
 
   // Fallback: search all packs for matching Lumia
+  // Supports both new (lumiaItems) and legacy (items) arrays
   if (settings.packs) {
     for (const pack of Object.values(settings.packs)) {
-      if (!pack.items) continue;
-      for (const item of pack.items) {
-        const itemName = item.lumiaDefName || "";
-        checkCandidate(item, itemName);
-
-        if (bestMatch.score === 100) return bestMatch.avatar;
+      // New format: lumiaItems array
+      if (pack.lumiaItems && pack.lumiaItems.length > 0) {
+        for (const item of pack.lumiaItems) {
+          const itemName = item.lumiaName || item.lumiaDefName || "";
+          checkCandidate(item, itemName);
+          if (bestMatch.score === 100) return bestMatch.avatar;
+        }
+      }
+      // Legacy format: items array
+      else if (pack.items) {
+        for (const item of pack.items) {
+          const itemName = item.lumiaDefName || item.lumiaName || "";
+          checkCandidate(item, itemName);
+          if (bestMatch.score === 100) return bestMatch.avatar;
+        }
       }
     }
   }
