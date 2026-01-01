@@ -314,58 +314,67 @@ function VirtualizedPackItems({ items, filter, onSelectItem, selections }) {
 /**
  * Pack section with expandable items
  *
- * OLD CODE: pack.items is the single array containing ALL items (definitions, behaviors, personalities)
- * Each item has: lumiaDefName, lumiaDef, lumia_behavior, lumia_personality
- * NOT separate arrays like lumiaDefinitions, lumiaBehaviors, etc.
+ * Supports both new format (lumiaItems array) and legacy format (items array)
+ * New format: lumiaName, lumiaDefinition, lumiaBehavior, lumiaPersonality
+ * Legacy format: lumiaDefName, lumiaDef, lumia_behavior, lumia_personality
  */
 function PackSection({ pack, filter, searchQuery, showSelectedOnly, onSelectItem, onViewPack, selections }) {
     const [isExpanded, setIsExpanded] = useState(false);
     const packName = pack.name || pack.packName || 'Unknown Pack';
 
-    // Get all items from pack.items and determine type based on content
+    // Get all items from pack and determine type based on content
     const allItems = useMemo(() => {
-        const packItems = pack.items || [];
         const items = [];
 
-        packItems.forEach((item, index) => {
-            // Skip loom items (they have loomCategory)
-            if (item.loomCategory) return;
+        // Helper to get field value supporting both formats
+        const getField = (item, newField, legacyField) => item[newField] || item[legacyField];
+        const getName = (item) => item.lumiaName || item.lumiaDefName;
+        const getDef = (item) => item.lumiaDefinition || item.lumiaDef;
+        const getBehavior = (item) => item.lumiaBehavior || item.lumia_behavior;
+        const getPersonality = (item) => item.lumiaPersonality || item.lumia_personality;
 
-            // Skip items without lumiaDefName
-            if (!item.lumiaDefName) return;
+        // Get source items - new format or legacy
+        const packItems = (pack.lumiaItems && pack.lumiaItems.length > 0)
+            ? pack.lumiaItems
+            : (pack.items || []).filter(i => !i.loomCategory && (i.lumiaDefName || i.lumiaName));
+
+        packItems.forEach((item, index) => {
+            const itemName = getName(item);
+            if (!itemName) return;
 
             // Determine type based on what content the item has
-            // An item can have definition (lumiaDef), behavior (lumia_behavior), and/or personality (lumia_personality)
-            // For browsing, we show them as definition type if they have lumiaDef
-            const hasDefinition = !!item.lumiaDef;
-            const hasBehavior = !!item.lumia_behavior;
-            const hasPersonality = !!item.lumia_personality;
+            const hasDefinition = !!getDef(item);
+            const hasBehavior = !!getBehavior(item);
+            const hasPersonality = !!getPersonality(item);
 
             // If item has a definition, show as definition type
             if (hasDefinition) {
                 items.push({
                     ...item,
+                    lumiaDefName: itemName, // Normalize for compatibility
                     type: 'definition',
                     packName: packName,
-                    id: `def-${packName}-${item.lumiaDefName}-${index}`,
+                    id: `def-${packName}-${itemName}-${index}`,
                 });
             }
             // If item has behavior content, also add as behavior
             if (hasBehavior) {
                 items.push({
                     ...item,
+                    lumiaDefName: itemName,
                     type: 'behavior',
                     packName: packName,
-                    id: `beh-${packName}-${item.lumiaDefName}-${index}`,
+                    id: `beh-${packName}-${itemName}-${index}`,
                 });
             }
             // If item has personality content, also add as personality
             if (hasPersonality) {
                 items.push({
                     ...item,
+                    lumiaDefName: itemName,
                     type: 'personality',
                     packName: packName,
-                    id: `per-${packName}-${item.lumiaDefName}-${index}`,
+                    id: `per-${packName}-${itemName}-${index}`,
                 });
             }
         });
@@ -436,7 +445,7 @@ function PackSection({ pack, filter, searchQuery, showSelectedOnly, onSelectItem
 
 /**
  * Stats bar showing current counts
- * OLD CODE: Uses pack.items, not separate lumiaDefinitions/lumiaBehaviors/lumiaPersonalities arrays
+ * Supports both new format (lumiaItems) and legacy format (items)
  */
 function StatsBar({ packs, customPacks }) {
     const stats = useMemo(() => {
@@ -445,16 +454,20 @@ function StatsBar({ packs, customPacks }) {
         let personalities = 0;
 
         [...packs, ...customPacks].forEach(pack => {
-            const items = pack.items || [];
+            // Get items from new or legacy format
+            const items = (pack.lumiaItems && pack.lumiaItems.length > 0)
+                ? pack.lumiaItems
+                : (pack.items || []).filter(i => !i.loomCategory);
+
             // Count based on what content each item has
             items.forEach(item => {
-                // Skip loom items
-                if (item.loomCategory) return;
-                if (!item.lumiaDefName) return;
+                const itemName = item.lumiaName || item.lumiaDefName;
+                if (!itemName) return;
 
-                if (item.lumiaDef) definitions++;
-                if (item.lumia_behavior) behaviors++;
-                if (item.lumia_personality) personalities++;
+                // Support both new and legacy field names
+                if (item.lumiaDefinition || item.lumiaDef) definitions++;
+                if (item.lumiaBehavior || item.lumia_behavior) behaviors++;
+                if (item.lumiaPersonality || item.lumia_personality) personalities++;
             });
         });
 

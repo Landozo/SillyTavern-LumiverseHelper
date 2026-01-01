@@ -154,8 +154,16 @@ function EmptySection({ message }) {
  */
 function getLumiaImage(packs, packName, itemName) {
     const packsArray = Array.isArray(packs) ? packs : Object.values(packs || {});
-    const pack = packsArray.find(p => p.name === packName);
+    const pack = packsArray.find(p => (p.name || p.packName) === packName);
     if (!pack) return null;
+    // New format: lumiaItems array
+    if (pack.lumiaItems && pack.lumiaItems.length > 0) {
+        const item = pack.lumiaItems.find(i =>
+            i.lumiaName === itemName || i.lumiaDefName === itemName
+        );
+        return item?.avatarUrl || item?.lumia_img || null;
+    }
+    // Legacy format: items array
     const item = pack.items?.find(i => i.lumiaDefName === itemName);
     return item?.lumia_img || null;
 }

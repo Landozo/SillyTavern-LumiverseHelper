@@ -2509,7 +2509,14 @@ export function refreshUIDisplay() {
 
   if (packs.length > 0) {
     if (statusDiv) {
-      const totalItems = packs.reduce((acc, p) => acc + p.items.length, 0);
+      const totalItems = packs.reduce((acc, p) => {
+        // New format: lumiaItems + loomItems
+        const lumiaCount = p.lumiaItems?.length || 0;
+        const loomCount = p.loomItems?.length || 0;
+        // Legacy format: items array
+        const legacyCount = p.items?.length || 0;
+        return acc + (lumiaCount + loomCount > 0 ? lumiaCount + loomCount : legacyCount);
+      }, 0);
       statusDiv.textContent = `Loaded ${packs.length} packs (${totalItems} items total)`;
     }
 

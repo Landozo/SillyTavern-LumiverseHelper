@@ -145,13 +145,16 @@ function findLumiaInPack(pack, itemName) {
     if (!pack) return null;
 
     // New format: separate lumiaItems array with lumiaName field
-    if (pack.lumiaItems) {
-        const found = pack.lumiaItems.find(i => i.lumiaName === itemName);
+    if (pack.lumiaItems && pack.lumiaItems.length > 0) {
+        // Check both lumiaName and lumiaDefName for compatibility
+        const found = pack.lumiaItems.find(i =>
+            i.lumiaName === itemName || i.lumiaDefName === itemName
+        );
         if (found) return found;
     }
 
     // Legacy format: mixed items array with lumiaDefName field
-    if (pack.items) {
+    if (pack.items && pack.items.length > 0) {
         return pack.items.find(i => i.lumiaDefName === itemName);
     }
 

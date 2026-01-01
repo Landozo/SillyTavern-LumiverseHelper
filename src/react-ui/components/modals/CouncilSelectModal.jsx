@@ -19,16 +19,34 @@ const EMPTY_ARRAY = [];
 const selectCouncilMembers = () => store.getState().councilMembers || EMPTY_ARRAY;
 
 /**
+ * Find a Lumia item in a pack - supports both new and legacy formats
+ */
+function findLumiaInPack(pack, itemName) {
+    if (!pack) return null;
+    // New format: lumiaItems array
+    if (pack.lumiaItems && pack.lumiaItems.length > 0) {
+        return pack.lumiaItems.find(i =>
+            i.lumiaName === itemName || i.lumiaDefName === itemName
+        );
+    }
+    // Legacy format: items array
+    if (pack.items) {
+        return pack.items.find(i => i.lumiaDefName === itemName);
+    }
+    return null;
+}
+
+/**
  * Get display name for a Lumia item from pack data
  */
 function getLumiaName(packs, packName, itemName) {
     const packsObj = Array.isArray(packs)
-        ? packs.reduce((acc, p) => ({ ...acc, [p.name]: p }), {})
+        ? packs.reduce((acc, p) => ({ ...acc, [p.name || p.packName]: p }), {})
         : packs;
     const pack = packsObj[packName];
     if (!pack) return itemName;
-    const item = pack.items?.find(i => i.lumiaDefName === itemName);
-    return item?.lumiaDefName || itemName;
+    const item = findLumiaInPack(pack, itemName);
+    return item?.lumiaName || item?.lumiaDefName || itemName;
 }
 
 /**
@@ -36,12 +54,12 @@ function getLumiaName(packs, packName, itemName) {
  */
 function getLumiaImage(packs, packName, itemName) {
     const packsObj = Array.isArray(packs)
-        ? packs.reduce((acc, p) => ({ ...acc, [p.name]: p }), {})
+        ? packs.reduce((acc, p) => ({ ...acc, [p.name || p.packName]: p }), {})
         : packs;
     const pack = packsObj[packName];
     if (!pack) return null;
-    const item = pack.items?.find(i => i.lumiaDefName === itemName);
-    return item?.lumia_img || null;
+    const item = findLumiaInPack(pack, itemName);
+    return item?.avatarUrl || item?.lumia_img || null;
 }
 
 /**
@@ -275,17 +293,28 @@ function CouncilSelectModal({ onClose }) {
         const packsArray = Array.isArray(allPacks) ? allPacks : Object.values(allPacks || {});
         packsArray.forEach(pack => {
             const packName = pack.name || pack.packName;
-            (pack.items || []).forEach(item => {
-                // Only include Lumia items with definitions
-                if (!item.lumiaDefName || !item.lumiaDef) return;
-                const key = `${packName}:${item.lumiaDefName}`;
-                if (existing.has(key)) return;
 
-                items.push({
-                    packName,
-                    item,
+            // New format: lumiaItems array
+            if (pack.lumiaItems && pack.lumiaItems.length > 0) {
+                pack.lumiaItems.forEach(item => {
+                    const itemName = item.lumiaName || item.lumiaDefName;
+                    const itemDef = item.lumiaDefinition || item.lumiaDef;
+                    if (!itemName || !itemDef) return;
+                    const key = `${packName}:${itemName}`;
+                    if (existing.has(key)) return;
+                    items.push({ packName, item });
                 });
-            });
+            }
+            // Legacy format: items array
+            else if (pack.items) {
+                pack.items.forEach(item => {
+                    // Only include Lumia items with definitions
+                    if (!item.lumiaDefName || !item.lumiaDef) return;
+                    const key = `${packName}:${item.lumiaDefName}`;
+                    if (existing.has(key)) return;
+                    items.push({ packName, item });
+                });
+            }
         });
 
         // Filter by search term

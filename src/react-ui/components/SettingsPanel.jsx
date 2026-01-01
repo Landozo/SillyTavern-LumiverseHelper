@@ -666,12 +666,22 @@ function SettingsPanel() {
     // Calculate stats
     const totalPacks = allPacks.length;
     const totalItems = useMemo(() => {
-        return allPacks.reduce((sum, pack) => sum + (pack.items?.length || 0), 0);
+        return allPacks.reduce((sum, pack) => {
+            // New format: lumiaItems + loomItems
+            const lumiaCount = pack.lumiaItems?.length || 0;
+            const loomCount = pack.loomItems?.length || 0;
+            // Legacy format: items array
+            const legacyCount = pack.items?.length || 0;
+            // Use new format counts if available, otherwise legacy
+            return sum + (lumiaCount + loomCount > 0 ? lumiaCount + loomCount : legacyCount);
+        }, 0);
     }, [allPacks]);
 
     // Memoize loom packs filter to avoid IIFE in render
     const loomPacks = useMemo(() => {
         return packs.filter(pack => {
+            // New format: loomItems array
+            if (pack.loomItems?.length > 0) return true;
             // Check legacy structure
             if (pack.loomStyles?.length > 0) return true;
             if (pack.loomUtils?.length > 0) return true;
@@ -1137,7 +1147,10 @@ function SettingsPanel() {
                             // Use pack.name as fallback if pack.id is undefined
                             const packKey = pack.id || pack.name;
                             const isExpanded = expandedPackId === packKey;
-                            const lumiaItems = pack.items?.filter(item => item.lumiaDefName) || [];
+                            // Support both new format (lumiaItems) and legacy format (items)
+                            const lumiaItems = pack.lumiaItems?.length > 0
+                                ? pack.lumiaItems
+                                : (pack.items?.filter(item => item.lumiaDefName) || []);
 
                             return (
                                 <motion.div
@@ -1231,13 +1244,17 @@ function SettingsPanel() {
                     <div className="lumia-downloaded-packs">
                         {packs.map((pack) => {
                             const packName = pack.name || pack.packName || 'Unknown Pack';
-                            const lumiaItems = pack.items?.filter(item => item.lumiaDefName && item.lumiaDef) || [];
+                            // Support both new format (lumiaItems) and legacy format (items)
+                            const lumiaItems = pack.lumiaItems?.length > 0
+                                ? pack.lumiaItems
+                                : (pack.items?.filter(item => item.lumiaDefName && item.lumiaDef) || []);
+                            const coverUrl = pack.coverUrl || pack.packCover;
 
                             return (
                                 <div key={packName} className="lumia-downloaded-pack-item">
-                                    {pack.packCover ? (
+                                    {coverUrl ? (
                                         <img
-                                            src={pack.packCover}
+                                            src={coverUrl}
                                             alt={packName}
                                             className="lumia-downloaded-pack-cover"
                                         />

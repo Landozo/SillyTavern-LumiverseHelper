@@ -119,8 +119,13 @@ function PackSelectorModal({ onSelect, onClose }) {
         setExpandedPackName(name);
     }, [newPackName, newPackAuthor, newPackCover, allPacks, actions]);
 
-    // Get Lumia items from a pack
+    // Get Lumia items from a pack - supports both new and legacy formats
     const getLumiaItems = (pack) => {
+        // New format: lumiaItems array
+        if (pack.lumiaItems && pack.lumiaItems.length > 0) {
+            return pack.lumiaItems;
+        }
+        // Legacy format: items array
         if (!pack.items) return [];
         return pack.items.filter(item => item.lumiaDefName);
     };
