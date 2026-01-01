@@ -3584,6 +3584,13 @@ details.lumia-panel[open] .lumia-panel-chevron {
   letter-spacing: 0.1px;
 }
 
+.lucid-dlc-card-counts {
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(147, 112, 219, 0.5);
+  margin-top: 2px;
+}
+
 /* Loom Items List */
 .lucid-loom-list {
   display: flex;
@@ -3770,6 +3777,10 @@ details.lumia-panel[open] .lumia-panel-chevron {
 
   .lucid-dlc-card-author {
     font-size: 11px;
+  }
+
+  .lucid-dlc-card-counts {
+    font-size: 10px;
   }
 
   .lucid-dlc-card-placeholder svg {

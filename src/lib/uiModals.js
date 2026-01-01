@@ -2223,9 +2223,11 @@ export async function showLucidCardsModal() {
   };
 
   // Render content based on current category
-  // New API format: packs have packName, coverUrl, packAuthor directly
+  // New API format: flat packs array with packType field ("lumia" or "loom")
   const renderContent = () => {
-    if (!cachedData || !cachedData.categories) {
+    // New API returns { success, packs: [...], authors, stats }
+    const allPacks = cachedData?.packs || [];
+    if (!cachedData || allPacks.length === 0) {
       $modal.find(".lucid-cards-loading").hide();
       $modal.find(".lucid-cards-error-message").text("No content available");
       $modal.find(".lucid-cards-error").show();
@@ -2238,31 +2240,22 @@ export async function showLucidCardsModal() {
     const $content = $modal.find(".lucid-cards-content");
     $content.empty();
 
-    // Find the category - use flexible matching since API names may vary
-    // Map tab categories to possible API category names
-    const categoryNameMap = {
-      "Lumia DLCs": ["Lumia DLCs", "Lumia", "DLCs", "Lumia Packs", "lumia"],
-      "Loom Utilities": ["Loom Utilities", "Utilities", "Loom Utils", "utilities"],
-      "Loom Retrofits": ["Loom Retrofits", "Retrofits", "Retrofit", "retrofits"],
-      "Loom Narratives": ["Loom Narratives", "Narratives", "Narrative Styles", "Narrative", "narratives", "styles"],
-    };
-
-    const possibleNames = categoryNameMap[currentCategory] || [currentCategory];
-    const category = cachedData.categories.find((c) => {
-      const catDisplayName = c.displayName || "";
-      const catName = c.name || "";
-      return possibleNames.some(
-        (name) =>
-          catDisplayName.toLowerCase() === name.toLowerCase() ||
-          catName.toLowerCase() === name.toLowerCase() ||
-          catDisplayName.toLowerCase().includes(name.toLowerCase()) ||
-          catName.toLowerCase().includes(name.toLowerCase())
+    // Filter packs by packType based on current tab
+    // "Lumia DLCs" -> packType "lumia" or packs with lumiaCount > 0
+    // "Loom Utilities/Retrofits/Narratives" -> packType "loom" or packs with loomCount > 0
+    let filteredPacks;
+    if (currentCategory === "Lumia DLCs") {
+      filteredPacks = allPacks.filter(p =>
+        p.packType === "lumia" || (p.lumiaCount && p.lumiaCount > 0)
       );
-    });
+    } else {
+      // All loom categories show loom-type packs
+      filteredPacks = allPacks.filter(p =>
+        p.packType === "loom" || (p.loomCount && p.loomCount > 0)
+      );
+    }
 
-    // Support both "books" (old) and "packs" (new) array names
-    const items = category?.packs || category?.books || [];
-    if (!category || items.length === 0) {
+    if (filteredPacks.length === 0) {
       $content.html(
         '<div class="lucid-cards-empty">No items available in this category.</div>',
       );
@@ -2271,19 +2264,25 @@ export async function showLucidCardsModal() {
     }
 
     // Use unified card grid layout for all categories
-    // New format: pack has packName, coverUrl, packAuthor, downloadPath
-    // Old format: book has prettyName, path
-    const cardsHtml = items
-      .map((item) => {
-        // Support both old and new formats
-        const name = item.packName || item.prettyName || "Unknown";
+    // Pack has: packName, coverUrl, packAuthor, slug, lumiaCount, loomCount
+    const cardsHtml = filteredPacks
+      .map((pack) => {
+        const name = pack.packName || "Unknown";
         const escapedName = escapeHtml(name);
-        const downloadPath = item.downloadPath || item.path || "";
+        // Use slug for download path: /api/lumia-dlc/{slug}
+        const downloadPath = pack.slug ? `/api/lumia-dlc/${pack.slug}` : "";
         const escapedPath = escapeHtml(downloadPath);
-        const coverUrl = item.coverUrl || null;
-        const authorName = item.packAuthor || item.authorName || null;
+        const coverUrl = pack.coverUrl || null;
+        const authorName = pack.packAuthor || null;
 
-        // If we have cover/author data, render directly; otherwise show placeholder
+        // Build item count display
+        const counts = [];
+        if (pack.lumiaCount > 0) counts.push(`${pack.lumiaCount} Lumia`);
+        if (pack.loomCount > 0) counts.push(`${pack.loomCount} Loom`);
+        if (pack.extrasCount > 0) counts.push(`${pack.extrasCount} Extra`);
+        const countText = counts.length > 0 ? counts.join(", ") : "";
+
+        // Render cover image or placeholder
         const imageHtml = coverUrl
           ? `<img src="${escapeHtml(coverUrl)}" alt="" loading="lazy" class="lumia-img-loaded">`
           : `<div class="lucid-dlc-card-placeholder">
@@ -2294,9 +2293,7 @@ export async function showLucidCardsModal() {
                 </svg>
             </div>`;
 
-        const authorHtml = authorName
-          ? escapeHtml(authorName)
-          : (item.path ? "Loading..." : "Unknown Author");
+        const authorHtml = authorName ? escapeHtml(authorName) : "Unknown Author";
 
         return `
                   <div class="lucid-dlc-card" data-path="${escapedPath}" data-name="${escapedName}"
@@ -2307,6 +2304,7 @@ export async function showLucidCardsModal() {
                       <div class="lucid-dlc-card-info">
                           <div class="lucid-dlc-card-title">${escapedName}</div>
                           <div class="lucid-dlc-card-author">${authorHtml}</div>
+                          ${countText ? `<div class="lucid-dlc-card-counts">${escapeHtml(countText)}</div>` : ""}
                       </div>
                   </div>
               `;
@@ -2314,15 +2312,6 @@ export async function showLucidCardsModal() {
       .join("");
 
     $content.html(`<div class="lucid-dlc-grid">${cardsHtml}</div>`);
-
-    // Only fetch metadata for old-format items that don't have cover/author
-    items.forEach((item) => {
-      const needsMetadata = !item.coverUrl && !item.packAuthor && item.path;
-      if (needsMetadata) {
-        fetchBookMetadata(item.path, $content);
-      }
-    });
-
     $content.show();
 
     // Deselect when switching categories
@@ -2478,9 +2467,17 @@ export async function showLucidCardsModal() {
 
       const data = await response.json();
 
+      // New API wraps pack data in { success, pack: {...}, slug, downloadUrl }
+      if (data.success === false) {
+        throw new Error(data.error || "Failed to fetch pack");
+      }
+
+      // Extract the pack data from the response wrapper
+      const packData = data.pack || data;
+
       // Use importPack for native format, falls back to handleNewBook for old format
       const { importPack } = await import("./dataProcessor.js");
-      importPack(data, selectedBook.name, true);
+      importPack(packData, selectedBook.name, true);
 
       toastr.success(`Successfully imported "${selectedBook.name}"!`);
 
