@@ -8,6 +8,29 @@ import clsx from 'clsx';
 import { Search, X, Package, FileText, Zap, Heart, ChevronDown, Sparkles, Check, Eye, Filter } from 'lucide-react';
 
 /**
+ * Get a Lumia field with fallback for old/new format
+ */
+function getLumiaField(item, field) {
+    if (!item) return null;
+    const fieldMap = {
+        name: ['lumiaName', 'lumiaDefName'],
+        def: ['lumiaDefinition', 'lumiaDef'],
+        personality: ['lumiaPersonality', 'lumia_personality'],
+        behavior: ['lumiaBehavior', 'lumia_behavior'],
+        img: ['avatarUrl', 'lumia_img'],
+        author: ['authorName', 'defAuthor'],
+    };
+    const fields = fieldMap[field];
+    if (!fields) return null;
+    for (const fieldName of fields) {
+        if (item[fieldName] !== undefined && item[fieldName] !== null) {
+            return item[fieldName];
+        }
+    }
+    return null;
+}
+
+/**
  * Search input component
  */
 function SearchInput({ value, onChange, placeholder }) {
@@ -150,7 +173,7 @@ function PackHeader({ pack, isExpanded, onToggle, onViewPack, itemCount }) {
 
 /**
  * Lumia item card
- * OLD CODE FIELD NAMES: lumiaDefName, lumia_img, lumiaDef
+ * Supports both new format (lumiaName, avatarUrl, etc.) and legacy format (lumiaDefName, lumia_img, etc.)
  */
 function LumiaItemCard({ item, type, onSelect, isSelected }) {
     const typeInfo = {
@@ -159,21 +182,27 @@ function LumiaItemCard({ item, type, onSelect, isSelected }) {
         personality: { Icon: Heart, color: 'rgba(200, 100, 255, 0.15)', border: 'rgba(200, 100, 255, 0.3)', selectedBorder: 'rgba(200, 100, 255, 0.7)' },
     };
 
+    // Get field values with fallback for old/new format
+    const itemImg = getLumiaField(item, 'img');
+    const itemName = getLumiaField(item, 'name') || 'Unknown';
+
     // Adaptive image positioning based on aspect ratio
-    const { objectPosition } = useAdaptiveImagePosition(item.lumia_img);
+    const { objectPosition } = useAdaptiveImagePosition(itemImg);
 
     const info = typeInfo[type] || typeInfo.definition;
     const { Icon } = info;
-    // OLD CODE: uses lumiaDefName, not name
-    const name = item.lumiaDefName || 'Unknown';
-    // Get content preview based on type
+
+    // Get content preview based on type - supports both formats
     const getContentPreview = () => {
-        if (type === 'definition' && item.lumiaDef) {
-            return item.lumiaDef.slice(0, 100);
-        } else if (type === 'behavior' && item.lumia_behavior) {
-            return item.lumia_behavior.slice(0, 100);
-        } else if (type === 'personality' && item.lumia_personality) {
-            return item.lumia_personality.slice(0, 100);
+        if (type === 'definition') {
+            const def = getLumiaField(item, 'def');
+            return def ? def.slice(0, 100) : '';
+        } else if (type === 'behavior') {
+            const beh = getLumiaField(item, 'behavior');
+            return beh ? beh.slice(0, 100) : '';
+        } else if (type === 'personality') {
+            const pers = getLumiaField(item, 'personality');
+            return pers ? pers.slice(0, 100) : '';
         }
         return '';
     };
@@ -192,11 +221,10 @@ function LumiaItemCard({ item, type, onSelect, isSelected }) {
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
         >
-            {/* OLD CODE: uses lumia_img, not itemImage */}
-            {item.lumia_img && (
+            {itemImg && (
                 <img
-                    src={item.lumia_img}
-                    alt={name}
+                    src={itemImg}
+                    alt={itemName}
                     className="lumiverse-browser-item-image"
                     style={{ objectPosition }}
                 />
@@ -206,7 +234,7 @@ function LumiaItemCard({ item, type, onSelect, isSelected }) {
                     <span className="lumiverse-browser-item-icon">
                         <Icon size={14} strokeWidth={1.5} />
                     </span>
-                    <span className="lumiverse-browser-item-name">{name}</span>
+                    <span className="lumiverse-browser-item-name">{itemName}</span>
                     {isSelected && (
                         <span className="lumiverse-browser-item-check">
                             <Check size={14} strokeWidth={2.5} />
@@ -223,9 +251,10 @@ function LumiaItemCard({ item, type, onSelect, isSelected }) {
 
 /**
  * Check if an item is selected based on type and selections
+ * Supports both new and legacy field names
  */
 function isItemSelected(item, type, selections) {
-    const itemName = item.lumiaDefName;
+    const itemName = getLumiaField(item, 'name');
     const packName = item.packName;
 
     if (type === 'definition') {
@@ -391,15 +420,14 @@ function PackSection({ pack, filter, searchQuery, showSelectedOnly, onSelectItem
             items = items.filter(item => item.type === filter);
         }
 
-        // Apply search filter
-        // OLD CODE: uses lumiaDefName, lumiaDef, lumia_behavior, lumia_personality
+        // Apply search filter - supports both new and legacy field names
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             items = items.filter(item => {
-                const name = (item.lumiaDefName || '').toLowerCase();
-                const def = (item.lumiaDef || '').toLowerCase();
-                const beh = (item.lumia_behavior || '').toLowerCase();
-                const per = (item.lumia_personality || '').toLowerCase();
+                const name = (getLumiaField(item, 'name') || '').toLowerCase();
+                const def = (getLumiaField(item, 'def') || '').toLowerCase();
+                const beh = (getLumiaField(item, 'behavior') || '').toLowerCase();
+                const per = (getLumiaField(item, 'personality') || '').toLowerCase();
                 return name.includes(query) || def.includes(query) || beh.includes(query) || per.includes(query);
             });
         }
@@ -527,10 +555,10 @@ function PackBrowser() {
         // Handle item selection - could open a detail modal or add to selections
         console.log('[PackBrowser] Selected item:', item, type);
 
-        // OLD CODE FORMAT: selections are { packName, itemName }
+        // Selections use itemName - get from both new and legacy field names
         const selection = {
             packName: item.packName,
-            itemName: item.lumiaDefName,
+            itemName: getLumiaField(item, 'name'),
         };
 
         // Depending on type, toggle selection

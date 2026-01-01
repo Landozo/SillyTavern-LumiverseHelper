@@ -394,10 +394,10 @@ function CouncilManager() {
         saveToExtension();
     }, [actions]);
 
-    // Build packs object for lookups
+    // Build packs object for lookups - support both name and packName
     const packsObj = useMemo(() => {
         if (Array.isArray(allPacks)) {
-            return allPacks.reduce((acc, p) => ({ ...acc, [p.name]: p }), {});
+            return allPacks.reduce((acc, p) => ({ ...acc, [p.name || p.packName]: p }), {});
         }
         return allPacks || {};
     }, [allPacks]);

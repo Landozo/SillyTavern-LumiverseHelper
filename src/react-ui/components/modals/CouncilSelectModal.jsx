@@ -63,15 +63,36 @@ function getLumiaImage(packs, packName, itemName) {
 }
 
 /**
+ * Get a Lumia field with fallback for old/new format
+ */
+function getLumiaFieldLocal(item, field) {
+    if (!item) return null;
+    const fieldMap = {
+        name: ['lumiaName', 'lumiaDefName'],
+        def: ['lumiaDefinition', 'lumiaDef'],
+        img: ['avatarUrl', 'lumia_img'],
+    };
+    const fields = fieldMap[field];
+    if (!fields) return null;
+    for (const fieldName of fields) {
+        if (item[fieldName] !== undefined && item[fieldName] !== null) {
+            return item[fieldName];
+        }
+    }
+    return null;
+}
+
+/**
  * Card for a selectable Lumia (not yet in council)
+ * Supports both new and legacy field names
  */
 function SelectableLumiaCard({ item, packName, onAdd, animationIndex }) {
-    const { objectPosition } = useAdaptiveImagePosition(item.lumia_img);
+    const itemImg = getLumiaFieldLocal(item, 'img');
+    const itemName = getLumiaFieldLocal(item, 'name') || 'Unknown';
+
+    const { objectPosition } = useAdaptiveImagePosition(itemImg);
     const [imageLoaded, setImageLoaded] = useState(false);
     const [imageError, setImageError] = useState(false);
-
-    const displayName = item.lumiaDefName || 'Unknown';
-    const imgToShow = item.lumia_img;
 
     // Staggered animation delay
     const animationDelay = Math.min(animationIndex * 30, 300);
@@ -81,14 +102,14 @@ function SelectableLumiaCard({ item, packName, onAdd, animationIndex }) {
             type="button"
             className="lumiverse-council-select-card lumia-card-appear"
             style={{ animationDelay: `${animationDelay}ms` }}
-            onClick={() => onAdd({ packName, itemName: item.lumiaDefName })}
+            onClick={() => onAdd({ packName, itemName })}
         >
             <div className="lumiverse-council-select-card-image">
-                {imgToShow && !imageError ? (
+                {itemImg && !imageError ? (
                     <>
                         <img
-                            src={imgToShow}
-                            alt={displayName}
+                            src={itemImg}
+                            alt={itemName}
                             loading="lazy"
                             className={imageLoaded ? 'lumia-img-loaded' : ''}
                             style={{ objectPosition }}
@@ -107,7 +128,7 @@ function SelectableLumiaCard({ item, packName, onAdd, animationIndex }) {
                 </div>
             </div>
             <div className="lumiverse-council-select-card-info">
-                <span className="lumiverse-council-select-card-name">{displayName}</span>
+                <span className="lumiverse-council-select-card-name">{itemName}</span>
                 <span className="lumiverse-council-select-card-pack">{packName}</span>
             </div>
         </button>
@@ -277,10 +298,10 @@ function CouncilSelectModal({ onClose }) {
         selectCouncilMembers
     );
 
-    // Build packs object for lookups
+    // Build packs object for lookups - support both name and packName
     const packsObj = useMemo(() => {
         if (Array.isArray(allPacks)) {
-            return allPacks.reduce((acc, p) => ({ ...acc, [p.name]: p }), {});
+            return allPacks.reduce((acc, p) => ({ ...acc, [p.name || p.packName]: p }), {});
         }
         return allPacks || {};
     }, [allPacks]);
@@ -317,13 +338,14 @@ function CouncilSelectModal({ onClose }) {
             }
         });
 
-        // Filter by search term
+        // Filter by search term - supports both new and legacy field names
         if (searchTerm.trim()) {
             const term = searchTerm.toLowerCase();
-            return items.filter(({ item, packName }) =>
-                item.lumiaDefName.toLowerCase().includes(term) ||
-                packName.toLowerCase().includes(term)
-            );
+            return items.filter(({ item, packName }) => {
+                const itemName = getLumiaFieldLocal(item, 'name') || '';
+                return itemName.toLowerCase().includes(term) ||
+                    packName.toLowerCase().includes(term);
+            });
         }
 
         return items;
@@ -414,7 +436,7 @@ function CouncilSelectModal({ onClose }) {
                         <div className="lumiverse-council-select-grid">
                             {availableItems.map(({ item, packName }, index) => (
                                 <SelectableLumiaCard
-                                    key={`${packName}:${item.lumiaDefName}`}
+                                    key={`${packName}:${getLumiaFieldLocal(item, 'name')}`}
                                     item={item}
                                     packName={packName}
                                     onAdd={handleAddMember}
