@@ -10,6 +10,12 @@ import {
   LOOM_SUMMARY_KEY,
   getLumiaConfigVersion,
 } from "./settingsManager.js";
+import {
+  getUserName,
+  getCharacterName,
+  isGroupChat,
+  getGroupMemberNames,
+} from "./loomSystem.js";
 
 // Metadata key for tracking last summarized message count
 export const LOOM_LAST_SUMMARIZED_KEY = "loom_last_summarized_at";
@@ -370,6 +376,21 @@ export function buildSummarizationPrompt(messageContext) {
   // Get existing summary if any
   const existingSummary = context.chatMetadata?.[LOOM_SUMMARY_KEY] || "";
 
+  // Get names from context (avoid nested macros)
+  const userName = getUserName();
+  const inGroup = isGroupChat();
+  const charName = getCharacterName();
+  const groupMembers = inGroup ? getGroupMemberNames() : [];
+
+  // Build relationship description based on chat type
+  let relationshipDesc;
+  if (inGroup) {
+    const memberList = groupMembers.length > 0 ? groupMembers.join(", ") : "group members";
+    relationshipDesc = `Track evolving dynamics between characters (${memberList}) and between characters and ${userName}. Trust, tension, affection, rivalry. (NEVER track ${userName}'s internal state—only how characters perceive or relate to them.)`;
+  } else {
+    relationshipDesc = `Track evolving dynamics between ${charName} and ${userName}, as well as any NPCs. Trust, tension, affection, rivalry. (NEVER track ${userName}'s internal state—only how characters perceive or relate to them.)`;
+  }
+
   // Build conversation text
   let conversationText = "";
   recentMessages.forEach((msg) => {
@@ -388,35 +409,52 @@ export function buildSummarizationPrompt(messageContext) {
 
 Your summary MUST use this exact structured format with clear headers:
 
-**Completed Objectives**
+**Completed Objectives** (MAX 7 items)
 Story beats and arcs that have already concluded. Plot points resolved, conflicts addressed, milestones reached.
 
-**Focused Objectives**
+**Focused Objectives** (MAX 5 items)
 Active story threads requiring attention. These can shift or be deviated from at any time but represent current narrative focus.
 
-**Foreshadowing Beats**
+**Foreshadowing Beats** (MAX 5 items)
 Events hinted at or seeded in recent story beats. Potential future complications, promises made, warnings given.
 
-**Character Developments**
-Track meaningful changes in personality, beliefs, skills, or emotional state for each character (NEVER the {{user}}).
+**Character Developments** (MAX 7 items total)
+Track meaningful changes in personality, beliefs, skills, or emotional state for each character (NEVER ${userName}).
 
-**Memorable Actions**
+**Memorable Actions** (MAX 7 items)
 Physical actions of significance—combat moves, gestures, gifts exchanged, locations visited. Details that may matter later.
 
-**Memorable Dialogues**
+**Memorable Dialogues** (MAX 5 items)
 Words that left a mark. Confessions, promises, threats, revelations, or simply beautiful turns of phrase.
 
-**Relationships**
-Track evolving dynamics between characters and between characters and {{user}}. Trust, tension, affection, rivalry. (NEVER track {{user}}'s internal state—only how characters perceive or relate to them.)
+**Relationships** (MAX 5 items)
+${relationshipDesc}
 
 CRITICAL GUIDELINES:
 - Use bullet points under each header for clarity—avoid walls of text
 - Be precise and detailed, never sacrifice important information
 - Be concise, never pad with redundant or obvious observations
 - If a category has no relevant content, write "None at present" rather than inventing filler
-- NEVER track or summarize {{user}}'s thoughts, feelings, or internal state`;
+- NEVER track or summarize ${userName}'s thoughts, feelings, or internal state
+- RESPECT ITEM LIMITS: Each category has a maximum item count. When at capacity, remove the oldest or least relevant item to make room for new ones
+- PRESERVE IMPORTANT HISTORY: When removing items, prioritize keeping entries that have ongoing narrative relevance (active plot threads, unresolved tensions, recurring themes)
+- CONSOLIDATE when possible: Combine related items into single, more comprehensive bullet points rather than having many fragmented entries`;
 
-  const userPrompt = `${existingSummary ? `Previous Loom Summary to build upon:\n${existingSummary}\n\n---\n\n` : ""}Recent story events to weave into the summary:
+  const userPrompt = `${existingSummary ? `**PREVIOUS LOOM SUMMARY** (use this as your foundation—do NOT discard important information):
+${existingSummary}
+
+---
+
+**MERGE INSTRUCTIONS:**
+- Start with ALL existing entries from the previous summary
+- Add new developments from the recent events below
+- When a category exceeds its item limit, consolidate related items or remove the least narratively relevant
+- NEVER silently drop items that still have ongoing relevance (active conflicts, unresolved threads, important relationships)
+- If an item from the previous summary is still relevant but needs updating, modify it rather than removing it
+
+---
+
+` : ""}**RECENT STORY EVENTS** to weave into the summary:
 
 ${conversationText}
 
