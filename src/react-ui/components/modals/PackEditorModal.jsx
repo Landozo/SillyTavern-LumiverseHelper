@@ -123,9 +123,10 @@ function generateNativePackJson(pack) {
             }));
     }
 
-    // Get loomItems - support both new format and legacy format
+    // Get loomItems - support both new format (loomItems) and legacy format (items with loomCategory)
     let loomItems = [];
     if (pack.loomItems && pack.loomItems.length > 0) {
+        // Already in new format
         loomItems = pack.loomItems.map(item => ({
             loomName: item.loomName || item.name || 'Unknown',
             loomContent: item.loomContent || item.content || '',
@@ -133,6 +134,17 @@ function generateNativePackJson(pack) {
             authorName: item.authorName || packAuthor || null,
             version: item.version || 1,
         }));
+    } else if (pack.items && pack.items.length > 0) {
+        // Convert from legacy format - Loom items have loomCategory or loomName (and lack lumiaDefName/lumiaDef)
+        loomItems = pack.items
+            .filter(item => (item.loomCategory || item.loomName) && !item.lumiaDefName && !item.lumiaDef)
+            .map(item => ({
+                loomName: item.loomName || item.name || 'Unknown',
+                loomContent: item.loomContent || item.content || '',
+                loomCategory: item.loomCategory || item.category || 'Loom Utilities',
+                authorName: item.authorName || packAuthor || null,
+                version: item.version || 1,
+            }));
     }
 
     return {
@@ -187,7 +199,20 @@ function getLumiaCount(pack) {
         return pack.lumiaItems.length;
     }
     if (pack.items && pack.items.length > 0) {
-        return pack.items.filter(item => item.lumiaDefName || item.lumiaName).length;
+        return pack.items.filter(item => item.lumiaDefName || item.lumiaName || item.lumiaDef).length;
+    }
+    return 0;
+}
+
+/**
+ * Helper to get Loom items count (v2: loomItems, v1: items with loomCategory)
+ */
+function getLoomCount(pack) {
+    if (pack.loomItems && pack.loomItems.length > 0) {
+        return pack.loomItems.length;
+    }
+    if (pack.items && pack.items.length > 0) {
+        return pack.items.filter(item => (item.loomCategory || item.loomName) && !item.lumiaDefName && !item.lumiaDef).length;
     }
     return 0;
 }
@@ -326,8 +351,9 @@ function PackEditorModal({ packId, onClose }) {
         onClose();
     };
 
-    // Get Lumia count using helper function
+    // Get item counts using helper functions
     const lumiaCount = getLumiaCount(pack);
+    const loomCount = getLoomCount(pack);
 
     return (
         <div className="lumiverse-pack-editor-modal">
@@ -370,15 +396,15 @@ function PackEditorModal({ packId, onClose }) {
                     </FormField>
                 </div>
 
-                {/* Lumia Management Section */}
+                {/* Pack Contents Section */}
                 <div className="lumiverse-pack-lumias-info">
                     <div className="lumiverse-pack-lumias-header">
                         <span className="lumiverse-pack-lumias-count">
-                            {lumiaCount} Lumia{lumiaCount !== 1 ? 's' : ''} in this pack
+                            {lumiaCount} Lumia{lumiaCount !== 1 ? 's' : ''}{loomCount > 0 ? `, ${loomCount} Loom item${loomCount !== 1 ? 's' : ''}` : ''} in this pack
                         </span>
                     </div>
                     <p className="lumiverse-pack-lumias-hint">
-                        Use the Pack Selector to add, edit, or remove individual Lumias.
+                        Use the Pack Selector to add, edit, or remove individual items.
                     </p>
                     <button
                         className="lumiverse-btn lumiverse-btn--secondary lumiverse-btn--full"
