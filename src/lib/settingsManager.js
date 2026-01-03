@@ -322,15 +322,25 @@ export function migrateSettings() {
     migrated = true;
   }
 
-  // Fix isCustom flag for packs that were saved before the fix
-  // Packs without a URL should always be marked as custom (user uploads)
+  // Fix isCustom flag for packs based on URL presence
+  // Packs WITH a URL are from external sources (not custom/editable)
+  // Packs WITHOUT a URL are user uploads (custom/editable)
   for (const packName in settings.packs) {
     const pack = settings.packs[packName];
-    // If pack has no URL or empty URL, it's a user upload - mark as custom
-    if (!pack.url && pack.isCustom !== true) {
-      console.log(`[${MODULE_NAME}] Fixing isCustom flag for pack: ${packName}`);
-      pack.isCustom = true;
-      migrated = true;
+    if (pack.url) {
+      // Has URL = external source = not custom
+      if (pack.isCustom === true) {
+        console.log(`[${MODULE_NAME}] Fixing isCustom flag for URL pack: ${packName}`);
+        pack.isCustom = false;
+        migrated = true;
+      }
+    } else {
+      // No URL = user upload = custom
+      if (pack.isCustom !== true) {
+        console.log(`[${MODULE_NAME}] Fixing isCustom flag for local pack: ${packName}`);
+        pack.isCustom = true;
+        migrated = true;
+      }
     }
   }
 

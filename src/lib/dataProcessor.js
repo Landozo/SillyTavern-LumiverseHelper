@@ -310,8 +310,8 @@ export function handleNewBook(data, sourceName, isURL = false) {
     packExtras: [],
     lumiaItems,
     loomItems,
-    // Internal tracking - user-uploaded content is always custom
-    isCustom: true,
+    // Internal tracking - local uploads are custom (editable), URL imports are not
+    isCustom: !isURL,
     url: isURL ? sourceName : "",
   };
 
@@ -384,8 +384,8 @@ export function importPack(data, sourceName, isURL = false) {
       packExtras: data.packExtras || [],
       lumiaItems: data.lumiaItems || [],
       loomItems: data.loomItems || [],
-      // Internal tracking - user-uploaded content is always custom
-      isCustom: true,
+      // Internal tracking - local uploads are custom (editable), URL imports are not
+      isCustom: !isURL,
       url: isURL ? sourceName : "",
     };
 

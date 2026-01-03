@@ -1316,7 +1316,13 @@ export function usePacks() {
             if (Array.isArray(packsRaw)) {
                 packsArray = packsRaw;
             } else if (typeof packsRaw === 'object') {
-                packsArray = Object.values(packsRaw);
+                // When converting from object, use the key as the pack name
+                // This ensures pack.name is always available even if packName differs
+                packsArray = Object.entries(packsRaw).map(([key, pack]) => ({
+                    ...pack,
+                    // Ensure name field is set (use key if not already set)
+                    name: pack.name || pack.packName || key,
+                }));
             }
         }
 
