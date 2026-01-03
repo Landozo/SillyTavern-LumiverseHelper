@@ -1344,13 +1344,25 @@ function SettingsPanel() {
                             let utilities = pack.loomUtils?.length || 0;
                             let retrofits = pack.loomRetrofits?.length || 0;
 
-                            // Also check items array
+                            // Helper to count by category
+                            const countByCategory = (item) => {
+                                const cat = item.loomCategory || item.category;
+                                if (cat === 'Narrative Style' || cat === 'loomStyles') styles++;
+                                else if (cat === 'Loom Utilities' || cat === 'loomUtils') utilities++;
+                                else if (cat === 'Retrofits' || cat === 'loomRetrofits') retrofits++;
+                            };
+
+                            // v2 schema: loomItems array
+                            if (pack.loomItems) {
+                                pack.loomItems.forEach(countByCategory);
+                            }
+
+                            // Legacy: mixed items array with loomCategory
                             if (pack.items) {
                                 pack.items.forEach(item => {
-                                    const cat = item.loomCategory || item.category;
-                                    if (cat === 'Narrative Style' || cat === 'loomStyles') styles++;
-                                    else if (cat === 'Loom Utilities' || cat === 'loomUtils') utilities++;
-                                    else if (cat === 'Retrofits' || cat === 'loomRetrofits') retrofits++;
+                                    if (item.loomCategory || item.category) {
+                                        countByCategory(item);
+                                    }
                                 });
                             }
 

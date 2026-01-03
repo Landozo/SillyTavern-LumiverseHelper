@@ -193,6 +193,10 @@ function CategorySection({ category, items, packName, selections, actions }) {
 
 /**
  * Helper to get Loom items from a pack, grouped by category
+ * Supports multiple schema formats:
+ * - v2 schema: pack.loomItems[] with loomCategory field
+ * - Legacy separate arrays: pack.loomStyles, pack.loomUtils, pack.loomRetrofits
+ * - Legacy mixed items: pack.items[] with loomCategory field
  */
 function getLoomItemsByCategory(pack) {
     const categories = {
@@ -201,7 +205,24 @@ function getLoomItemsByCategory(pack) {
         'Retrofits': [],
     };
 
-    // Check legacy structure
+    // Helper to categorize a loom item
+    const categorizeItem = (item) => {
+        const cat = item.loomCategory || item.category;
+        if (cat === 'Narrative Style' || cat === 'loomStyles') {
+            categories['Narrative Style'].push(item);
+        } else if (cat === 'Loom Utilities' || cat === 'loomUtils') {
+            categories['Loom Utilities'].push(item);
+        } else if (cat === 'Retrofits' || cat === 'loomRetrofits') {
+            categories['Retrofits'].push(item);
+        }
+    };
+
+    // v2 schema: separate loomItems array
+    if (pack.loomItems && Array.isArray(pack.loomItems)) {
+        pack.loomItems.forEach(categorizeItem);
+    }
+
+    // Legacy separate arrays
     if (pack.loomStyles && Array.isArray(pack.loomStyles)) {
         categories['Narrative Style'].push(...pack.loomStyles);
     }
@@ -212,16 +233,12 @@ function getLoomItemsByCategory(pack) {
         categories['Retrofits'].push(...pack.loomRetrofits);
     }
 
-    // Check items array with loomCategory
+    // Legacy mixed items array (check for loomCategory to identify loom items)
     if (pack.items && Array.isArray(pack.items)) {
         pack.items.forEach(item => {
-            const cat = item.loomCategory || item.category;
-            if (cat === 'Narrative Style' || cat === 'loomStyles') {
-                categories['Narrative Style'].push(item);
-            } else if (cat === 'Loom Utilities' || cat === 'loomUtils') {
-                categories['Loom Utilities'].push(item);
-            } else if (cat === 'Retrofits' || cat === 'loomRetrofits') {
-                categories['Retrofits'].push(item);
+            // Only process items that have a loomCategory (i.e., are loom items, not lumia items)
+            if (item.loomCategory || item.category) {
+                categorizeItem(item);
             }
         });
     }
